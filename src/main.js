@@ -12,6 +12,7 @@ const TORNEO_ID = 'ad58a855-fa74-4c2e-825e-32c20f972136';
 
 const app = document.getElementById('app');
 const posicionesDiv = document.getElementById('posiciones');
+const copasDiv = document.getElementById('copas');
 
 /* =========================
    PARTIDOS PENDIENTES
@@ -40,11 +41,11 @@ async function cargarPartidosPendientes() {
   renderPartidos(data);
 }
 
-function renderPartidos(partidos) {
-  app.innerHTML = '';
+function renderPartidos(partidos, container = app) {
+  container.innerHTML = '';
 
   if (partidos.length === 0) {
-    app.innerHTML = '<p>No hay partidos pendientes 🎉</p>';
+    container.innerHTML = '<p>No hay partidos pendientes 🎉</p>';
     return;
   }
 
@@ -90,7 +91,7 @@ function renderPartidos(partidos) {
       await guardarResultado(p.id, gamesA, gamesB);
     });
 
-    app.appendChild(div);
+    container.appendChild(div);
   });
 }
 
@@ -108,6 +109,7 @@ async function guardarResultado(partidoId, gamesA, gamesB) {
 
   await cargarPartidosPendientes();
   await cargarPosiciones();
+  await renderCopas();
 }
 
 /* =========================
@@ -233,10 +235,72 @@ async function cargarPosiciones() {
 
   renderPosiciones(calcularPosiciones(data));
 }
+async function cargarCopas() {
+  const { data, error } = await supabase
+    .from('copas')
+    .select('id, nombre, orden')
+    .eq('torneo_id', TORNEO_ID)
+    .order('orden');
+
+  if (error) {
+    console.error('Error cargando copas', error);
+    return [];
+  }
+
+  return data;
+}
+async function cargarPartidosCopa(copaId) {
+  const { data, error } = await supabase
+    .from('partidos')
+    .select(`
+      id,
+      grupos ( nombre ),
+      pareja_a:parejas!partidos_pareja_a_id_fkey ( nombre ),
+      pareja_b:parejas!partidos_pareja_b_id_fkey ( nombre )
+    `)
+    .eq('torneo_id', TORNEO_ID)
+    .eq('copa_id', copaId)
+    .is('games_a', null);
+
+  if (error) {
+    console.error('Error cargando partidos de copa', error);
+    return [];
+  }
+
+  return data;
+}
+async function renderCopas() {
+  copasDiv.innerHTML = '';
+  const copas = await cargarCopas();
+
+  for (let i = 0; i < copas.length; i++) {
+    const copa = copas[i];
+    const nombreMostrado = copa.nombre ?? `Copa ${i + 1}`;
+
+    const h3 = document.createElement('h3');
+    h3.innerText = `🏆 ${nombreMostrado}`;
+    copasDiv.appendChild(h3);
+
+    const partidos = await cargarPartidosCopa(copa.id);
+
+    if (partidos.length === 0) {
+      const p = document.createElement('p');
+      p.innerText = 'No hay partidos pendientes';
+      copasDiv.appendChild(p);
+      continue;
+    }
+
+    const cont = document.createElement('div');
+    copasDiv.appendChild(cont);
+
+    renderPartidos(partidos, cont);
+  }
+}
+
 
 /* =========================
    INIT
 ========================= */
-
 cargarPartidosPendientes();
 cargarPosiciones();
+renderCopas();
