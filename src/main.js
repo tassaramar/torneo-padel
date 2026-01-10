@@ -37,6 +37,11 @@ async function cargarPartidosPendientes() {
 function renderPartidos(partidos) {
   app.innerHTML = '';
 
+  if (partidos.length === 0) {
+    app.innerHTML = '<p>No hay partidos pendientes 🎉</p>';
+    return;
+  }
+
   partidos.forEach(p => {
     const div = document.createElement('div');
     div.className = 'partido pendiente';
@@ -44,10 +49,58 @@ function renderPartidos(partidos) {
     div.innerHTML = `
       <strong>${p.pareja_a.nombre}</strong> vs <strong>${p.pareja_b.nombre}</strong><br>
       Grupo ${p.grupos.nombre}
+      <div class="form" style="margin-top:8px; display:none;">
+        <input type="number" min="0" placeholder="A" style="width:50px" />
+        -
+        <input type="number" min="0" placeholder="B" style="width:50px" />
+        <button>Guardar</button>
+      </div>
     `;
+
+    const form = div.querySelector('.form');
+    const [inputA, inputB] = form.querySelectorAll('input');
+    const btn = form.querySelector('button');
+
+    // tap / click para editar
+    div.addEventListener('click', () => {
+      form.style.display = 'block';
+    });
+
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+
+      const gamesA = Number(inputA.value);
+      const gamesB = Number(inputB.value);
+
+      if (Number.isNaN(gamesA) || Number.isNaN(gamesB)) {
+        alert('Completá ambos resultados');
+        return;
+      }
+
+      await guardarResultado(p.id, gamesA, gamesB);
+    });
 
     app.appendChild(div);
   });
 }
+async function guardarResultado(partidoId, gamesA, gamesB) {
+  const { error } = await supabase
+    .from('partidos')
+    .update({
+      games_a: gamesA,
+      games_b: gamesB
+    })
+    .eq('id', partidoId);
+
+  if (error) {
+    alert('Error guardando el resultado');
+    console.error(error);
+    return;
+  }
+
+  // refresca lista: el partido ya no es pendiente
+  cargarPartidosPendientes();
+}
+
 
 cargarPartidosPendientes();
