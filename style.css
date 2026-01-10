@@ -1,0 +1,27 @@
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+th {
+  background: #f4f4f4;
+  font-weight: bold;
+}
+
+td:first-child,
+th:first-child {
+  text-align: left;
+}
+
+thead tr:first-child th {
+  background: #eaeaea;
+  font-size: 16px;
+}

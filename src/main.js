@@ -1,3 +1,4 @@
+import '../style.css';
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 console.log('MAIN DE VITE');
@@ -129,6 +130,8 @@ function calcularPosiciones(partidos) {
       grupos[grupo][par.id] ||= {
         nombre: par.nombre,
         PJ: 0,
+        PG: 0,
+        PP: 0,
         P: 0,
         GF: 0,
         GC: 0,
@@ -143,13 +146,17 @@ function calcularPosiciones(partidos) {
     });
 
     // puntos: 2 ganar, 1 perder
-    if (p.games_a > p.games_b) {
-      grupos[grupo][p.pareja_a.id].P += 2;
-      grupos[grupo][p.pareja_b.id].P += 1;
-    } else {
-      grupos[grupo][p.pareja_b.id].P += 2;
-      grupos[grupo][p.pareja_a.id].P += 1;
-    }
+    const ganaA = p.games_a > p.games_b;
+
+    const ganadora = ganaA ? p.pareja_a.id : p.pareja_b.id;
+    const perdedora = ganaA ? p.pareja_b.id : p.pareja_a.id;
+
+    grupos[grupo][ganadora].P += 2;
+    grupos[grupo][ganadora].PG += 1;
+
+    grupos[grupo][perdedora].P += 1;
+    grupos[grupo][perdedora].PP += 1;
+
   });
 
   return grupos;
@@ -171,20 +178,32 @@ function renderPosiciones(grupos) {
 
     table.innerHTML = `
       <thead>
-        <tr><th colspan="6" style="text-align:left;">Grupo ${grupo}</th></tr>
         <tr>
-          <th>Pareja</th><th>PJ</th><th>P</th><th>GF</th><th>GC</th><th>DG</th>
+          <th colspan="8" style="text-align:left;">Grupo ${grupo}</th>
+        </tr>
+        <tr>
+          <th>Pareja</th>
+          <th title="Partidos Jugados">PJ</th>
+          <th title="Partidos Ganados">PG</th>
+          <th title="Partidos Perdidos">PP</th>
+          <th title="Games a Favor">GF</th>
+          <th title="Games en Contra">GC</th>
+          <th title="Diferencia de Games">DG</th>
+          <th title="Puntos">P</th>
         </tr>
       </thead>
+
       <tbody>
         ${lista.map(p => `
           <tr>
             <td>${p.nombre}</td>
             <td>${p.PJ}</td>
-            <td>${p.P}</td>
+            <td>${p.PG}</td>
+            <td>${p.PP}</td>
             <td>${p.GF}</td>
             <td>${p.GC}</td>
             <td>${p.DG}</td>
+            <td>${p.P}</td>
           </tr>
         `).join('')}
       </tbody>
