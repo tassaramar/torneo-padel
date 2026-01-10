@@ -47,19 +47,62 @@ function renderPartidos(partidos) {
     div.className = 'partido pendiente';
 
     div.innerHTML = `
-      <strong>${p.pareja_a.nombre}</strong> vs <strong>${p.pareja_b.nombre}</strong><br>
-      Grupo ${p.grupos.nombre}
-      <div class="form" style="margin-top:8px; display:none;">
-        <input type="number" min="0" placeholder="A" style="width:50px" />
-        -
-        <input type="number" min="0" placeholder="B" style="width:50px" />
-        <button>Guardar</button>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <div>
+          <strong>${p.pareja_a.nombre}</strong>
+        </div>
+        <input
+          type="number"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          min="0"
+          placeholder="0"
+          style="width:70px; font-size:18px;"
+        />
       </div>
-    `;
 
-    const form = div.querySelector('.form');
-    const [inputA, inputB] = form.querySelectorAll('input');
-    const btn = form.querySelector('button');
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <div>
+          <strong>${p.pareja_b.nombre}</strong>
+        </div>
+        <input
+          type="number"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          min="0"
+          placeholder="0"
+          style="width:70px; font-size:18px;"
+        />
+      </div>
+
+      <div style="font-size:14px; margin-bottom:8px;">
+        Grupo ${p.grupos.nombre}
+      </div>
+
+      <button style="padding:8px 14px; font-size:16px;">Guardar</button>
+`;
+
+
+    const inputs = div.querySelectorAll('input');
+    const btn = div.querySelector('button');
+
+    const [inputA, inputB] = inputs;
+
+    btn.addEventListener('click', async () => {
+      const gamesA = Number(inputA.value);
+      const gamesB = Number(inputB.value);
+
+      if (Number.isNaN(gamesA) || Number.isNaN(gamesB)) {
+        alert('Completá ambos resultados');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerText = 'Guardando…';
+
+      await guardarResultado(p.id, gamesA, gamesB);
+    });
+
 
     // tap / click para editar
     div.addEventListener('click', () => {
