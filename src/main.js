@@ -79,7 +79,12 @@ function renderPartidos(partidos) {
         Grupo ${p.grupos.nombre}
       </div>
 
-      <button style="padding:8px 14px; font-size:16px;">Guardar</button>
+      <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+        <button style="padding:8px 16px; font-size:16px;">
+          Guardar
+        </button>
+      </div>
+
 `;
 
 
@@ -102,6 +107,7 @@ function renderPartidos(partidos) {
 
       await guardarResultado(p.id, gamesA, gamesB);
     });
+
 
 
     // tap / click para editar
