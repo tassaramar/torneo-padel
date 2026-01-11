@@ -4,23 +4,26 @@
   <meta charset="UTF-8" />
   <title>Admin Torneo Pádel</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <!-- CSS global del proyecto -->
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-
   <h1>Admin – Grupos</h1>
 
   <div class="admin-actions">
-    <button id="reset-grupos">
-      🧹 Reset partidos de grupos
-    </button>
-
-    <button id="gen-grupos">
-      🎾 Generar partidos de grupos
-    </button>
+    <button id="reset-grupos">🧹 Reset partidos de grupos</button>
+    <button id="gen-grupos">🎾 Generar partidos de grupos</button>
   </div>
+
+  <hr />
+
+  <h2>Cierre de grupos</h2>
+  <p style="margin-top:0;">
+    Acá se calcula el ranking automático. Si hay empates raros, podés reordenar y guardar el orden final.
+  </p>
+
+  <div id="grupos-admin"></div>
+
+  <hr />
 
   <div id="log" class="admin-log"></div>
 
