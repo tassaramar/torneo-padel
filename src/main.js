@@ -62,7 +62,7 @@ btnJugados.onclick = async () => {
   await cargarPartidos();
 };
 
-// ===== Helpers Guardrails =====
+// ===== Guardrails =====
 function validarScore(gamesA, gamesB) {
   if (gamesA === null || gamesB === null) return { ok: false, msg: 'Completá ambos resultados' };
 
@@ -86,13 +86,13 @@ async function cargarPartidos() {
       games_a,
       games_b,
       grupos ( nombre ),
-      pareja_a:parejas!partidos_pareja_a_id_fkey ( nombre, id ),
-      pareja_b:parejas!partidos_pareja_b_id_fkey ( nombre, id )
+      pareja_a:parejas!partidos_pareja_a_id_fkey ( nombre ),
+      pareja_b:parejas!partidos_pareja_b_id_fkey ( nombre )
     `)
     .eq('torneo_id', TORNEO_ID)
-    .is('copa_id', null); // solo fase grupos (MVP miércoles)
+    .is('copa_id', null);
 
-  // Si quedaron datos "sucios" (A cargado, B null), igual lo tratamos como pendiente.
+  // Pendiente = cualquiera de los dos null (incluye “datos sucios”)
   if (modo === 'pendientes') {
     q = q.or('games_a.is.null,games_b.is.null');
   } else {
@@ -196,7 +196,6 @@ function renderPartidos(partidos) {
       inputB.value = p.games_b ?? '';
     }
 
-    // ===== (Opcional) ganador en verde, empate en ámbar =====
     function pintarGanador() {
       nameA.style.color = '';
       nameB.style.color = '';
@@ -208,27 +207,22 @@ function renderPartidos(partidos) {
       if (Number.isNaN(ga) || Number.isNaN(gb)) return;
 
       if (ga === gb) {
-        nameA.style.color = '#b45309'; // ámbar
+        nameA.style.color = '#b45309';
         nameB.style.color = '#b45309';
         return;
       }
 
-      if (ga > gb) {
-        nameA.style.color = '#1a7f37'; // verde ganador
-      } else {
-        nameB.style.color = '#1a7f37';
-      }
+      if (ga > gb) nameA.style.color = '#1a7f37';
+      else nameB.style.color = '#1a7f37';
     }
 
-    // ===== Guardar SOLO aparece cuando el score es válido + card se achica/agranda =====
+    // Botón aparece solo con score válido + card compacta
     function setGuardarVisible(visible) {
-      // display none = no ocupa lugar
       btn.style.display = visible ? 'inline-block' : 'none';
 
-      // ajusta el “alto visual” de la fila de acciones
       if (visible) {
         actionsRow.style.marginTop = '10px';
-        actionsRow.style.minHeight = '44px'; // aprox alto del botón
+        actionsRow.style.minHeight = '44px';
       } else {
         const tieneMensaje = (saveMsg.textContent || '').trim() !== '';
         actionsRow.style.marginTop = tieneMensaje ? '6px' : '0px';
@@ -240,7 +234,6 @@ function renderPartidos(partidos) {
       const a = inputA.value.trim();
       const b = inputB.value.trim();
 
-      // sin datos: sin botón, sin mensaje, card más compacta
       if (a === '' || b === '') {
         saveMsg.textContent = '';
         setGuardarVisible(false);
@@ -255,7 +248,6 @@ function renderPartidos(partidos) {
         saveMsg.textContent = '';
         setGuardarVisible(true);
       } else {
-        // para que el usuario entienda por qué el botón “no existe”
         saveMsg.textContent = v.msg;
         setGuardarVisible(false);
       }
@@ -275,7 +267,6 @@ function renderPartidos(partidos) {
     actualizarUIGuardar();
 
     btn.onclick = async () => {
-      // redundante a propósito: UI no reemplaza validación
       if (inputA.value === '' || inputB.value === '') {
         alert('Completá ambos resultados');
         return;
@@ -306,7 +297,6 @@ function renderPartidos(partidos) {
         await cargarPosiciones();
       } else {
         saveMsg.textContent = '❌ Error';
-        // como el botón sigue visible (inputs válidos), la fila queda grande
         setGuardarVisible(true);
       }
     };
@@ -329,13 +319,38 @@ async function guardarResultado(partidoId, gamesA, gamesB) {
   return true;
 }
 
+// ===== Overrides (admin) =====
+async function cargarOverridesPosiciones() {
+  const { data, error } = await supabase
+    .from('posiciones_manual')
+    .select('grupo_id, pareja_id, orden_manual')
+    .eq('torneo_id', TORNEO_ID);
+
+  if (error) {
+    console.error('Error cargando posiciones_manual', error);
+    return {};
+  }
+
+  const map = {}; // grupoId -> { parejaId -> orden }
+  (data || []).forEach(r => {
+    if (r.orden_manual == null) return;
+    if (!map[r.grupo_id]) map[r.grupo_id] = {};
+    map[r.grupo_id][r.pareja_id] = r.orden_manual;
+  });
+
+  return map;
+}
+
 // ===== Posiciones (grupos) =====
 function calcularPosiciones(partidos) {
-  const grupos = {};
+  const grupos = {}; // grupoId -> { id, nombre, parejasMap }
 
   partidos.forEach(p => {
-    const grupoNombre = p.grupos?.nombre ?? '?';
-    if (!grupos[grupoNombre]) grupos[grupoNombre] = {};
+    const gid = p.grupos?.id;
+    const gname = p.grupos?.nombre ?? '?';
+    if (!gid) return;
+
+    if (!grupos[gid]) grupos[gid] = { id: gid, nombre: gname, parejas: {} };
 
     const parejas = [
       { id: p.pareja_a.id, nombre: p.pareja_a.nombre, gf: p.games_a, gc: p.games_b },
@@ -344,8 +359,8 @@ function calcularPosiciones(partidos) {
 
     // asegurar registros
     parejas.forEach(par => {
-      if (!grupos[grupoNombre][par.id]) {
-        grupos[grupoNombre][par.id] = {
+      if (!grupos[gid].parejas[par.id]) {
+        grupos[gid].parejas[par.id] = {
           pareja_id: par.id,
           nombre: par.nombre,
           PJ: 0,
@@ -364,7 +379,7 @@ function calcularPosiciones(partidos) {
 
     // stats base
     parejas.forEach(par => {
-      const r = grupos[grupoNombre][par.id];
+      const r = grupos[gid].parejas[par.id];
       r.PJ += 1;
       r.GF += Number(par.gf);
       r.GC += Number(par.gc);
@@ -376,19 +391,19 @@ function calcularPosiciones(partidos) {
     const gb = Number(p.games_b);
 
     if (ga > gb) {
-      grupos[grupoNombre][p.pareja_a.id].P += 2;
-      grupos[grupoNombre][p.pareja_a.id].PG += 1;
+      grupos[gid].parejas[p.pareja_a.id].P += 2;
+      grupos[gid].parejas[p.pareja_a.id].PG += 1;
 
-      grupos[grupoNombre][p.pareja_b.id].P += 1;
-      grupos[grupoNombre][p.pareja_b.id].PP += 1;
+      grupos[gid].parejas[p.pareja_b.id].P += 1;
+      grupos[gid].parejas[p.pareja_b.id].PP += 1;
     } else if (gb > ga) {
-      grupos[grupoNombre][p.pareja_b.id].P += 2;
-      grupos[grupoNombre][p.pareja_b.id].PG += 1;
+      grupos[gid].parejas[p.pareja_b.id].P += 2;
+      grupos[gid].parejas[p.pareja_b.id].PG += 1;
 
-      grupos[grupoNombre][p.pareja_a.id].P += 1;
-      grupos[grupoNombre][p.pareja_a.id].PP += 1;
+      grupos[gid].parejas[p.pareja_a.id].P += 1;
+      grupos[gid].parejas[p.pareja_a.id].PP += 1;
     } else {
-      // empate: idealmente no debería existir (lo bloqueamos en UI)
+      // empate: no debería existir (lo bloqueamos)
       console.warn('Partido con empate de games, no asigna puntos', p.id);
     }
   });
@@ -396,17 +411,37 @@ function calcularPosiciones(partidos) {
   return grupos;
 }
 
-function renderPosiciones(grupos) {
+function ordenarLista(lista, overrideMap) {
+  // Si hay override, manda. Si no, P->DG->GF
+  return lista.sort((a, b) => {
+    const oa = overrideMap?.[a.pareja_id];
+    const ob = overrideMap?.[b.pareja_id];
+
+    const aHas = oa != null;
+    const bHas = ob != null;
+
+    if (aHas && bHas) return oa - ob;
+    if (aHas && !bHas) return -1;
+    if (!aHas && bHas) return 1;
+
+    if (b.P !== a.P) return b.P - a.P;
+    if (b.DG !== a.DG) return b.DG - a.DG;
+    return b.GF - a.GF;
+  });
+}
+
+function renderPosiciones(grupos, overrides) {
   posicionesCont.innerHTML = '';
 
-  Object.entries(grupos).forEach(([grupoNombre, parejasObj]) => {
-    const lista = Object.values(parejasObj);
+  const gruposList = Object.values(grupos).sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
 
-    lista.sort((a, b) => {
-      if (b.P !== a.P) return b.P - a.P;
-      if (b.DG !== a.DG) return b.DG - a.DG;
-      return b.GF - a.GF;
-    });
+  gruposList.forEach(g => {
+    const lista = Object.values(g.parejas);
+
+    const ovMap = overrides?.[g.id] || null;
+    const hayOv = ovMap && Object.keys(ovMap).length > 0;
+
+    ordenarLista(lista, ovMap);
 
     const table = document.createElement('table');
     table.style.width = '100%';
@@ -416,7 +451,10 @@ function renderPosiciones(grupos) {
     table.innerHTML = `
       <thead>
         <tr>
-          <th colspan="8" style="text-align:left; padding:6px 0;">Grupo ${grupoNombre}</th>
+          <th colspan="8" style="text-align:left; padding:6px 0;">
+            Grupo ${g.nombre}
+            ${hayOv ? '<span style="font-size:12px; opacity:0.7; margin-left:6px;">(orden manual)</span>' : ''}
+          </th>
         </tr>
         <tr>
           <th style="text-align:left; border-bottom:1px solid #ddd; padding:6px 0;">Pareja</th>
@@ -450,19 +488,25 @@ function renderPosiciones(grupos) {
 }
 
 async function cargarPosiciones() {
-  const { data, error } = await supabase
-    .from('partidos')
-    .select(`
-      games_a,
-      games_b,
-      grupos ( nombre ),
-      pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
-      pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
-    `)
-    .eq('torneo_id', TORNEO_ID)
-    .is('copa_id', null)
-    .not('games_a', 'is', null)
-    .not('games_b', 'is', null);
+  // Traigo overrides en paralelo
+  const [ovMap, partidosResp] = await Promise.all([
+    cargarOverridesPosiciones(),
+    supabase
+      .from('partidos')
+      .select(`
+        games_a,
+        games_b,
+        grupos ( id, nombre ),
+        pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
+        pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
+      `)
+      .eq('torneo_id', TORNEO_ID)
+      .is('copa_id', null)
+      .not('games_a', 'is', null)
+      .not('games_b', 'is', null)
+  ]);
+
+  const { data, error } = partidosResp;
 
   if (error) {
     console.error('Error cargando posiciones', error);
@@ -470,7 +514,7 @@ async function cargarPosiciones() {
   }
 
   const grupos = calcularPosiciones(data || []);
-  renderPosiciones(grupos);
+  renderPosiciones(grupos, ovMap);
 }
 
 // ===== INIT =====
