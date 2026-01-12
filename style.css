@@ -25,3 +25,26 @@ thead tr:first-child th {
   background: #eaeaea;
   font-size: 16px;
 }
+/* ===== Inputs de score (mobile-friendly) ===== */
+.partido input[type="number"]{
+  -webkit-appearance: none; /* iOS: deja de hacer “lo que quiere” */
+  appearance: none;
+
+  background: #ffffff !important;
+  color: #111;
+
+  border: 2px solid #9a9a9a;
+  border-radius: 10px;
+
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+}
+
+.partido input[type="number"]::placeholder{
+  color: #8a8a8a;
+}
+
+.partido input[type="number"]:focus{
+  outline: none;
+  border-color: #333;
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.08);
+}
