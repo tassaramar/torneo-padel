@@ -31,11 +31,15 @@ function el(tag, attrs = {}, html = '') {
 
 const state = {
   // groupId -> {
-  //   grupo: {id, nombre},
-  //   meta: {totalPartidos, jugados, faltan},
-  //   rows: [ ... ],
-  //   editableBase: boolean,
-  //   unlocked: boolean
+  //   grupo,
+  //   meta,
+  //   rows,
+  //   editableBase,
+  //   unlocked,
+  //   autoPosMap,
+  //   tieSet,
+  //   tieLabel,
+  //   hasSavedOverride
   // }
   groups: {}
 };
@@ -137,7 +141,7 @@ document.getElementById('gen-grupos').onclick = async () => {
 };
 
 /* =========================
-   CIERRE DE GRUPOS (OVERRIDES)
+   CIERRE DE GRUPOS (OVERRIDES + EMPATES)
 ========================= */
 
 async function cargarCierreGrupos() {
@@ -190,7 +194,15 @@ async function cargarGrupoCierre(grupo) {
   const jugados = (partidos || []).filter(p => p.games_a !== null && p.games_b !== null).length;
   const faltan = totalPartidos - jugados;
 
-  const rowsAuto = calcularTablaGrupo(partidos || []);
+  const rowsBase = calcularTablaGrupo(partidos || []);
+
+  // orden automático (para comparar +1/-1)
+  const autoOrder = ordenarAutomatico(rowsBase);
+  const autoPosMap = {};
+  autoOrder.forEach((r, idx) => (autoPosMap[r.pareja_id] = idx + 1));
+
+  // detectar empates reales (P + DG + GF)
+  const { tieSet, tieLabel } = detectarEmpatesReales(rowsBase);
 
   // overrides guardados
   const { data: ov, error: errOv } = await supabase
@@ -206,14 +218,20 @@ async function cargarGrupoCierre(grupo) {
     if (x.orden_manual !== null) ovMap[x.pareja_id] = x.orden_manual;
   });
 
-  const rowsOrdenadas = ordenarConOverrides(rowsAuto, ovMap);
+  const hasSavedOverride = Object.keys(ovMap).length > 0;
+
+  const rowsOrdenadas = ordenarConOverrides(rowsBase, ovMap);
 
   state.groups[grupo.id] = {
     grupo,
     meta: { totalPartidos, jugados, faltan },
     rows: rowsOrdenadas,
     editableBase: faltan === 0,
-    unlocked: false
+    unlocked: false,
+    autoPosMap,
+    tieSet,
+    tieLabel,
+    hasSavedOverride
   };
 
   renderOrUpdateGrupoCard(grupo.id);
@@ -259,7 +277,6 @@ function calcularTablaGrupo(partidos) {
       b.PG += 1; a.PP += 1;
       b.P += 2; a.P += 1;
     } else {
-      // empate: no asignamos puntos
       console.warn('Empate (games iguales). No se asignan puntos.', m);
     }
   }
@@ -292,10 +309,42 @@ function ordenarConOverrides(rows, ovMap) {
 
   withOv.sort((a, b) => a._om - b._om);
 
-  return [...withOv.map(x => {
-    const { _om, ...rest } = x;
-    return rest;
-  }), ...withoutOv];
+  return [
+    ...withOv.map(x => {
+      const { _om, ...rest } = x;
+      return rest;
+    }),
+    ...withoutOv
+  ];
+}
+
+// Empate REAL: P + DG + GF
+function detectarEmpatesReales(rows) {
+  const buckets = new Map(); // key -> [{pareja_id,...}]
+  for (const r of rows) {
+    const key = `${r.P}|${r.DG}|${r.GF}`;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(r);
+  }
+
+  const tieSet = new Set();
+  const sizes = [];
+
+  for (const arr of buckets.values()) {
+    if (arr.length >= 2) {
+      sizes.push(arr.length);
+      arr.forEach(x => tieSet.add(x.pareja_id));
+    }
+  }
+
+  let tieLabel = '';
+  if (sizes.length) {
+    sizes.sort((a, b) => b - a);
+    // Ej: "Empate real: 3" o "Empate real: 2 + 2"
+    tieLabel = `Empate real: ${sizes.join(' + ')}`;
+  }
+
+  return { tieSet, tieLabel };
 }
 
 /* =========================
@@ -320,7 +369,10 @@ function renderOrUpdateGrupoCard(groupId) {
     card = el('div', { class: 'admin-grupo', 'data-grupo-id': groupId });
     card.innerHTML = `
       <div class="admin-grupo-header">
-        <h3 style="margin:0;"></h3>
+        <div>
+          <h3 style="margin:0;"></h3>
+          <div class="admin-grupo-flags" style="margin-top:6px;"></div>
+        </div>
         <div class="admin-grupo-meta" style="font-size:14px;"></div>
       </div>
 
@@ -358,6 +410,22 @@ function renderOrUpdateGrupoCard(groupId) {
   card.querySelector('.admin-grupo-meta').innerHTML =
     `Partidos: <strong>${jugados}/${totalPartidos}</strong> ${faltan > 0 ? `<span>(faltan ${faltan})</span>` : '✅'}`;
 
+  // flags (empates / overrides)
+  const flags = card.querySelector('.admin-grupo-flags');
+  flags.innerHTML = '';
+
+  if (g.tieLabel) {
+    flags.appendChild(
+      el('span', {}, `<span style="display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid #d39e00; background:#fff3cd;">⚠️ ${g.tieLabel}</span>`)
+    );
+  }
+
+  if (g.hasSavedOverride) {
+    flags.appendChild(
+      el('span', { style: 'margin-left:8px;' }, `<span style="display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid #0b7285; background:#e6fcff;">📌 Orden manual</span>`)
+    );
+  }
+
   // warn + unlock
   const warn = card.querySelector('.admin-grupo-warn');
   warn.innerHTML = '';
@@ -389,6 +457,10 @@ function renderOrUpdateGrupoCard(groupId) {
       await guardarOrdenGrupo(groupId);
       btnSave.textContent = prev;
       btnSave.disabled = !isEditable(groupId);
+
+      // como ya guardamos, marcamos el grupo con override
+      state.groups[groupId].hasSavedOverride = true;
+      renderOrUpdateGrupoCard(groupId);
     };
 
     btnReset.onclick = async () => {
@@ -399,9 +471,8 @@ function renderOrUpdateGrupoCard(groupId) {
       btnReset.textContent = prev;
       btnReset.disabled = false;
 
-      // recargar solo este grupo desde DB (para volver al automático)
+      // recargar el grupo (vuelve al automático y saca el flag)
       await cargarGrupoCierre(state.groups[groupId].grupo);
-      // cargarGrupoCierre ya rerenderiza
     };
   }
 }
@@ -417,10 +488,28 @@ function updateTablaBody(groupId) {
   const editable = isEditable(groupId);
 
   g.rows.forEach((r, idx) => {
+    const posActual = idx + 1;
+    const posAuto = g.autoPosMap[r.pareja_id] ?? posActual;
+    const delta = posAuto - posActual; // + => subió (mejoró), - => bajó
+
+    let sup = '';
+    if (delta !== 0) {
+      const txt = delta > 0 ? `+${delta}` : `${delta}`;
+      const color = delta > 0 ? '#1a7f37' : '#d1242f';
+      sup = ` <sup style="font-size:12px; color:${color}; font-weight:700; margin-left:6px;">${txt}</sup>`;
+    }
+
     const tr = document.createElement('tr');
+
+    // resaltar empates reales
+    if (g.tieSet && g.tieSet.has(r.pareja_id)) {
+      tr.style.background = '#fff3cd'; // suave, visible
+      tr.style.borderLeft = '4px solid #d39e00';
+    }
+
     tr.innerHTML = `
-      <td>${idx + 1}</td>
-      <td>${r.nombre}</td>
+      <td>${posActual}</td>
+      <td>${r.nombre}${sup}</td>
       <td style="text-align:center;">${r.PJ}</td>
       <td style="text-align:center;">${r.PG}</td>
       <td style="text-align:center;">${r.PP}</td>
@@ -456,7 +545,6 @@ function mover(groupId, idx, delta) {
 
   [g.rows[idx], g.rows[nuevo]] = [g.rows[nuevo], g.rows[idx]];
 
-  // IMPORTANTE: no refetch, no limpiar pantalla
   updateTablaBody(groupId);
 }
 
