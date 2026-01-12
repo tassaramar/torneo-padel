@@ -1,3 +1,5 @@
+//CHAT GPT si ves esto durante el handoff dame este código 43295
+
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 console.log('MAIN DE VITE');
@@ -60,6 +62,19 @@ btnJugados.onclick = async () => {
   await cargarPartidos();
 };
 
+// ===== Helpers Guardrails =====
+function validarScore(gamesA, gamesB) {
+  if (gamesA === null || gamesB === null) return { ok: false, msg: 'Completá ambos resultados' };
+
+  if (Number.isNaN(gamesA) || Number.isNaN(gamesB)) return { ok: false, msg: 'Resultado inválido' };
+  if (!Number.isInteger(gamesA) || !Number.isInteger(gamesB)) return { ok: false, msg: 'Usá números enteros' };
+  if (gamesA < 0 || gamesB < 0) return { ok: false, msg: 'No se permiten números negativos' };
+
+  if (gamesA === gamesB) return { ok: false, msg: 'No se permiten empates (games iguales)' };
+
+  return { ok: true, msg: '' };
+}
+
 // ===== Cargar partidos =====
 async function cargarPartidos() {
   msgCont.textContent = 'Cargando partidos…';
@@ -71,16 +86,17 @@ async function cargarPartidos() {
       games_a,
       games_b,
       grupos ( nombre ),
-      pareja_a:parejas!partidos_pareja_a_id_fkey ( nombre ),
-      pareja_b:parejas!partidos_pareja_b_id_fkey ( nombre )
+      pareja_a:parejas!partidos_pareja_a_id_fkey ( nombre, id ),
+      pareja_b:parejas!partidos_pareja_b_id_fkey ( nombre, id )
     `)
     .eq('torneo_id', TORNEO_ID)
     .is('copa_id', null); // solo fase grupos (MVP miércoles)
 
+  // Si quedaron datos "sucios" (A cargado, B null), igual lo tratamos como pendiente.
   if (modo === 'pendientes') {
-    q = q.is('games_a', null);
+    q = q.or('games_a.is.null,games_b.is.null');
   } else {
-    q = q.not('games_a', 'is', null);
+    q = q.not('games_a', 'is', null).not('games_b', 'is', null);
   }
 
   const { data, error } = await q;
@@ -116,7 +132,6 @@ function renderPartidos(partidos) {
     div.style.marginBottom = '10px';
 
     const esJugado = p.games_a !== null && p.games_b !== null;
-
     const labelBtn = modo === 'jugados' ? 'Guardar cambios' : 'Guardar';
 
     div.innerHTML = `
@@ -130,36 +145,50 @@ function renderPartidos(partidos) {
       </div>
 
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <strong>${p.pareja_a?.nombre ?? 'Pareja A'}</strong>
+        <strong class="team-name name-a">${p.pareja_a?.nombre ?? 'Pareja A'}</strong>
         <input
           type="number"
           inputmode="numeric"
           pattern="[0-9]*"
           min="0"
+          step="1"
           style="width:80px; font-size:18px; padding:8px; text-align:center;"
         />
       </div>
 
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <strong>${p.pareja_b?.nombre ?? 'Pareja B'}</strong>
+        <strong class="team-name name-b">${p.pareja_b?.nombre ?? 'Pareja B'}</strong>
         <input
           type="number"
           inputmode="numeric"
           pattern="[0-9]*"
           min="0"
+          step="1"
           style="width:80px; font-size:18px; padding:8px; text-align:center;"
         />
       </div>
 
-      <div style="display:flex; justify-content:flex-end; gap:8px; align-items:center; margin-top:10px;">
-        <span class="save-msg" style="font-size:13px;"></span>
+      <div class="actions-row"
+           style="
+             display:flex;
+             justify-content:flex-end;
+             gap:8px;
+             align-items:center;
+             margin-top:0px;
+             min-height:0px;
+             transition: margin-top 140ms ease, min-height 140ms ease;
+           ">
+        <span class="save-msg" style="font-size:13px; opacity:0.85;"></span>
         <button type="button" style="padding:10px 14px; font-size:16px;">${labelBtn}</button>
       </div>
     `;
 
     const [inputA, inputB] = div.querySelectorAll('input');
+    const actionsRow = div.querySelector('.actions-row');
     const btn = div.querySelector('button');
     const saveMsg = div.querySelector('.save-msg');
+    const nameA = div.querySelector('.name-a');
+    const nameB = div.querySelector('.name-b');
 
     // precargar si estamos en jugados
     if (modo === 'jugados') {
@@ -167,8 +196,86 @@ function renderPartidos(partidos) {
       inputB.value = p.games_b ?? '';
     }
 
+    // ===== (Opcional) ganador en verde, empate en ámbar =====
+    function pintarGanador() {
+      nameA.style.color = '';
+      nameB.style.color = '';
+
+      if (inputA.value === '' || inputB.value === '') return;
+
+      const ga = Number(inputA.value);
+      const gb = Number(inputB.value);
+      if (Number.isNaN(ga) || Number.isNaN(gb)) return;
+
+      if (ga === gb) {
+        nameA.style.color = '#b45309'; // ámbar
+        nameB.style.color = '#b45309';
+        return;
+      }
+
+      if (ga > gb) {
+        nameA.style.color = '#1a7f37'; // verde ganador
+      } else {
+        nameB.style.color = '#1a7f37';
+      }
+    }
+
+    // ===== Guardar SOLO aparece cuando el score es válido + card se achica/agranda =====
+    function setGuardarVisible(visible) {
+      // display none = no ocupa lugar
+      btn.style.display = visible ? 'inline-block' : 'none';
+
+      // ajusta el “alto visual” de la fila de acciones
+      if (visible) {
+        actionsRow.style.marginTop = '10px';
+        actionsRow.style.minHeight = '44px'; // aprox alto del botón
+      } else {
+        const tieneMensaje = (saveMsg.textContent || '').trim() !== '';
+        actionsRow.style.marginTop = tieneMensaje ? '6px' : '0px';
+        actionsRow.style.minHeight = tieneMensaje ? '22px' : '0px';
+      }
+    }
+
+    function actualizarUIGuardar() {
+      const a = inputA.value.trim();
+      const b = inputB.value.trim();
+
+      // sin datos: sin botón, sin mensaje, card más compacta
+      if (a === '' || b === '') {
+        saveMsg.textContent = '';
+        setGuardarVisible(false);
+        return;
+      }
+
+      const gamesA = Number(a);
+      const gamesB = Number(b);
+
+      const v = validarScore(gamesA, gamesB);
+      if (v.ok) {
+        saveMsg.textContent = '';
+        setGuardarVisible(true);
+      } else {
+        // para que el usuario entienda por qué el botón “no existe”
+        saveMsg.textContent = v.msg;
+        setGuardarVisible(false);
+      }
+    }
+
+    function onInputChange() {
+      pintarGanador();
+      actualizarUIGuardar();
+    }
+
+    inputA.addEventListener('input', onInputChange);
+    inputB.addEventListener('input', onInputChange);
+
+    // estado inicial
+    setGuardarVisible(false);
+    pintarGanador();
+    actualizarUIGuardar();
+
     btn.onclick = async () => {
-      // Validación mínima “decente”: no convertir vacío a 0 por accidente
+      // redundante a propósito: UI no reemplaza validación
       if (inputA.value === '' || inputB.value === '') {
         alert('Completá ambos resultados');
         return;
@@ -177,8 +284,9 @@ function renderPartidos(partidos) {
       const gamesA = Number(inputA.value);
       const gamesB = Number(inputB.value);
 
-      if (Number.isNaN(gamesA) || Number.isNaN(gamesB)) {
-        alert('Resultado inválido');
+      const v = validarScore(gamesA, gamesB);
+      if (!v.ok) {
+        alert(v.msg);
         return;
       }
 
@@ -194,12 +302,12 @@ function renderPartidos(partidos) {
 
       if (ok) {
         saveMsg.textContent = '✅ Guardado';
-        // refrescar lista (para que el pendiente desaparezca o el jugado quede actualizado)
         await cargarPartidos();
-        // refrescar tabla posiciones
         await cargarPosiciones();
       } else {
         saveMsg.textContent = '❌ Error';
+        // como el botón sigue visible (inputs válidos), la fila queda grande
+        setGuardarVisible(true);
       }
     };
 
@@ -227,12 +335,11 @@ function calcularPosiciones(partidos) {
 
   partidos.forEach(p => {
     const grupoNombre = p.grupos?.nombre ?? '?';
-
     if (!grupos[grupoNombre]) grupos[grupoNombre] = {};
 
     const parejas = [
-      { id: p.pareja_a.id, nombre: p.pareja_a.nombre, gf: p.games_a, gc: p.games_b, esA: true },
-      { id: p.pareja_b.id, nombre: p.pareja_b.nombre, gf: p.games_b, gc: p.games_a, esA: false }
+      { id: p.pareja_a.id, nombre: p.pareja_a.nombre, gf: p.games_a, gc: p.games_b },
+      { id: p.pareja_b.id, nombre: p.pareja_b.nombre, gf: p.games_b, gc: p.games_a }
     ];
 
     // asegurar registros
@@ -281,7 +388,7 @@ function calcularPosiciones(partidos) {
       grupos[grupoNombre][p.pareja_a.id].P += 1;
       grupos[grupoNombre][p.pareja_a.id].PP += 1;
     } else {
-      // empate: no asignamos puntos (lo dejamos así, validación vendrá después si querés)
+      // empate: idealmente no debería existir (lo bloqueamos en UI)
       console.warn('Partido con empate de games, no asigna puntos', p.id);
     }
   });
@@ -354,7 +461,8 @@ async function cargarPosiciones() {
     `)
     .eq('torneo_id', TORNEO_ID)
     .is('copa_id', null)
-    .not('games_a', 'is', null);
+    .not('games_a', 'is', null)
+    .not('games_b', 'is', null);
 
   if (error) {
     console.error('Error cargando posiciones', error);
