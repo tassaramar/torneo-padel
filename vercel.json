@@ -1,15 +1,14 @@
 {
   "redirects": [
     { "source": "/admin", "destination": "/admin/", "permanent": false },
-    { "source": "/viewer", "destination": "/viewer/", "permanent": false },
+    { "source": "/bracket", "destination": "/bracket/", "permanent": false },
     { "source": "/carga", "destination": "/carga/", "permanent": false }
   ],
   "rewrites": [
-    { "source": "/", "destination": "/viewer/index.html" },
+    { "source": "/", "destination": "/index.html" },
 
-    { "source": "/carga/", "destination": "/index.html" },
-
-    { "source": "/admin/", "destination": "/admin/index.html" },
-    { "source": "/viewer/", "destination": "/viewer/index.html" }
+    { "source": "/carga/", "destination": "/carga.html" },
+    { "source": "/admin/", "destination": "/admin.html" },
+    { "source": "/bracket/", "destination": "/bracket.html" }
   ]
 }

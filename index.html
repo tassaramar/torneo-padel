@@ -2,37 +2,24 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Torneo Pádel</title>
+  <title>Torneo Pádel – Viewer</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-<!-- NAV -->
-<div class="topnav">
-  <a class="topnav-link" href="/">📲 Cargar resultados</a>
-  <a class="topnav-link" href="/viewer/">👀 Viewer</a>
-  <a class="topnav-link" href="/admin/">🛠 Admin</a>
-</div>
 
-<h1>Torneo Pádel</h1>
-<div id="app"></div>
-<h2>Posiciones</h2>
-<div id="posiciones"></div>
-<h2>Copas</h2>
-<div id="copas"></div>
+  <h1>Resultados</h1>
+
+  <div class="viewer-actions">
+    <button id="viewer-refresh" type="button">🔄 Refrescar</button>
+    <span id="viewer-status"></span>
+  </div>
+
+  <div class="tabs" id="tabs-main"></div>
+
+  <div id="viewer-content"></div>
 
 
-<script type="module" src="/src/main.js"></script>
-<script>
-  (function () {
-    const path = (location.pathname.endsWith('/') ? location.pathname : location.pathname + '/');
-    document.querySelectorAll('.topnav-link').forEach(a => {
-      const href = a.getAttribute('href');
-      const norm = (href.endsWith('/') ? href : href + '/');
-      if (norm === path) a.classList.add('is-active');
-    });
-  })();
-</script>
-
+  <script type="module" src="/src/viewer.js"></script>
 </body>
 </html>

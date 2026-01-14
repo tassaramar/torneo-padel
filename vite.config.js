@@ -5,9 +5,10 @@ export default defineConfig({
   build: {
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html'),
-        admin: resolve(__dirname, 'admin/index.html'),
-        viewer: resolve(__dirname, 'viewer/index.html'),
+        viewer: resolve(__dirname, 'index.html'),
+        carga: resolve(__dirname, 'carga.html'),
+        admin: resolve(__dirname, 'admin.html'),
+        bracket: resolve(__dirname, 'bracket.html'),
       },
     },
   },
