@@ -1,8 +1,15 @@
 {
   "redirects": [
-    { "source": "/admin", "destination": "/admin/", "permanent": false }
+    { "source": "/admin", "destination": "/admin/", "permanent": false },
+    { "source": "/viewer", "destination": "/viewer/", "permanent": false },
+    { "source": "/carga", "destination": "/carga/", "permanent": false }
   ],
   "rewrites": [
-    { "source": "/admin/", "destination": "/admin/index.html" }
+    { "source": "/", "destination": "/viewer/index.html" },
+
+    { "source": "/carga/", "destination": "/index.html" },
+
+    { "source": "/admin/", "destination": "/admin/index.html" },
+    { "source": "/viewer/", "destination": "/viewer/index.html" }
   ]
 }

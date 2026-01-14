@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Torneo Pádel – Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+  <h1>Resultados</h1>
+
+  <div class="viewer-actions">
+    <button id="viewer-refresh" type="button">🔄 Refrescar</button>
+    <span id="viewer-status"></span>
+  </div>
+
+  <div class="tabs" id="tabs-main"></div>
+
+  <div id="viewer-content"></div>
+
+  <div class="viewer-nav">
+    <a href="/">📝 Carga</a>
+  </div>
+
+  <script type="module" src="/src/viewer.js"></script>
+</body>
+</html>
