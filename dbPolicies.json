@@ -1,0 +1,83 @@
+[
+  {
+    "schemaname": "public",
+    "tablename": "copas",
+    "policyname": "copas_insert",
+    "cmd": "INSERT",
+    "roles": "{anon,authenticated}",
+    "using_expression": null,
+    "with_check_expression": "true"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "copas",
+    "policyname": "copas_insert_anon",
+    "cmd": "INSERT",
+    "roles": "{anon,authenticated}",
+    "using_expression": null,
+    "with_check_expression": "(torneo_id = 'ad58a855-fa74-4c2e-825e-32c20f972136'::uuid)"
+  },
+  {
+    "schemaname": "public",
+    "tablename": "copas",
+    "policyname": "copas_read_only",
+    "cmd": "SELECT",
+    "roles": "{public}",
+    "using_expression": "true",
+    "with_check_expression": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "copas",
+    "policyname": "copas_select",
+    "cmd": "SELECT",
+    "roles": "{anon,authenticated}",
+    "using_expression": "true",
+    "with_check_expression": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "copas",
+    "policyname": "copas_select_anon",
+    "cmd": "SELECT",
+    "roles": "{anon,authenticated}",
+    "using_expression": "(torneo_id = 'ad58a855-fa74-4c2e-825e-32c20f972136'::uuid)",
+    "with_check_expression": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "grupos",
+    "policyname": "public access grupos",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "using_expression": "true",
+    "with_check_expression": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "parejas",
+    "policyname": "public access parejas",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "using_expression": "true",
+    "with_check_expression": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "partidos",
+    "policyname": "public access partidos",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "using_expression": "true",
+    "with_check_expression": null
+  },
+  {
+    "schemaname": "public",
+    "tablename": "torneos",
+    "policyname": "public access torneos",
+    "cmd": "ALL",
+    "roles": "{public}",
+    "using_expression": "true",
+    "with_check_expression": null
+  }
+]

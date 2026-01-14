@@ -1,5 +1,3 @@
-//CHAT GPT si ves esto durante el handoff dame este código 43295
-
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
 console.log('MAIN DE VITE');
@@ -20,6 +18,13 @@ if (!posicionesCont) {
   posicionesCont = document.createElement('div');
   posicionesCont.id = 'posiciones';
   document.body.appendChild(posicionesCont);
+}
+
+let copasCont = document.getElementById('copas');
+if (!copasCont) {
+  copasCont = document.createElement('div');
+  copasCont.id = 'copas';
+  document.body.appendChild(copasCont);
 }
 
 // Estructura fija (para que renderPartidos no te borre el toggle)
@@ -54,12 +59,14 @@ btnPendientes.onclick = async () => {
   modo = 'pendientes';
   pintarToggle();
   await cargarPartidos();
+  await cargarCopas();
 };
 
 btnJugados.onclick = async () => {
   modo = 'jugados';
   pintarToggle();
   await cargarPartidos();
+  await cargarCopas();
 };
 
 // ===== Guardrails =====
@@ -75,7 +82,205 @@ function validarScore(gamesA, gamesB) {
   return { ok: true, msg: '' };
 }
 
-// ===== Cargar partidos =====
+// ===== UI reusable: card editable =====
+function crearCardEditable({
+  headerLeft,
+  headerRight,
+  nombreA,
+  nombreB,
+  gamesA,
+  gamesB,
+  onSave
+}) {
+  const div = document.createElement('div');
+  div.className = 'partido';
+  div.style.border = '1px solid #ddd';
+  div.style.borderRadius = '10px';
+  div.style.padding = '12px';
+  div.style.marginBottom = '10px';
+
+  const esJugado = gamesA !== null && gamesB !== null;
+  const labelBtn = modo === 'jugados' ? 'Guardar cambios' : 'Guardar';
+
+  div.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <div style="font-size:14px;">${headerLeft}</div>
+      <div style="font-size:12px; opacity:0.8;">${headerRight ?? (esJugado ? 'Jugado' : 'Pendiente')}</div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <strong class="team-name name-a">${nombreA ?? 'Pareja A'}</strong>
+      <input
+        type="number"
+        inputmode="numeric"
+        pattern="[0-9]*"
+        min="0"
+        step="1"
+        style="width:80px; font-size:18px; padding:8px; text-align:center;"
+      />
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <strong class="team-name name-b">${nombreB ?? 'Pareja B'}</strong>
+      <input
+        type="number"
+        inputmode="numeric"
+        pattern="[0-9]*"
+        min="0"
+        step="1"
+        style="width:80px; font-size:18px; padding:8px; text-align:center;"
+      />
+    </div>
+
+    <div class="actions-row"
+         style="
+           display:flex;
+           justify-content:flex-end;
+           gap:8px;
+           align-items:center;
+           margin-top:0px;
+           min-height:0px;
+           transition: margin-top 140ms ease, min-height 140ms ease;
+         ">
+      <span class="save-msg" style="font-size:13px; opacity:0.85;"></span>
+      <button type="button" style="padding:10px 14px; font-size:16px;">${labelBtn}</button>
+    </div>
+  `;
+
+  const [inputA, inputB] = div.querySelectorAll('input');
+  const actionsRow = div.querySelector('.actions-row');
+  const btn = div.querySelector('button');
+  const saveMsg = div.querySelector('.save-msg');
+  const nameA = div.querySelector('.name-a');
+  const nameB = div.querySelector('.name-b');
+
+  // precargar si estamos en jugados
+  if (modo === 'jugados') {
+    inputA.value = gamesA ?? '';
+    inputB.value = gamesB ?? '';
+  }
+
+  function pintarGanador() {
+    nameA.style.color = '';
+    nameB.style.color = '';
+
+    if (inputA.value === '' || inputB.value === '') return;
+
+    const ga = Number(inputA.value);
+    const gb = Number(inputB.value);
+    if (Number.isNaN(ga) || Number.isNaN(gb)) return;
+
+    if (ga === gb) {
+      nameA.style.color = '#b45309';
+      nameB.style.color = '#b45309';
+      return;
+    }
+
+    if (ga > gb) nameA.style.color = '#1a7f37';
+    else nameB.style.color = '#1a7f37';
+  }
+
+  function setGuardarVisible(visible) {
+    btn.style.display = visible ? 'inline-block' : 'none';
+
+    if (visible) {
+      actionsRow.style.marginTop = '10px';
+      actionsRow.style.minHeight = '44px';
+    } else {
+      const tieneMensaje = (saveMsg.textContent || '').trim() !== '';
+      actionsRow.style.marginTop = tieneMensaje ? '6px' : '0px';
+      actionsRow.style.minHeight = tieneMensaje ? '22px' : '0px';
+    }
+  }
+
+  function actualizarUIGuardar() {
+    const a = inputA.value.trim();
+    const b = inputB.value.trim();
+
+    if (a === '' || b === '') {
+      saveMsg.textContent = '';
+      setGuardarVisible(false);
+      return;
+    }
+
+    const ga = Number(a);
+    const gb = Number(b);
+
+    const v = validarScore(ga, gb);
+    if (v.ok) {
+      saveMsg.textContent = '';
+      setGuardarVisible(true);
+    } else {
+      saveMsg.textContent = v.msg;
+      setGuardarVisible(false);
+    }
+  }
+
+  function onInputChange() {
+    pintarGanador();
+    actualizarUIGuardar();
+  }
+
+  inputA.addEventListener('input', onInputChange);
+  inputB.addEventListener('input', onInputChange);
+
+  // estado inicial
+  setGuardarVisible(false);
+  pintarGanador();
+  actualizarUIGuardar();
+
+  btn.onclick = async () => {
+    if (inputA.value === '' || inputB.value === '') {
+      alert('Completá ambos resultados');
+      return;
+    }
+
+    const ga = Number(inputA.value);
+    const gb = Number(inputB.value);
+
+    const v = validarScore(ga, gb);
+    if (!v.ok) {
+      alert(v.msg);
+      return;
+    }
+
+    btn.disabled = true;
+    const prev = btn.innerText;
+    btn.innerText = 'Guardando…';
+    saveMsg.textContent = '';
+
+    const ok = await onSave(ga, gb);
+
+    btn.disabled = false;
+    btn.innerText = prev;
+
+    if (ok) {
+      saveMsg.textContent = '✅ Guardado';
+      // el refresh lo maneja el caller
+    } else {
+      saveMsg.textContent = '❌ Error';
+      setGuardarVisible(true);
+    }
+  };
+
+  return div;
+}
+
+async function guardarResultado(partidoId, gamesA, gamesB) {
+  const { error } = await supabase
+    .from('partidos')
+    .update({ games_a: gamesA, games_b: gamesB })
+    .eq('id', partidoId);
+
+  if (error) {
+    console.error(error);
+    alert('Error guardando el resultado');
+    return false;
+  }
+  return true;
+}
+
+// ===== Cargar partidos (GRUPOS) =====
 async function cargarPartidos() {
   msgCont.textContent = 'Cargando partidos…';
 
@@ -92,7 +297,6 @@ async function cargarPartidos() {
     .eq('torneo_id', TORNEO_ID)
     .is('copa_id', null);
 
-  // Pendiente = cualquiera de los dos null (incluye “datos sucios”)
   if (modo === 'pendientes') {
     q = q.or('games_a.is.null,games_b.is.null');
   } else {
@@ -109,10 +313,10 @@ async function cargarPartidos() {
   }
 
   msgCont.textContent = '';
-  renderPartidos(data || []);
+  renderPartidosGrupos(data || []);
 }
 
-function renderPartidos(partidos) {
+function renderPartidosGrupos(partidos) {
   listCont.innerHTML = '';
 
   if (partidos.length === 0) {
@@ -124,199 +328,134 @@ function renderPartidos(partidos) {
   }
 
   partidos.forEach(p => {
-    const div = document.createElement('div');
-    div.className = 'partido';
-    div.style.border = '1px solid #ddd';
-    div.style.borderRadius = '10px';
-    div.style.padding = '12px';
-    div.style.marginBottom = '10px';
-
-    const esJugado = p.games_a !== null && p.games_b !== null;
-    const labelBtn = modo === 'jugados' ? 'Guardar cambios' : 'Guardar';
-
-    div.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <div style="font-size:14px;">
-          Grupo <strong>${p.grupos?.nombre ?? '-'}</strong>
-        </div>
-        <div style="font-size:12px; opacity:0.8;">
-          ${esJugado ? 'Jugado' : 'Pendiente'}
-        </div>
-      </div>
-
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <strong class="team-name name-a">${p.pareja_a?.nombre ?? 'Pareja A'}</strong>
-        <input
-          type="number"
-          inputmode="numeric"
-          pattern="[0-9]*"
-          min="0"
-          step="1"
-          style="width:80px; font-size:18px; padding:8px; text-align:center;"
-        />
-      </div>
-
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-        <strong class="team-name name-b">${p.pareja_b?.nombre ?? 'Pareja B'}</strong>
-        <input
-          type="number"
-          inputmode="numeric"
-          pattern="[0-9]*"
-          min="0"
-          step="1"
-          style="width:80px; font-size:18px; padding:8px; text-align:center;"
-        />
-      </div>
-
-      <div class="actions-row"
-           style="
-             display:flex;
-             justify-content:flex-end;
-             gap:8px;
-             align-items:center;
-             margin-top:0px;
-             min-height:0px;
-             transition: margin-top 140ms ease, min-height 140ms ease;
-           ">
-        <span class="save-msg" style="font-size:13px; opacity:0.85;"></span>
-        <button type="button" style="padding:10px 14px; font-size:16px;">${labelBtn}</button>
-      </div>
-    `;
-
-    const [inputA, inputB] = div.querySelectorAll('input');
-    const actionsRow = div.querySelector('.actions-row');
-    const btn = div.querySelector('button');
-    const saveMsg = div.querySelector('.save-msg');
-    const nameA = div.querySelector('.name-a');
-    const nameB = div.querySelector('.name-b');
-
-    // precargar si estamos en jugados
-    if (modo === 'jugados') {
-      inputA.value = p.games_a ?? '';
-      inputB.value = p.games_b ?? '';
-    }
-
-    function pintarGanador() {
-      nameA.style.color = '';
-      nameB.style.color = '';
-
-      if (inputA.value === '' || inputB.value === '') return;
-
-      const ga = Number(inputA.value);
-      const gb = Number(inputB.value);
-      if (Number.isNaN(ga) || Number.isNaN(gb)) return;
-
-      if (ga === gb) {
-        nameA.style.color = '#b45309';
-        nameB.style.color = '#b45309';
-        return;
+    const card = crearCardEditable({
+      headerLeft: `Grupo <strong>${p.grupos?.nombre ?? '-'}</strong>`,
+      headerRight: (p.games_a !== null && p.games_b !== null) ? 'Jugado' : 'Pendiente',
+      nombreA: p.pareja_a?.nombre ?? 'Pareja A',
+      nombreB: p.pareja_b?.nombre ?? 'Pareja B',
+      gamesA: p.games_a,
+      gamesB: p.games_b,
+      onSave: async (ga, gb) => {
+        const ok = await guardarResultado(p.id, ga, gb);
+        if (ok) {
+          await cargarPartidos();
+          await cargarPosiciones();
+          // copas no dependen de esto, pero no molesta refrescar si querés consistencia visual:
+          // await cargarCopas();
+        }
+        return ok;
       }
+    });
 
-      if (ga > gb) nameA.style.color = '#1a7f37';
-      else nameB.style.color = '#1a7f37';
-    }
-
-    // Botón aparece solo con score válido + card compacta
-    function setGuardarVisible(visible) {
-      btn.style.display = visible ? 'inline-block' : 'none';
-
-      if (visible) {
-        actionsRow.style.marginTop = '10px';
-        actionsRow.style.minHeight = '44px';
-      } else {
-        const tieneMensaje = (saveMsg.textContent || '').trim() !== '';
-        actionsRow.style.marginTop = tieneMensaje ? '6px' : '0px';
-        actionsRow.style.minHeight = tieneMensaje ? '22px' : '0px';
-      }
-    }
-
-    function actualizarUIGuardar() {
-      const a = inputA.value.trim();
-      const b = inputB.value.trim();
-
-      if (a === '' || b === '') {
-        saveMsg.textContent = '';
-        setGuardarVisible(false);
-        return;
-      }
-
-      const gamesA = Number(a);
-      const gamesB = Number(b);
-
-      const v = validarScore(gamesA, gamesB);
-      if (v.ok) {
-        saveMsg.textContent = '';
-        setGuardarVisible(true);
-      } else {
-        saveMsg.textContent = v.msg;
-        setGuardarVisible(false);
-      }
-    }
-
-    function onInputChange() {
-      pintarGanador();
-      actualizarUIGuardar();
-    }
-
-    inputA.addEventListener('input', onInputChange);
-    inputB.addEventListener('input', onInputChange);
-
-    // estado inicial
-    setGuardarVisible(false);
-    pintarGanador();
-    actualizarUIGuardar();
-
-    btn.onclick = async () => {
-      if (inputA.value === '' || inputB.value === '') {
-        alert('Completá ambos resultados');
-        return;
-      }
-
-      const gamesA = Number(inputA.value);
-      const gamesB = Number(inputB.value);
-
-      const v = validarScore(gamesA, gamesB);
-      if (!v.ok) {
-        alert(v.msg);
-        return;
-      }
-
-      btn.disabled = true;
-      const prev = btn.innerText;
-      btn.innerText = 'Guardando…';
-      saveMsg.textContent = '';
-
-      const ok = await guardarResultado(p.id, gamesA, gamesB);
-
-      btn.disabled = false;
-      btn.innerText = prev;
-
-      if (ok) {
-        saveMsg.textContent = '✅ Guardado';
-        await cargarPartidos();
-        await cargarPosiciones();
-      } else {
-        saveMsg.textContent = '❌ Error';
-        setGuardarVisible(true);
-      }
-    };
-
-    listCont.appendChild(div);
+    listCont.appendChild(card);
   });
 }
 
-async function guardarResultado(partidoId, gamesA, gamesB) {
-  const { error } = await supabase
+// ===== COPAS (carga + edición) =====
+function labelRonda(r) {
+  if (!r) return '';
+  if (r === 'SF') return 'Semi';
+  if (r === 'F') return 'Final';
+  if (r === '3P') return '3/4';
+  return r;
+}
+
+async function cargarCopas() {
+  if (!copasCont) return;
+
+  copasCont.innerHTML = `<p style="opacity:0.8;">Cargando copas…</p>`;
+
+  let q = supabase
     .from('partidos')
-    .update({ games_a: gamesA, games_b: gamesB })
-    .eq('id', partidoId);
+    .select(`
+      id,
+      games_a,
+      games_b,
+      ronda_copa,
+      orden_copa,
+      copas ( id, nombre, orden ),
+      pareja_a:parejas!partidos_pareja_a_id_fkey ( nombre ),
+      pareja_b:parejas!partidos_pareja_b_id_fkey ( nombre )
+    `)
+    .eq('torneo_id', TORNEO_ID)
+    .not('copa_id', 'is', null);
+
+  if (modo === 'pendientes') {
+    q = q.or('games_a.is.null,games_b.is.null');
+  } else {
+    q = q.not('games_a', 'is', null).not('games_b', 'is', null);
+  }
+
+  // orden: por orden de copa y orden interno
+  q = q.order('orden_copa', { ascending: true });
+
+  const { data, error } = await q;
 
   if (error) {
     console.error(error);
-    alert('Error guardando el resultado');
-    return false;
+    copasCont.innerHTML = `<p>❌ Error cargando partidos de copas</p>`;
+    return;
   }
-  return true;
+
+  const partidos = data || [];
+  console.log('COPAS partidos:', partidos.length, partidos);
+
+  renderCopas(partidos);
+}
+
+function renderCopas(partidos) {
+  copasCont.innerHTML = '';
+
+  if (!partidos.length) {
+    copasCont.innerHTML =
+      modo === 'pendientes'
+        ? '<p>No hay partidos de copas pendientes (todavía) 🎉</p>'
+        : '<p>No hay partidos de copas jugados todavía.</p>';
+    return;
+  }
+
+  // agrupar por copa (nombre)
+  const map = new Map(); // key -> { nombre, orden, partidos: [] }
+  for (const p of partidos) {
+    const nombre = p.copas?.nombre ?? 'Copa';
+    const orden = p.copas?.orden ?? 99;
+    const key = `${orden}|${nombre}`;
+    if (!map.has(key)) map.set(key, { nombre, orden, partidos: [] });
+    map.get(key).partidos.push(p);
+  }
+
+  const copasList = Array.from(map.values()).sort((a, b) => a.orden - b.orden);
+
+  copasList.forEach(c => {
+    const h = document.createElement('h3');
+    h.textContent = c.nombre;
+    h.style.margin = '14px 0 8px';
+    copasCont.appendChild(h);
+
+    c.partidos
+      .sort((a, b) => (a.orden_copa ?? 999) - (b.orden_copa ?? 999))
+      .forEach(p => {
+        const header = `<strong>${c.nombre}</strong> · ${labelRonda(p.ronda_copa) || 'Partido'}`;
+
+        const card = crearCardEditable({
+          headerLeft: header,
+          headerRight: (p.games_a !== null && p.games_b !== null) ? 'Jugado' : 'Pendiente',
+          nombreA: p.pareja_a?.nombre ?? 'Pareja A',
+          nombreB: p.pareja_b?.nombre ?? 'Pareja B',
+          gamesA: p.games_a,
+          gamesB: p.games_b,
+          onSave: async (ga, gb) => {
+            const ok = await guardarResultado(p.id, ga, gb);
+            if (ok) {
+              await cargarCopas(); // refresco solo copas
+            }
+            return ok;
+          }
+        });
+
+        copasCont.appendChild(card);
+      });
+  });
 }
 
 // ===== Overrides (admin) =====
@@ -357,7 +496,6 @@ function calcularPosiciones(partidos) {
       { id: p.pareja_b.id, nombre: p.pareja_b.nombre, gf: p.games_b, gc: p.games_a }
     ];
 
-    // asegurar registros
     parejas.forEach(par => {
       if (!grupos[gid].parejas[par.id]) {
         grupos[gid].parejas[par.id] = {
@@ -374,10 +512,8 @@ function calcularPosiciones(partidos) {
       }
     });
 
-    // solo partidos jugados
     if (p.games_a === null || p.games_b === null) return;
 
-    // stats base
     parejas.forEach(par => {
       const r = grupos[gid].parejas[par.id];
       r.PJ += 1;
@@ -386,7 +522,6 @@ function calcularPosiciones(partidos) {
       r.DG = r.GF - r.GC;
     });
 
-    // puntos 2/1
     const ga = Number(p.games_a);
     const gb = Number(p.games_b);
 
@@ -403,7 +538,6 @@ function calcularPosiciones(partidos) {
       grupos[gid].parejas[p.pareja_a.id].P += 1;
       grupos[gid].parejas[p.pareja_a.id].PP += 1;
     } else {
-      // empate: no debería existir (lo bloqueamos)
       console.warn('Partido con empate de games, no asigna puntos', p.id);
     }
   });
@@ -412,7 +546,6 @@ function calcularPosiciones(partidos) {
 }
 
 function ordenarLista(lista, overrideMap) {
-  // Si hay override, manda. Si no, P->DG->GF
   return lista.sort((a, b) => {
     const oa = overrideMap?.[a.pareja_id];
     const ob = overrideMap?.[b.pareja_id];
@@ -488,7 +621,6 @@ function renderPosiciones(grupos, overrides) {
 }
 
 async function cargarPosiciones() {
-  // Traigo overrides en paralelo
   const [ovMap, partidosResp] = await Promise.all([
     cargarOverridesPosiciones(),
     supabase
@@ -521,3 +653,4 @@ async function cargarPosiciones() {
 pintarToggle();
 cargarPartidos();
 cargarPosiciones();
+cargarCopas();

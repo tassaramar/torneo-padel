@@ -7,8 +7,9 @@
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <h1>Admin – Grupos</h1>
+  <h1>Admin – Grupos y Copas</h1>
 
+  <h2>Grupos</h2>
   <div class="admin-actions">
     <button id="reset-grupos">🧹 Reset partidos de grupos</button>
     <button id="gen-grupos">🎾 Generar partidos de grupos</button>
@@ -22,6 +23,22 @@
   </p>
 
   <div id="grupos-admin"></div>
+
+  <hr />
+
+  <h2>Copas</h2>
+  <p style="margin-top:0;">
+    Copas post-ronda. Recomendación: primero cerrar grupos, guardar orden manual si hace falta, y recién ahí generar copas.
+  </p>
+
+  <div class="admin-actions">
+    <button id="refresh-copas">🔄 Refrescar Copas</button>
+    <button id="reset-copas">🧹 Reset Copas</button>
+    <button id="gen-copas">🏆 Generar Copas + Semis</button>
+    <button id="gen-finales">🏁 Generar Final + 3/4</button>
+  </div>
+
+  <div id="copas-admin" style="margin-top:12px;"></div>
 
   <hr />
 
