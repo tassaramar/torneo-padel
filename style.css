@@ -355,3 +355,30 @@ tbody tr:nth-child(even){
 .rank-1 td:first-child{ font-weight: 900; }
 .rank-2 td:first-child{ font-weight: 900; }
 .rank-3 td:first-child{ font-weight: 900; }
+/* ===== Top Nav ===== */
+.topnav{
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 0 14px;
+}
+
+.topnav-link{
+  display: inline-block;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text);
+  text-decoration: none;
+  box-shadow: var(--shadow);
+  font-weight: 600;
+}
+
+.topnav-link:hover{
+  border-color: #111827;
+}
+
+.topnav-link.is-active{
+  border-color: #111827;
+}
