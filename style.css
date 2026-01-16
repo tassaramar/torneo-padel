@@ -419,3 +419,11 @@ tbody tr:nth-child(even){
   font-weight:900;
   opacity:0.9;
 }
+button.is-locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(1);
+}
+button.is-locked:active {
+  transform: none;
+}

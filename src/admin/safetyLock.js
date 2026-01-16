@@ -1,37 +1,50 @@
 // src/admin/safetyLock.js
+import { logMsg } from './context.js';
+
 export function initSafetyLock() {
   const toggle = document.getElementById('admin-safe-toggle');
   const badge = document.getElementById('admin-safe-badge');
   const bar = document.getElementById('admin-safe-bar');
 
-  function setLocked(btn, locked) {
-    if (!btn) return;
+  const dangerButtons = Array.from(document.querySelectorAll('[data-danger="hard"]'));
 
-    if (locked) {
-      // guardamos el estado previo solo la primera vez
-      if (btn.dataset.lockPrevDisabled === undefined) {
-        btn.dataset.lockPrevDisabled = btn.disabled ? '1' : '0';
-      }
-      btn.disabled = true;
-      btn.title = 'Modo seguro activo: desbloqueá arriba para habilitar esto.';
-    } else {
-      const prev = btn.dataset.lockPrevDisabled;
-      btn.disabled = (prev === '1'); // restaura estado previo
-      btn.title = '';
-    }
+  function unlocked() {
+    return !!toggle?.checked;
   }
 
-  function apply() {
-    const unlocked = !!toggle?.checked;
+  function applyUI() {
+    const u = unlocked();
+    dangerButtons.forEach((btn) => {
+      btn.classList.toggle('is-locked', !u);
+      btn.setAttribute('aria-disabled', u ? 'false' : 'true');
+      btn.title = u ? '' : 'Modo seguro activo: desbloqueá arriba para habilitar esto.';
+    });
 
-    document
-      .querySelectorAll('[data-danger="hard"]')
-      .forEach((btn) => setLocked(btn, !unlocked));
-
-    if (badge) badge.textContent = unlocked ? 'DESBLOQUEADO' : 'Modo seguro';
-    if (bar) bar.classList.toggle('is-unlocked', unlocked);
+    if (badge) badge.textContent = u ? 'DESBLOQUEADO' : 'Modo seguro';
+    if (bar) bar.classList.toggle('is-unlocked', u);
   }
 
-  toggle?.addEventListener('change', apply);
-  apply();
+  // Guard: cuando está bloqueado, corta el click ANTES de que llegue a cualquier handler real.
+  function guardClick(e) {
+    if (unlocked()) return;
+
+    e.preventDefault();
+    // ESTE es el punto: corta también otros listeners en el mismo botón.
+    e.stopImmediatePropagation();
+
+    const label = e.currentTarget?.textContent?.trim() || 'Acción peligrosa';
+    logMsg(`🔒 Bloqueado por Modo seguro: "${label}". Desbloqueá arriba para ejecutar.`);
+  }
+
+  dangerButtons.forEach((btn) => {
+    btn.addEventListener('click', guardClick, true); // capture
+  });
+
+  toggle?.addEventListener('change', () => {
+    applyUI();
+    logMsg(unlocked() ? '🔓 Acciones peligrosas DESBLOQUEADAS' : '🔒 Acciones peligrosas BLOQUEADAS');
+  });
+
+  applyUI();
+  logMsg(unlocked() ? '🔓 Acciones peligrosas DESBLOQUEADAS' : '🔒 Acciones peligrosas BLOQUEADAS');
 }
