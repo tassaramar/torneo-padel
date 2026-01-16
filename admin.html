@@ -2,108 +2,119 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Admin Torneo Pádel</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin - Torneo Pádel</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <!-- NAV -->
-  <div class="topnav">
-    <a class="topnav-link" href="/carga">📲 Cargar resultados</a>
-    <a class="topnav-link" href="/">👀 Viewer</a>
-    <a class="topnav-link" href="/admin">🛠 Admin</a>
+  <div class="top-nav">
+    <a href="/" class="nav-link">Viewer</a>
+    <a href="/carga/" class="nav-link">Carga</a>
+    <a href="/admin/" class="nav-link active">Admin</a>
   </div>
-  <h1>Admin – Grupos y Copas</h1>
-  <h2>Parejas (import rápido)</h2>
-  <p style="margin-top:0;">
-    Pegá desde Excel en formato: <code>Pareja[TAB]Grupo</code>.
-    Ej: <code>Tincho - Sebi[TAB]B</code>.
-    <br/>
-    ⚠️ Importar borra y recrea: partidos, copas, overrides, grupos y parejas del torneo actual.
-  </p>
 
-  <div id="parejas-admin" class="admin-grupo">
-    <div class="admin-grupo-header">
-      <div>
-        <div style="font-size:14px; opacity:.9;">Pegado (desde Excel)</div>
-      </div>
+  <div class="container">
+    <h1>Admin – Operación del torneo</h1>
+
+    <!-- Modo seguro -->
+    <div id="admin-safe-bar" class="admin-safety">
+      <label class="admin-safety-label">
+        <input id="admin-safe-toggle" type="checkbox" />
+        Desbloquear acciones peligrosas
+      </label>
+      <span id="admin-safe-badge" class="admin-safety-badge">Modo seguro</span>
     </div>
 
-    <textarea id="parejas-paste" rows="10" style="width:100%; margin-top:10px;"
-      placeholder="Mauri - Diego Sz	a
+    <!-- SETUP -->
+    <details class="admin-section" open>
+      <summary>🧰 Setup previo (antes del torneo)</summary>
+
+      <!-- Import + editor de parejas -->
+      <h2 style="margin-top:14px;">Parejas (import rápido)</h2>
+      <p style="margin-top:0;">
+        Pegá desde Excel en formato: <code>Pareja[TAB]Grupo</code>.
+        Ej: <code>Tincho - Sebi[TAB]B</code>.
+        <br />
+        ⚠️ Importar borra y recrea: partidos, copas, overrides, grupos y parejas del torneo actual.
+      </p>
+
+      <div id="parejas-admin" class="admin-grupo">
+        <div class="admin-grupo-header">
+          <div>
+            <div style="font-size:14px; opacity:.9;">Pegado (desde Excel)</div>
+          </div>
+        </div>
+
+        <textarea id="parejas-paste" rows="10" style="width:100%; margin-top:10px;"
+          placeholder="Mauri - Diego Sz	a
 Gaby A - Chiqui	a
 Gaby Z - Ari Kan	a
 Tincho - Sebi	b
 ..."></textarea>
 
-    <div class="admin-actions" style="margin-top:10px;">
-      <button id="parejas-preview">👀 Previsualizar</button>
-      <button id="parejas-import" disabled>💣 Importar (borra y recrea)</button>
-    </div>
+        <div class="admin-actions" style="margin-top:10px;">
+          <button id="parejas-preview">👀 Previsualizar</button>
+          <!-- Import destructivo: queda bloqueado por “modo seguro” -->
+          <button id="parejas-import" data-danger="hard" disabled>💣 Importar (borra y recrea)</button>
+        </div>
 
-    <div id="parejas-preview-out" style="margin-top:12px;"></div>
+        <div id="parejas-preview-out" style="margin-top:12px;"></div>
+
         <div style="margin-top:16px; padding-top:12px; border-top:1px solid #333;">
-      <div style="font-weight:700; margin-bottom:8px;">Edición rápida (reemplazos)</div>
+          <div style="font-weight:700; margin-bottom:8px;">Edición rápida (reemplazos)</div>
 
-      <input id="parejas-search" style="width:100%; padding:10px; border-radius:10px; border:1px solid #333; background:#111; color:#fff;"
-        placeholder="Buscar jugador (ej: Ariel, Tincho, Sebi)" />
+          <input id="parejas-search" style="width:100%; padding:10px; border-radius:10px; border:1px solid #333; background:#111; color:#fff;"
+            placeholder="Buscar jugador (ej: Ariel, Tincho, Sebi)" />
 
-      <div class="admin-actions" style="margin-top:10px;">
-        <button id="parejas-refresh">🔄 Refrescar lista</button>
+          <div class="admin-actions" style="margin-top:10px;">
+            <button id="parejas-refresh">🔄 Refrescar lista</button>
+          </div>
+
+          <div id="parejas-list" style="margin-top:12px;"></div>
+        </div>
+      </div>
+    </details>
+
+    <!-- OPERACION -->
+    <details class="admin-section" open>
+      <summary>🎾 Operación (durante el torneo)</summary>
+
+      <h2 style="margin-top:14px;">Grupos</h2>
+      <div class="admin-actions">
+        <button id="gen-grupos">🎾 Generar partidos de grupos</button>
       </div>
 
-      <div id="parejas-list" style="margin-top:12px;"></div>
-    </div>
+      <h2 style="margin-top:18px;">Cierre de grupos (ranking + orden final)</h2>
+      <p style="margin-top:0; opacity:.85;">
+        Esto se usa cuando terminan los partidos de grupos y querés fijar el orden final (o ajustarlo).
+      </p>
 
-  </div>
+      <div class="admin-actions">
+        <button id="generar-ranking">📊 Generar ranking</button>
+        <button id="guardar-ranking">💾 Guardar orden final</button>
+        <button id="refrescar-ranking">🔄 Refrescar orden final</button>
+      </div>
 
-  <hr />
+      <div id="ranking-out" style="margin-top:12px;"></div>
 
-  <h2>Grupos</h2>
-  <div class="admin-actions">
-    <button id="reset-grupos">🧹 Reset partidos de grupos</button>
-    <button id="gen-grupos">🎾 Generar partidos de grupos</button>
-  </div>
+      <h2 style="margin-top:18px;">Copas</h2>
+      <div class="admin-actions">
+        <button id="refresh-copas">🔄 Refrescar Copas</button>
+        <button id="gen-copas">🏆 Generar Copas + Semis</button>
+        <button id="gen-finales">🏁 Generar Final + 3/4</button>
+      </div>
 
-  <hr />
+      <div id="copas-out" style="margin-top:12px;"></div>
+    </details>
 
-  <h2>Cierre de grupos</h2>
-  <p style="margin-top:0;">
-    Acá se calcula el ranking automático. Si hay empates raros, podés reordenar y guardar el orden final.
-  </p>
+    <!-- ZONA PELIGROSA -->
+    <details class="admin-section admin-danger">
+      <summary>☠️ Zona peligrosa (reset / borrar)</summary>
 
-  <div id="grupos-admin"></div>
+      <p style="margin-top:8px;">
+        Esto borra cosas. En un torneo en vivo, un toque mal y te ganaste una noche larga.
+      </p>
 
-  <hr />
-
-  <h2>Copas</h2>
-  <p style="margin-top:0;">
-    Copas post-ronda. Recomendación: primero cerrar grupos, guardar orden manual si hace falta, y recién ahí generar copas.
-  </p>
-
-  <div class="admin-actions">
-    <button id="refresh-copas">🔄 Refrescar Copas</button>
-    <button id="reset-copas">🧹 Reset Copas</button>
-    <button id="gen-copas">🏆 Generar Copas + Semis</button>
-    <button id="gen-finales">🏁 Generar Final + 3/4</button>
-  </div>
-
-  <div id="copas-admin" style="margin-top:12px;"></div>
-
-  <hr />
-
-  <div id="log" class="admin-log"></div>
-
-  <script type="module" src="/src/admin.js"></script>
-<script>
-  (function () {
-    const path = (location.pathname.endsWith('/') ? location.pathname : location.pathname + '/');
-    document.querySelectorAll('.topnav-link').forEach(a => {
-      const href = a.getAttribute('href');
-      const norm = (href.endsWith('/') ? href : href + '/');
-      if (norm === path) a.classList.add('is-active');
-    });
-  })();
-</script>
-</body>
-</html>
+      <div class="admin-actions">
+        <button id="reset-grupos" data-danger="hard">🧹 Reset partidos de grupos</button>
+        <button id="reset-copas" data-danger="hard">🧹 Reset

@@ -382,3 +382,40 @@ tbody tr:nth-child(even){
 .topnav-link.is-active{
   border-color: #111827;
 }
+.admin-section{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 12px;
+  margin: 12px 0;
+}
+
+.admin-section summary{
+  cursor: pointer;
+  font-weight: 900;
+  font-size: 16px;
+}
+
+.admin-safety{
+  display:flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items:center;
+  background:#fff3cd;
+  border:1px solid #d39e00;
+  border-radius:14px;
+  padding:10px 12px;
+  margin: 8px 0 14px;
+}
+
+.admin-safety.is-unlocked{
+  background:#ffe4e6;
+  border-color:#fb7185;
+}
+
+.admin-safety-badge{
+  font-size:12px;
+  font-weight:900;
+  opacity:0.9;
+}
