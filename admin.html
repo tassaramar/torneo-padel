@@ -6,12 +6,14 @@
   <title>Admin - Torneo Pádel</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
+
 <body>
-  <div class="top-nav">
-    <a href="/" class="nav-link">Viewer</a>
-    <a href="/carga/" class="nav-link">Carga</a>
-    <a href="/admin/" class="nav-link active">Admin</a>
+  <div class="topnav">
+    <a class="topnav-link" href="/carga">📲 Cargar resultados</a>
+    <a class="topnav-link" href="/">👀 Viewer</a>
+    <a class="topnav-link" href="/admin">🛠 Admin</a>
   </div>
+
 
   <div class="container">
     <h1>Admin – Operación del torneo</h1>
@@ -29,7 +31,6 @@
     <details class="admin-section" open>
       <summary>🧰 Setup previo (antes del torneo)</summary>
 
-      <!-- Import + editor de parejas -->
       <h2 style="margin-top:14px;">Parejas (import rápido)</h2>
       <p style="margin-top:0;">
         Pegá desde Excel en formato: <code>Pareja[TAB]Grupo</code>.
@@ -40,22 +41,30 @@
 
       <div id="parejas-admin" class="admin-grupo">
         <div class="admin-grupo-header">
-          <div>
-            <div style="font-size:14px; opacity:.9;">Pegado (desde Excel)</div>
-          </div>
+          <div style="font-size:14px; opacity:.9;">Pegado (desde Excel)</div>
         </div>
 
-        <textarea id="parejas-paste" rows="10" style="width:100%; margin-top:10px;"
+        <textarea
+          id="parejas-paste"
+          rows="10"
+          style="width:100%; margin-top:10px;"
           placeholder="Mauri - Diego Sz	a
 Gaby A - Chiqui	a
 Gaby Z - Ari Kan	a
 Tincho - Sebi	b
-..."></textarea>
+Marian - Uri	b
+Diego Sm - Dudi	b
+Gaston - Chino	c
+Gus - Pablo A	c
+Nico - Max	c
+Marce - Leo	d
+Lean - Alan	d
+Andy - Ger	d"></textarea>
 
         <div class="admin-actions" style="margin-top:10px;">
-          <button id="parejas-preview">👀 Previsualizar</button>
-          <!-- Import destructivo: queda bloqueado por “modo seguro” -->
-          <button id="parejas-import" data-danger="hard" disabled>💣 Importar (borra y recrea)</button>
+          <button id="parejas-preview" type="button">👀 Previsualizar</button>
+          <!-- Import destructivo: marcarlo como peligroso -->
+          <button id="parejas-import" type="button" data-danger="hard">💣 Importar (borra y recrea)</button>
         </div>
 
         <div id="parejas-preview-out" style="margin-top:12px;"></div>
@@ -63,11 +72,13 @@ Tincho - Sebi	b
         <div style="margin-top:16px; padding-top:12px; border-top:1px solid #333;">
           <div style="font-weight:700; margin-bottom:8px;">Edición rápida (reemplazos)</div>
 
-          <input id="parejas-search" style="width:100%; padding:10px; border-radius:10px; border:1px solid #333; background:#111; color:#fff;"
+          <input
+            id="parejas-search"
+            style="width:100%; padding:10px; border-radius:10px; border:1px solid #333; background:#111; color:#fff;"
             placeholder="Buscar jugador (ej: Ariel, Tincho, Sebi)" />
 
           <div class="admin-actions" style="margin-top:10px;">
-            <button id="parejas-refresh">🔄 Refrescar lista</button>
+            <button id="parejas-refresh" type="button">🔄 Refrescar lista</button>
           </div>
 
           <div id="parejas-list" style="margin-top:12px;"></div>
@@ -81,7 +92,7 @@ Tincho - Sebi	b
 
       <h2 style="margin-top:14px;">Grupos</h2>
       <div class="admin-actions">
-        <button id="gen-grupos">🎾 Generar partidos de grupos</button>
+        <button id="gen-grupos" type="button">🎾 Generar partidos de grupos</button>
       </div>
 
       <h2 style="margin-top:18px;">Cierre de grupos (ranking + orden final)</h2>
@@ -90,18 +101,18 @@ Tincho - Sebi	b
       </p>
 
       <div class="admin-actions">
-        <button id="generar-ranking">📊 Generar ranking</button>
-        <button id="guardar-ranking">💾 Guardar orden final</button>
-        <button id="refrescar-ranking">🔄 Refrescar orden final</button>
+        <button id="generar-ranking" type="button">📊 Generar ranking</button>
+        <button id="guardar-ranking" type="button">💾 Guardar orden final</button>
+        <button id="refrescar-ranking" type="button">🔄 Refrescar orden final</button>
       </div>
 
       <div id="ranking-out" style="margin-top:12px;"></div>
 
       <h2 style="margin-top:18px;">Copas</h2>
       <div class="admin-actions">
-        <button id="refresh-copas">🔄 Refrescar Copas</button>
-        <button id="gen-copas">🏆 Generar Copas + Semis</button>
-        <button id="gen-finales">🏁 Generar Final + 3/4</button>
+        <button id="refresh-copas" type="button">🔄 Refrescar Copas</button>
+        <button id="gen-copas" type="button">🏆 Generar Copas + Semis</button>
+        <button id="gen-finales" type="button">🏁 Generar Final + 3/4</button>
       </div>
 
       <div id="copas-out" style="margin-top:12px;"></div>
@@ -112,9 +123,31 @@ Tincho - Sebi	b
       <summary>☠️ Zona peligrosa (reset / borrar)</summary>
 
       <p style="margin-top:8px;">
-        Esto borra cosas. En un torneo en vivo, un toque mal y te ganaste una noche larga.
+        Esto borra cosas. Si tocás acá sin querer, te ganaste una noche larga.
       </p>
 
       <div class="admin-actions">
-        <button id="reset-grupos" data-danger="hard">🧹 Reset partidos de grupos</button>
-        <button id="reset-copas" data-danger="hard">🧹 Reset
+        <button id="reset-grupos" type="button" data-danger="hard">🧹 Reset partidos de grupos</button>
+        <button id="reset-copas" type="button" data-danger="hard">🧹 Reset Copas</button>
+      </div>
+    </details>
+
+    <h2>Log</h2>
+    <div id="log" class="log"></div>
+  </div>
+
+  <!-- ESTE es el script que conecta TODO el Admin -->
+  <script type="module" src="/src/admin.js"></script>
+  <script>
+    (function () {
+      const path = (location.pathname.endsWith('/') ? location.pathname : location.pathname + '/');
+      document.querySelectorAll('.topnav-link').forEach(a => {
+        const href = a.getAttribute('href');
+        const norm = (href.endsWith('/') ? href : href + '/');
+        if (norm === path) a.classList.add('is-active');
+      });
+    })();
+  </script>
+
+</body>
+</html>
