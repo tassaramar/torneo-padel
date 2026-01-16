@@ -14,6 +14,50 @@
     <a class="topnav-link" href="/admin">🛠 Admin</a>
   </div>
   <h1>Admin – Grupos y Copas</h1>
+  <h2>Parejas (import rápido)</h2>
+  <p style="margin-top:0;">
+    Pegá desde Excel en formato: <code>Pareja[TAB]Grupo</code>.
+    Ej: <code>Tincho - Sebi[TAB]B</code>.
+    <br/>
+    ⚠️ Importar borra y recrea: partidos, copas, overrides, grupos y parejas del torneo actual.
+  </p>
+
+  <div id="parejas-admin" class="admin-grupo">
+    <div class="admin-grupo-header">
+      <div>
+        <div style="font-size:14px; opacity:.9;">Pegado (desde Excel)</div>
+      </div>
+    </div>
+
+    <textarea id="parejas-paste" rows="10" style="width:100%; margin-top:10px;"
+      placeholder="Mauri - Diego Sz	a
+Gaby A - Chiqui	a
+Gaby Z - Ari Kan	a
+Tincho - Sebi	b
+..."></textarea>
+
+    <div class="admin-actions" style="margin-top:10px;">
+      <button id="parejas-preview">👀 Previsualizar</button>
+      <button id="parejas-import" disabled>💣 Importar (borra y recrea)</button>
+    </div>
+
+    <div id="parejas-preview-out" style="margin-top:12px;"></div>
+        <div style="margin-top:16px; padding-top:12px; border-top:1px solid #333;">
+      <div style="font-weight:700; margin-bottom:8px;">Edición rápida (reemplazos)</div>
+
+      <input id="parejas-search" style="width:100%; padding:10px; border-radius:10px; border:1px solid #333; background:#111; color:#fff;"
+        placeholder="Buscar jugador (ej: Ariel, Tincho, Sebi)" />
+
+      <div class="admin-actions" style="margin-top:10px;">
+        <button id="parejas-refresh">🔄 Refrescar lista</button>
+      </div>
+
+      <div id="parejas-list" style="margin-top:12px;"></div>
+    </div>
+
+  </div>
+
+  <hr />
 
   <h2>Grupos</h2>
   <div class="admin-actions">

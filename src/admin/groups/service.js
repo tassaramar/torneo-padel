@@ -40,7 +40,7 @@ export async function generarPartidosGrupos() {
     .from('parejas')
     .select('id')
     .eq('torneo_id', TORNEO_ID)
-    .order('created_at');
+    .order('orden');
 
   if (errParejas || !parejas || parejas.length < 2) {
     console.error(errParejas);
