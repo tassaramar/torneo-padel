@@ -427,3 +427,47 @@ button.is-locked {
 button.is-locked:active {
   transform: none;
 }
+/* Zebra suave para no perderse scrolleando */
+.partido.is-odd {
+  background: rgba(255, 255, 255, 0.03);
+}
+.partido.is-even {
+  background: rgba(255, 255, 255, 0.00);
+}
+
+/* Cuando hay búsqueda: resaltar los matches */
+.partido.is-match {
+  outline: 2px solid rgba(0, 255, 204, 0.55);
+  box-shadow: 0 0 0 3px rgba(0, 255, 204, 0.10);
+}
+
+/* Texto chiquito para el contador */
+#partidos-msg.search-msg {
+  opacity: 0.9;
+}
+/* Zebra que realmente se ve: una barrita izquierda alternada */
+.partido.is-even { border-left: 6px solid rgba(0, 255, 204, 0.18); }
+.partido.is-odd  { border-left: 6px solid rgba(0, 255, 204, 0.35); }
+
+/* Golpes de búsqueda: resaltar SOLO donde matchea */
+.partido .row.hit {
+  background: rgba(0, 255, 204, 0.12);
+  border-radius: 10px;
+  padding: 2px 6px;
+}
+
+.partido .card-header-left.hit {
+  background: rgba(0, 255, 204, 0.10);
+  border-radius: 10px;
+  padding: 2px 6px;
+}
+
+/* Mensaje del buscador */
+#partidos-msg.search-msg { opacity: 0.9; }
+
+/* Filas internas de cada card: mismo padding para todas */
+.partido .row {
+  padding: 10px 10px;
+  border-radius: 12px;
+  box-sizing: border-box;
+}

@@ -61,22 +61,30 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
     return;
   }
 
-  partidos.forEach(p => {
+  partidos.forEach((p, idx) => {
+    const grupo = p.grupos?.nombre ?? '-';
+    const a = p.pareja_a?.nombre ?? 'Pareja A';
+    const b = p.pareja_b?.nombre ?? 'Pareja B';
+
     const card = crearCardEditable({
-      headerLeft: `Grupo <strong>${p.grupos?.nombre ?? '-'}</strong>`,
+      headerLeft: `Grupo <strong>${grupo}</strong>`,
       headerRight: (p.games_a !== null && p.games_b !== null) ? 'Jugado' : 'Pendiente',
-      nombreA: p.pareja_a?.nombre ?? 'Pareja A',
-      nombreB: p.pareja_b?.nombre ?? 'Pareja B',
+      nombreA: a,
+      nombreB: b,
       gamesA: p.games_a,
       gamesB: p.games_b,
       onSave: async (ga, gb) => {
         const ok = await guardarResultado(supabase, p.id, ga, gb);
-        if (ok) {
-          await onAfterSave?.();
-        }
+        if (ok) await onAfterSave?.();
         return ok;
       }
     });
+
+    // ✅ Zebra visible (no depende de CSS, no lo pisa el border inline)
+    const even = idx % 2 === 0;
+    card.style.borderLeft = even
+      ? '10px solid rgba(0, 255, 204, 0.25)'
+      : '10px solid rgba(0, 255, 204, 0.55)';
 
     listCont.appendChild(card);
   });

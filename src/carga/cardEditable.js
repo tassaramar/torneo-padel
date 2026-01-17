@@ -22,11 +22,11 @@ export function crearCardEditable({
 
   div.innerHTML = `
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-      <div style="font-size:14px;">${headerLeft}</div>
+      <div class="card-header-left" style="font-size:14px;">${headerLeft}</div>
       <div style="font-size:12px; opacity:0.8;">${headerRight ?? (esJugado ? 'Jugado' : 'Pendiente')}</div>
     </div>
 
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+    <div class="row row-a" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
       <strong class="team-name name-a">${nombreA ?? 'Pareja A'}</strong>
       <input
         type="number"
@@ -38,7 +38,7 @@ export function crearCardEditable({
       />
     </div>
 
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+    <div class="row row-b" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
       <strong class="team-name name-b">${nombreB ?? 'Pareja B'}</strong>
       <input
         type="number"
@@ -72,7 +72,6 @@ export function crearCardEditable({
   const nameA = div.querySelector('.name-a');
   const nameB = div.querySelector('.name-b');
 
-  // precargar si estamos en jugados
   if (state.modo === 'jugados') {
     inputA.value = gamesA ?? '';
     inputB.value = gamesB ?? '';
@@ -88,11 +87,7 @@ export function crearCardEditable({
     const gb = Number(inputB.value);
     if (Number.isNaN(ga) || Number.isNaN(gb)) return;
 
-    if (ga === gb) {
-      nameA.style.color = '#b45309';
-      nameB.style.color = '#b45309';
-      return;
-    }
+    if (ga === gb) return;
 
     if (ga > gb) nameA.style.color = '#1a7f37';
     else nameB.style.color = '#1a7f37';
@@ -142,7 +137,6 @@ export function crearCardEditable({
   inputA.addEventListener('input', onInputChange);
   inputB.addEventListener('input', onInputChange);
 
-  // estado inicial
   setGuardarVisible(false);
   pintarGanador();
   actualizarUIGuardar();
@@ -172,12 +166,8 @@ export function crearCardEditable({
     btn.disabled = false;
     btn.innerText = prev;
 
-    if (ok) {
-      saveMsg.textContent = '✅ Guardado';
-    } else {
-      saveMsg.textContent = '❌ Error';
-      setGuardarVisible(true);
-    }
+    saveMsg.textContent = ok ? '✅ Guardado' : '❌ Error';
+    if (!ok) setGuardarVisible(true);
   };
 
   return div;

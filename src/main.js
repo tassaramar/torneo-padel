@@ -3,10 +3,15 @@ import { initCargaLayout, wireModoToggle, pintarModoToggle } from './carga/layou
 import { cargarPartidosGrupos } from './carga/partidosGrupos.js';
 import { cargarPosiciones } from './carga/posiciones.js';
 import { cargarCopas } from './carga/copas.js';
+import { initSearchUI, applySearchToPartidos } from './carga/search.js';
 
 console.log('MAIN DE VITE (carga)');
 
 const dom = initCargaLayout();
+
+function aplicarFiltro() {
+  applySearchToPartidos({ listCont: dom.listCont, msgCont: dom.msgCont });
+}
 
 async function refreshPartidosYCopas() {
   await cargarPartidosGrupos({
@@ -16,6 +21,9 @@ async function refreshPartidosYCopas() {
     listCont: dom.listCont,
     onAfterSave: refreshAfterGroupSave
   });
+
+  // re-aplicar filtro después de render
+  aplicarFiltro();
 
   await cargarCopas({
     supabase,
@@ -33,6 +41,8 @@ async function refreshAfterGroupSave() {
     listCont: dom.listCont,
     onAfterSave: refreshAfterGroupSave
   });
+
+  aplicarFiltro();
 
   await cargarPosiciones({
     supabase,
@@ -52,6 +62,13 @@ async function refreshCopasOnly() {
 
 async function init() {
   pintarModoToggle(dom);
+
+  initSearchUI({
+    input: dom.searchInput,
+    clearBtn: dom.searchClearBtn,
+    onChange: aplicarFiltro
+  });
+
   wireModoToggle(dom, async () => {
     pintarModoToggle(dom);
     await refreshPartidosYCopas();
@@ -64,6 +81,8 @@ async function init() {
     torneoId: TORNEO_ID,
     posicionesCont: dom.posicionesCont
   });
+
+  aplicarFiltro();
 }
 
 init();

@@ -18,11 +18,25 @@ export function initCargaLayout() {
     document.body.appendChild(copasCont);
   }
 
-  // Estructura fija (para que renderPartidos no te borre el toggle)
+  // estructura fija
   app.innerHTML = `
-    <div id="partidos-controls" style="display:flex; gap:8px; margin-bottom:12px;">
+    <div id="partidos-controls" style="display:flex; gap:8px; margin-bottom:10px;">
       <button id="btn-pendientes" type="button" style="flex:1; padding:10px; font-size:16px;">Pendientes</button>
       <button id="btn-jugados" type="button" style="flex:1; padding:10px; font-size:16px;">Jugados</button>
+    </div>
+
+    <div id="search-row" style="display:flex; gap:8px; margin-bottom:12px;">
+      <input
+        id="search-partidos"
+        type="text"
+        autocomplete="off"
+        inputmode="search"
+        placeholder="Buscar jugador o grupo…"
+        style="flex:1; padding:12px; font-size:16px; border:1px solid #ccc; border-radius:10px;"
+      />
+      <button id="search-clear" type="button" style="padding:12px 14px; font-size:16px; border:1px solid #ccc; border-radius:10px;">
+        ✖
+      </button>
     </div>
 
     <div id="partidos-msg" style="margin:10px 0; font-size:14px;"></div>
@@ -34,8 +48,23 @@ export function initCargaLayout() {
   const btnJugados = document.getElementById('btn-jugados');
   const msgCont = document.getElementById('partidos-msg');
   const listCont = document.getElementById('partidos-list');
+  const searchInput = document.getElementById('search-partidos');
+  const searchClearBtn = document.getElementById('search-clear');
 
-  return { app, posicionesCont, copasCont, btnPendientes, btnJugados, msgCont, listCont };
+  // inicializar valor del input con el state
+  if (searchInput) searchInput.value = state.search || '';
+
+  return {
+    app,
+    posicionesCont,
+    copasCont,
+    btnPendientes,
+    btnJugados,
+    msgCont,
+    listCont,
+    searchInput,
+    searchClearBtn
+  };
 }
 
 export function pintarModoToggle(dom) {
