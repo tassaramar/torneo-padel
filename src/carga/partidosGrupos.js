@@ -60,6 +60,67 @@ export async function cargarPartidosGrupos({ supabase, torneoId, msgCont, listCo
   renderPartidosGrupos({ partidos: data || [], supabase, onAfterSave, listCont });
 }
 
+/**
+ * Ordena partidos para maximizar paralelismo.
+ * Agrupa en "rondas" donde ninguna pareja se repite.
+ * Intenta balancear entre grupos para mejor distribución.
+ */
+function ordenarParaParalelismo(partidos) {
+  const result = [];
+  const remaining = [...partidos];
+  
+  // Separar por grupos para mejor distribución
+  const porGrupo = {};
+  remaining.forEach(p => {
+    const grupo = p.grupos?.nombre ?? 'Sin Grupo';
+    if (!porGrupo[grupo]) porGrupo[grupo] = [];
+    porGrupo[grupo].push(p);
+  });
+  
+  const grupos = Object.keys(porGrupo).sort();
+  
+  while (remaining.length > 0) {
+    const ronda = [];
+    const parejasEnUso = new Set();
+    
+    // Intentar tomar un partido de cada grupo (round-robin entre grupos)
+    for (const grupo of grupos) {
+      const partidosGrupo = porGrupo[grupo];
+      if (!partidosGrupo || partidosGrupo.length === 0) continue;
+      
+      // Buscar primer partido del grupo que no tenga conflictos
+      for (let i = 0; i < partidosGrupo.length; i++) {
+        const p = partidosGrupo[i];
+        const parejaANombre = p.pareja_a?.nombre;
+        const parejaBNombre = p.pareja_b?.nombre;
+        
+        if (!parejasEnUso.has(parejaANombre) && !parejasEnUso.has(parejaBNombre)) {
+          ronda.push(p);
+          parejasEnUso.add(parejaANombre);
+          parejasEnUso.add(parejaBNombre);
+          partidosGrupo.splice(i, 1);
+          const idx = remaining.indexOf(p);
+          if (idx >= 0) remaining.splice(idx, 1);
+          break;
+        }
+      }
+    }
+    
+    // Si no se pudo armar ronda completa (ej: quedan pocos partidos), tomar lo que se pueda
+    if (ronda.length === 0 && remaining.length > 0) {
+      const p = remaining.shift();
+      ronda.push(p);
+      const grupo = p.grupos?.nombre ?? 'Sin Grupo';
+      const idx = porGrupo[grupo]?.indexOf(p);
+      if (idx >= 0) porGrupo[grupo].splice(idx, 1);
+    }
+    
+    result.push(...ronda);
+  }
+  
+  return result;
+}
+
 function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
   listCont.innerHTML = '';
 
@@ -71,7 +132,12 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
     return;
   }
 
-  partidos.forEach((p) => {
+  // Ordenar para maximizar paralelismo
+  const partidosOrdenados = state.modo === 'pendientes' 
+    ? ordenarParaParalelismo(partidos)
+    : partidos;
+
+  partidosOrdenados.forEach((p) => {
     const grupo = p.grupos?.nombre ?? '-';
     const a = p.pareja_a?.nombre ?? 'Pareja A';
     const b = p.pareja_b?.nombre ?? 'Pareja B';
