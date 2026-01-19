@@ -33,8 +33,10 @@ CREATE TABLE public.parejas (
   nombre text NOT NULL,
   orden integer NOT NULL,
   created_at timestamp with time zone DEFAULT now(),
+  copa_asignada_id uuid,
   CONSTRAINT parejas_pkey PRIMARY KEY (id),
-  CONSTRAINT parejas_torneo_id_fkey FOREIGN KEY (torneo_id) REFERENCES public.torneos(id)
+  CONSTRAINT parejas_torneo_id_fkey FOREIGN KEY (torneo_id) REFERENCES public.torneos(id),
+  CONSTRAINT parejas_copa_asignada_id_fkey FOREIGN KEY (copa_asignada_id) REFERENCES public.copas(id) ON DELETE SET NULL
 );
 
 CREATE TABLE public.partidos (

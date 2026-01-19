@@ -31,11 +31,14 @@ ABM de parejas + carga rápida “pegar desde Excel” con preview/validación.
 
 Objetivo: eliminar edición manual en Supabase y el “mapeo por orden” para que cada pareja quede en su grupo real.
 
-B) Copas manuales registrables (P0)
+B) Copas manuales registrables (P0) - EN PROGRESO
 
-Admin permite armar copas aunque falten partidos de grupos.
-
-Sin bracket: solo lista de partidos por copa (simple, confiable).
+Sistema flexible de pre-asignación de equipos a copas:
+- Asignación manual equipo por equipo (dropdown)
+- Asignación automática desde grupos terminados
+- Generación de semis con 2, 3 o 4 equipos (flexible)
+- Mantiene generación automática full como opción
+- Sin bracket: lista de partidos por copa (simple, confiable)
 
 D) Engagement Viewer (P1)
 

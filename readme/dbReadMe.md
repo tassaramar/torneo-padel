@@ -5,7 +5,7 @@ torneos: torneo principal (id, nombre, iniciado, created_at)
 
 grupos: grupos de un torneo (torneo_id FK)
 
-parejas: parejas de un torneo (torneo_id FK, orden)
+parejas: parejas de un torneo (torneo_id FK, orden, copa_asignada_id FK nullable para pre-asignación flexible)
 
 copas: copas de un torneo (torneo_id FK, orden)
 
