@@ -141,7 +141,7 @@ function renderPosiciones(posicionesCont, grupos, overrides) {
       <tbody>
         ${lista.map(p => `
           <tr>
-            <td style="padding:6px 0; border-bottom:1px solid #f0f0f0;">${p.nombre}</td>
+            <td style="padding:6px 0; border-bottom:1px solid #f0f0f0; font-weight:normal;">${p.nombre}</td>
             <td style="text-align:center; border-bottom:1px solid #f0f0f0;">${p.PJ}</td>
             <td style="text-align:center; border-bottom:1px solid #f0f0f0;">${p.PG}</td>
             <td style="text-align:center; border-bottom:1px solid #f0f0f0;">${p.PP}</td>
