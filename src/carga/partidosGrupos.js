@@ -165,6 +165,7 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
   aplicarZebraVisible(listCont);
 }
 
+function crearCardParaPartido(p, supabase, onAfterSave) {
   const grupo = p.grupos?.nombre ?? '-';
   const a = p.pareja_a?.nombre ?? 'Pareja A';
   const b = p.pareja_b?.nombre ?? 'Pareja B';
