@@ -595,12 +595,9 @@ async function generarSemisConAsignados(copaId, copaNombre) {
   // Si ya hay semis, no crear más (evita duplicados)
   if (existingSemis && existingSemis.length > 0) {
     const numExistentes = existingSemis.length;
-    const numEsperadas = equipos.length === 2 ? 1 : (equipos.length === 3 ? 1 : 2);
-    
-    if (numExistentes >= numEsperadas) {
-      logMsg(`❌ ${copaNombre} ya tiene ${numExistentes} semi(s). Borrá los partidos primero si querés regenerar.`);
-      return;
-    }
+    logMsg(`⚠️ ${copaNombre} ya tiene ${numExistentes} semi(s) creada(s).`);
+    logMsg(`💡 Para regenerar con ${equipos.length} equipos: borrá las semis existentes primero (Reset Copas) y volvé a generar.`);
+    return;
   }
 
   // Obtener stats de grupos para seeding (si están disponibles)
