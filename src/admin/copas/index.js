@@ -58,6 +58,35 @@ export async function resetCopasDelTorneo() {
 }
 
 /* =========================
+   DETECCIÓN DE FORMATO
+========================= */
+
+async function detectarFormatoTorneo() {
+  const { data: grupos } = await supabase
+    .from('grupos')
+    .select('id')
+    .eq('torneo_id', TORNEO_ID);
+
+  const { data: parejas } = await supabase
+    .from('parejas')
+    .select('id')
+    .eq('torneo_id', TORNEO_ID);
+
+  const numGrupos = grupos?.length || 0;
+  const numParejas = parejas?.length || 0;
+  const parejasPorGrupo = numGrupos > 0 ? numParejas / numGrupos : 0;
+
+  const esFormatoEstandar = numGrupos === 4 && parejasPorGrupo === 3;
+
+  return {
+    numGrupos,
+    numParejas,
+    parejasPorGrupo,
+    esFormatoEstandar
+  };
+}
+
+/* =========================
    ANÁLISIS DE ESTADO DE COPAS
 ========================= */
 
@@ -90,8 +119,8 @@ async function calcularTablaGrupoDB(grupoId) {
   const rows = calcularTablaGrupo(partidos || []);
   const ordenadas = ordenarAutomatico(rows);
 
-  if (ordenadas.length !== 3) {
-    return { ok: false, msg: `no pude determinar 3 parejas (rows=${ordenadas.length})` };
+  if (ordenadas.length < 2) {
+    return { ok: false, msg: `grupo incompleto: ${ordenadas.length} pareja(s)` };
   }
 
   return { ok: true, rows, ordenParejas: ordenadas.map(r => r.pareja_id) };
@@ -148,13 +177,13 @@ async function analizarEstadoCopa(copaId, copaNombre, copaOrden) {
     let orden = [];
     let grupoCompleto = false;
 
-    if (man && man.length === 3) {
+    if (man && man.length >= 2) {
       orden = man.map(x => x.pareja_id);
       grupoCompleto = true;
     } else {
       // Calcular automático
       const calc = await calcularTablaGrupoDB(g.id);
-      if (calc.ok && calc.ordenParejas.length === 3) {
+      if (calc.ok && calc.ordenParejas.length >= 2) {
         orden = calc.ordenParejas;
         grupoCompleto = true;
       }
@@ -167,6 +196,10 @@ async function analizarEstadoCopa(copaId, copaNombre, copaOrden) {
     // Copa Plata (orden 2) = 2° de cada grupo (index 1)
     // Copa Bronce (orden 3) = 3° de cada grupo (index 2)
     const indexEnGrupo = copaOrden - 1;
+    
+    // Validar que el índice existe para este formato
+    if (indexEnGrupo >= orden.length) continue;
+    
     const parejaId = orden[indexEnGrupo];
 
     // Si esta pareja NO tiene partido asignado, está disponible
@@ -445,6 +478,16 @@ async function mostrarModalElegir3Equipos(copa, parejas) {
 export async function sugerirAsignacionesAutomaticas() {
   logMsg('🤖 Sugerir asignaciones: calculando…');
 
+  // Detectar formato del torneo
+  const formato = await detectarFormatoTorneo();
+  
+  if (!formato.esFormatoEstandar) {
+    logMsg(`ℹ️ Formato detectado: ${formato.numGrupos} grupos × ${formato.parejasPorGrupo} parejas`);
+    logMsg(`ℹ️ Las copas automáticas solo funcionan con formato 4 grupos × 3 parejas`);
+    logMsg(`💡 Usá la fase de grupos normalmente. Las copas se pueden agregar manualmente desde Supabase si es necesario.`);
+    return null;
+  }
+
   const { data: grupos, error: errG } = await supabase
     .from('grupos')
     .select('id, nombre')
@@ -483,12 +526,12 @@ export async function sugerirAsignacionesAutomaticas() {
 
     let orden = [];
 
-    if (man && man.length === 3) {
+    if (man && man.length >= 3) {
       orden = man.map(x => x.pareja_id);
     } else {
       // Calcular automático
       const calc = await calcularTablaGrupoDB(g.id);
-      if (!calc.ok || calc.ordenParejas.length !== 3) {
+      if (!calc.ok || calc.ordenParejas.length < 3) {
         logMsg(`⚠️ Grupo ${g.nombre}: ${calc.msg || 'no se pudo calcular orden'}`);
         continue;
       }
@@ -508,6 +551,17 @@ export async function sugerirAsignacionesAutomaticas() {
 
 export async function aplicarAsignacionesAutomaticas() {
   logMsg('🤖 Analizando estado del torneo...');
+
+  // Detectar formato del torneo
+  const formato = await detectarFormatoTorneo();
+  
+  if (!formato.esFormatoEstandar) {
+    logMsg(`ℹ️ Formato detectado: ${formato.numGrupos} grupos × ${formato.parejasPorGrupo} parejas`);
+    logMsg(`ℹ️ Las copas automáticas solo funcionan con formato 4 grupos × 3 parejas`);
+    logMsg(`💡 Para este formato, usá solo la fase de grupos.`);
+    logMsg(`💡 Los cruces directos se pueden agregar manualmente como partidos de copa desde Supabase.`);
+    return false;
+  }
 
   // 1. Validar que existan las 3 copas
   const { data: copas, error: errC } = await supabase
@@ -858,6 +912,16 @@ async function generarSemisConAsignados(copaId, copaNombre) {
 
 export async function generarCopasYSemis() {
   logMsg('🏆 Generar Copas + Semis: validando…');
+
+  // Detectar formato del torneo
+  const formato = await detectarFormatoTorneo();
+  
+  if (!formato.esFormatoEstandar) {
+    logMsg(`ℹ️ Formato detectado: ${formato.numGrupos} grupos × ${formato.parejasPorGrupo} parejas`);
+    logMsg(`ℹ️ La generación automática de copas solo funciona con formato 4 grupos × 3 parejas`);
+    logMsg(`💡 Para este formato, usá solo la fase de grupos.`);
+    return;
+  }
 
   const { data: existing, error: errEx } = await supabase
     .from('copas')
