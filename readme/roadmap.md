@@ -31,14 +31,17 @@ ABM de parejas + carga rápida “pegar desde Excel” con preview/validación.
 
 Objetivo: eliminar edición manual en Supabase y el “mapeo por orden” para que cada pareja quede en su grupo real.
 
-B) Copas manuales registrables (P0) - EN PROGRESO
+B) Copas inteligentes incrementales (P0) - COMPLETADO
 
-Sistema flexible de pre-asignación de equipos a copas:
-- Asignación manual equipo por equipo (dropdown)
-- Asignación automática desde grupos terminados
-- Generación de semis con 2, 3 o 4 equipos (flexible)
-- Mantiene generación automática full como opción
-- Sin bracket: lista de partidos por copa (simple, confiable)
+Sistema inteligente que detecta estado de cada copa y propone acciones:
+- Botón "Asignar Grupos Terminados" analiza automáticamente qué grupos finalizaron
+- Detecta qué parejas ya tienen partidos asignados vs disponibles
+- Con 2 equipos disponibles: muestra modal de confirmación
+- Con 3 equipos disponibles: permite elegir 2 para la semi
+- Con 4 equipos disponibles: genera 2 semis automáticamente con sistema de bombos
+- Incremental por diseño: soporta 1, 2, 3 o 4 grupos terminados
+- No duplica partidos: siempre verifica estado actual antes de crear
+- Mantiene generación automática full como opción (botón "Generar TODO")
 
 D) Engagement Viewer (P1)
 

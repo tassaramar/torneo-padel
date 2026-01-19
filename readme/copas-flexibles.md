@@ -1,14 +1,56 @@
-# Copas Flexibles - Guía de Implementación
+# Sistema Inteligente de Copas Incrementales - Guía de Uso
 
 ## 🎯 Objetivo
 
-Permitir generar copas de forma flexible durante el torneo, sin esperar a que todos los grupos terminen.
+Sistema inteligente que permite generar copas incrementalmente durante el torneo, detectando automáticamente el estado de cada copa y proponiendo acciones según los grupos que terminaron.
 
 ## 📋 Estado de Implementación
 
-✅ **Código JavaScript implementado**
-✅ **Migración de base de datos creada**
-⏳ **Pendiente: Aplicar migración a Supabase**
+✅ **Sistema inteligente completamente implementado**
+✅ **Lógica de detección de estado por copa**
+✅ **Modales de confirmación y selección**
+✅ **Generación incremental de semis**
+✅ **Compatibilidad con todos los escenarios (1-4 grupos)**
+
+## 🎮 Cómo Funciona
+
+### Botón Principal: "Asignar Grupos Terminados"
+
+Este botón ahora es completamente inteligente. Cuando lo clickeás:
+
+1. **Analiza cada copa** para detectar:
+   - Qué parejas ya tienen partidos asignados (jugados o no)
+   - Qué parejas están disponibles (de grupos terminados sin partido aún)
+
+2. **Propone acciones según el estado:**
+   - **0-1 equipos disponibles**: Informa que no hay suficientes
+   - **2 equipos disponibles**: Muestra modal de confirmación
+   - **3 equipos disponibles**: Muestra modal para elegir 2
+   - **4+ equipos disponibles**: Genera 2 semis automáticamente con sistema de bombos
+
+3. **No duplica nunca**: Siempre verifica qué partidos ya existen antes de crear nuevos
+
+### Flujo Típico del Torneo
+
+**Situación 1: Dos grupos terminan primero**
+- Click en "Asignar Grupos Terminados"
+- Sistema detecta 2 equipos disponibles por copa
+- Modal: "¿Crear semifinal: Equipo A vs Equipo B?"
+- Confirmás → Se crea 1 semi por copa
+- Los equipos juegan mientras otros grupos siguen
+
+**Situación 2: Otros dos grupos terminan después**
+- Click de nuevo en "Asignar Grupos Terminados"
+- Sistema detecta que ya hay 1 semi y 2 equipos nuevos disponibles
+- Modal: "¿Crear semifinal: Equipo C vs Equipo D?"
+- Confirmás → Se crea la 2da semi por copa
+
+**Situación 3: Tres grupos terminan**
+- Click en "Asignar Grupos Terminados"
+- Sistema detecta 3 equipos disponibles
+- Modal: "Elegir 2 de 3 equipos para la semifinal"
+- Seleccionás los 2 equipos que jugarán
+- Confirmás → Se crea 1 semi con los seleccionados
 
 ---
 
