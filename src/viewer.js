@@ -212,17 +212,18 @@ function renderPartidosConRondas(partidos) {
   if (pendientes.length > 0) {
     const rondas = agruparEnRondas(pendientes);
     
-    rondas.forEach((ronda, idx) => {
-      if (rondas.length > 1) {
-        html += `
-          <div style="margin: 16px 0 8px; padding: 6px 10px; background: var(--primary-soft); border-left: 3px solid var(--primary); border-radius: 6px; font-weight: 700; font-size: 13px;">
-            Ronda ${idx + 1} — ${ronda.length} partido${ronda.length > 1 ? 's' : ''} en paralelo
-          </div>
-        `;
-      }
+    rondas.forEach((rondaData, idx) => {
+      // Encabezado de ronda
+      html += `
+        <div style="margin: 16px 0 8px; padding: 6px 10px; background: var(--primary-soft); border-left: 3px solid var(--primary); border-radius: 6px; font-weight: 700; font-size: 13px;">
+          Ronda ${idx + 1} — ${rondaData.partidos.length} partido${rondaData.partidos.length > 1 ? 's' : ''} en paralelo
+        </div>
+      `;
       
       html += '<div class="viewer-card">';
-      ronda.forEach(p => {
+      
+      // Partidos de la ronda
+      rondaData.partidos.forEach(p => {
         const a = p.pareja_a?.nombre ?? '—';
         const b = p.pareja_b?.nombre ?? '—';
         html += `
@@ -232,6 +233,19 @@ function renderPartidosConRondas(partidos) {
           </div>
         `;
       });
+      
+      // Parejas libres
+      if (rondaData.parejasLibres.length > 0) {
+        rondaData.parejasLibres.forEach(parejaLibre => {
+          html += `
+            <div class="viewer-match" style="opacity: 0.6; border-left: 3px dashed var(--muted);">
+              <div class="viewer-match-names">${parejaLibre}</div>
+              <div class="viewer-match-res" style="font-style: italic;">Fecha libre</div>
+            </div>
+          `;
+        });
+      }
+      
       html += '</div>';
     });
   }

@@ -61,65 +61,70 @@ export async function cargarPartidosGrupos({ supabase, torneoId, msgCont, listCo
 }
 
 /**
- * Ordena partidos para maximizar paralelismo.
+ * Ordena partidos para maximizar paralelismo dentro de cada grupo.
  * Agrupa en "rondas" donde ninguna pareja se repite.
- * Intenta balancear entre grupos para mejor distribución.
- * Retorna array de rondas: [[partidos ronda 1], [partidos ronda 2], ...]
+ * Retorna array de rondas con estructura:
+ * [
+ *   { grupo: 'A', partidos: [...], parejasLibres: [...] },
+ *   { grupo: 'A', partidos: [...], parejasLibres: [...] },
+ *   ...
+ * ]
  */
 export function agruparEnRondas(partidos) {
   const rondas = [];
-  const remaining = [...partidos];
   
-  // Separar por grupos para mejor distribución
+  // Separar partidos por grupo
   const porGrupo = {};
-  remaining.forEach(p => {
+  partidos.forEach(p => {
     const grupo = p.grupos?.nombre ?? 'Sin Grupo';
     if (!porGrupo[grupo]) porGrupo[grupo] = [];
     porGrupo[grupo].push(p);
   });
   
-  const grupos = Object.keys(porGrupo).sort();
-  
-  while (remaining.length > 0) {
-    const ronda = [];
-    const parejasEnUso = new Set();
+  // Procesar cada grupo independientemente
+  Object.keys(porGrupo).sort().forEach(nombreGrupo => {
+    const partidosGrupo = [...porGrupo[nombreGrupo]];
     
-    // Intentar tomar un partido de cada grupo (round-robin entre grupos)
-    for (const grupo of grupos) {
-      const partidosGrupo = porGrupo[grupo];
-      if (!partidosGrupo || partidosGrupo.length === 0) continue;
+    // Obtener todas las parejas del grupo
+    const todasLasParejas = new Set();
+    partidosGrupo.forEach(p => {
+      if (p.pareja_a?.nombre) todasLasParejas.add(p.pareja_a.nombre);
+      if (p.pareja_b?.nombre) todasLasParejas.add(p.pareja_b.nombre);
+    });
+    
+    // Agrupar partidos en rondas (greedy algorithm)
+    while (partidosGrupo.length > 0) {
+      const ronda = [];
+      const parejasEnUso = new Set();
       
-      // Buscar primer partido del grupo que no tenga conflictos
-      for (let i = 0; i < partidosGrupo.length; i++) {
+      // Buscar todos los partidos que no tienen conflictos entre sí
+      for (let i = partidosGrupo.length - 1; i >= 0; i--) {
         const p = partidosGrupo[i];
-        const parejaANombre = p.pareja_a?.nombre;
-        const parejaBNombre = p.pareja_b?.nombre;
+        const parejaA = p.pareja_a?.nombre;
+        const parejaB = p.pareja_b?.nombre;
         
-        if (!parejasEnUso.has(parejaANombre) && !parejasEnUso.has(parejaBNombre)) {
-          ronda.push(p);
-          parejasEnUso.add(parejaANombre);
-          parejasEnUso.add(parejaBNombre);
+        if (!parejasEnUso.has(parejaA) && !parejasEnUso.has(parejaB)) {
+          ronda.unshift(p); // Agregar al inicio para mantener orden
+          parejasEnUso.add(parejaA);
+          parejasEnUso.add(parejaB);
           partidosGrupo.splice(i, 1);
-          const idx = remaining.indexOf(p);
-          if (idx >= 0) remaining.splice(idx, 1);
-          break;
         }
       }
+      
+      // Calcular parejas libres (no juegan en esta ronda)
+      const parejasLibres = Array.from(todasLasParejas)
+        .filter(p => !parejasEnUso.has(p))
+        .sort();
+      
+      if (ronda.length > 0) {
+        rondas.push({
+          grupo: nombreGrupo,
+          partidos: ronda,
+          parejasLibres: parejasLibres
+        });
+      }
     }
-    
-    // Si no se pudo armar ronda completa (ej: quedan pocos partidos), tomar lo que se pueda
-    if (ronda.length === 0 && remaining.length > 0) {
-      const p = remaining.shift();
-      ronda.push(p);
-      const grupo = p.grupos?.nombre ?? 'Sin Grupo';
-      const idx = porGrupo[grupo]?.indexOf(p);
-      if (idx >= 0) porGrupo[grupo].splice(idx, 1);
-    }
-    
-    if (ronda.length > 0) {
-      rondas.push(ronda);
-    }
-  }
+  });
   
   return rondas;
 }
@@ -139,19 +144,39 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
   if (state.modo === 'pendientes') {
     const rondas = agruparEnRondas(partidos);
     
-    rondas.forEach((ronda, idx) => {
-      // Separador de ronda
-      if (idx > 0 || rondas.length > 1) {
-        const separator = document.createElement('div');
-        separator.style.cssText = 'margin: 24px 0 12px; padding: 8px 12px; background: var(--primary-soft); border-left: 4px solid var(--primary); border-radius: 8px; font-weight: 700; font-size: 14px; color: var(--text);';
-        separator.textContent = `Ronda ${idx + 1} — ${ronda.length} partido${ronda.length > 1 ? 's' : ''} en paralelo`;
-        listCont.appendChild(separator);
-      }
+    let rondaCounter = 0;
+    rondas.forEach((rondaData) => {
+      rondaCounter++;
       
-      ronda.forEach((p) => {
+      // Separador de ronda
+      const separator = document.createElement('div');
+      separator.style.cssText = 'margin: 24px 0 8px; padding: 8px 12px; background: var(--primary-soft); border-left: 4px solid var(--primary); border-radius: 8px; font-weight: 700; font-size: 14px; color: var(--text);';
+      
+      let headerText = `Ronda ${rondaCounter} — Grupo ${rondaData.grupo} — ${rondaData.partidos.length} partido${rondaData.partidos.length > 1 ? 's' : ''} en paralelo`;
+      separator.textContent = headerText;
+      listCont.appendChild(separator);
+      
+      // Partidos de la ronda
+      rondaData.partidos.forEach((p) => {
         const card = crearCardParaPartido(p, supabase, onAfterSave);
         listCont.appendChild(card);
       });
+      
+      // Parejas libres (fecha libre)
+      if (rondaData.parejasLibres.length > 0) {
+        rondaData.parejasLibres.forEach(parejaLibre => {
+          const cardLibre = document.createElement('div');
+          cardLibre.className = 'partido fecha-libre';
+          cardLibre.style.cssText = 'padding: 12px; margin: 8px 0; background: var(--bg-soft); border: 1px dashed var(--border); border-radius: 8px; opacity: 0.7;';
+          cardLibre.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="font-weight: 600;">${parejaLibre}</div>
+              <div style="color: var(--muted); font-style: italic;">Fecha libre</div>
+            </div>
+          `;
+          listCont.appendChild(cardLibre);
+        });
+      }
     });
   } else {
     // Modo jugados: orden normal
