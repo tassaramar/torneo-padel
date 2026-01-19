@@ -54,90 +54,393 @@ export async function resetCopasDelTorneo() {
 
   logMsg(`✅ Copas borradas: ${delCopas?.length ?? 0}`);
   
-  // También limpiamos las asignaciones
-  const { error: errClean } = await supabase
-    .from('parejas')
-    .update({ copa_asignada_id: null })
-    .eq('torneo_id', TORNEO_ID)
-    .not('copa_asignada_id', 'is', null);
-  
-  if (errClean) {
-    console.error(errClean);
-    logMsg('⚠️ Error limpiando asignaciones (ver consola)');
-  }
-  
   await cargarCopasAdmin();
 }
 
 /* =========================
-   ASIGNACIÓN DE EQUIPOS A COPAS
+   ANÁLISIS DE ESTADO DE COPAS
 ========================= */
 
-export async function asignarParejaACopa(parejaId, copaId) {
-  const { error } = await supabase
-    .from('parejas')
-    .update({ copa_asignada_id: copaId })
-    .eq('id', parejaId)
-    .eq('torneo_id', TORNEO_ID);
+async function calcularTablaGrupoDB(grupoId) {
+  const { data: partidos, error } = await supabase
+    .from('partidos')
+    .select(`
+      id,
+      games_a,
+      games_b,
+      pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
+      pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
+    `)
+    .eq('torneo_id', TORNEO_ID)
+    .eq('grupo_id', grupoId)
+    .is('copa_id', null);
 
   if (error) {
     console.error(error);
-    logMsg('❌ Error asignando pareja a copa');
+    return { ok: false, msg: 'Error leyendo partidos del grupo' };
+  }
+
+  const total = (partidos || []).length;
+  const jugados = (partidos || []).filter(p => p.games_a !== null && p.games_b !== null).length;
+
+  if (total > 0 && jugados < total) {
+    return { ok: false, msg: `faltan partidos (${jugados}/${total})` };
+  }
+
+  const rows = calcularTablaGrupo(partidos || []);
+  const ordenadas = ordenarAutomatico(rows);
+
+  if (ordenadas.length !== 3) {
+    return { ok: false, msg: `no pude determinar 3 parejas (rows=${ordenadas.length})` };
+  }
+
+  return { ok: true, rows, ordenParejas: ordenadas.map(r => r.pareja_id) };
+}
+
+async function analizarEstadoCopa(copaId, copaNombre, copaOrden) {
+  // 1. Obtener todos los partidos de esta copa
+  const { data: partidosCopa, error: errPartidos } = await supabase
+    .from('partidos')
+    .select('id, pareja_a_id, pareja_b_id, ronda_copa')
+    .eq('torneo_id', TORNEO_ID)
+    .eq('copa_id', copaId);
+
+  if (errPartidos) {
+    console.error(errPartidos);
+    return null;
+  }
+
+  // 2. Extraer IDs de parejas que ya están en partidos de esta copa
+  const parejasConPartido = new Set();
+  (partidosCopa || []).forEach(p => {
+    parejasConPartido.add(p.pareja_a_id);
+    parejasConPartido.add(p.pareja_b_id);
+  });
+
+  const semisExistentes = (partidosCopa || []).filter(p => p.ronda_copa === 'SF').length;
+
+  // 3. Obtener grupos terminados y calcular posiciones
+  const { data: grupos, error: errGrupos } = await supabase
+    .from('grupos')
+    .select('id, nombre')
+    .eq('torneo_id', TORNEO_ID)
+    .order('nombre');
+
+  if (errGrupos) {
+    console.error(errGrupos);
+    return null;
+  }
+
+  const parejasDisponibles = [];
+
+  for (const g of grupos) {
+    // Ver si hay orden manual
+    const { data: man, error: errM } = await supabase
+      .from('posiciones_manual')
+      .select('pareja_id, orden_manual')
+      .eq('torneo_id', TORNEO_ID)
+      .eq('grupo_id', g.id)
+      .not('orden_manual', 'is', null)
+      .order('orden_manual', { ascending: true });
+
+    if (errM) console.error(errM);
+
+    let orden = [];
+    let grupoCompleto = false;
+
+    if (man && man.length === 3) {
+      orden = man.map(x => x.pareja_id);
+      grupoCompleto = true;
+    } else {
+      // Calcular automático
+      const calc = await calcularTablaGrupoDB(g.id);
+      if (calc.ok && calc.ordenParejas.length === 3) {
+        orden = calc.ordenParejas;
+        grupoCompleto = true;
+      }
+    }
+
+    if (!grupoCompleto) continue;
+
+    // Determinar qué pareja de este grupo corresponde a esta copa
+    // Copa Oro (orden 1) = 1° de cada grupo (index 0)
+    // Copa Plata (orden 2) = 2° de cada grupo (index 1)
+    // Copa Bronce (orden 3) = 3° de cada grupo (index 2)
+    const indexEnGrupo = copaOrden - 1;
+    const parejaId = orden[indexEnGrupo];
+
+    // Si esta pareja NO tiene partido asignado, está disponible
+    if (!parejasConPartido.has(parejaId)) {
+      // Obtener nombre de la pareja
+      const { data: pareja } = await supabase
+        .from('parejas')
+        .select('nombre')
+        .eq('id', parejaId)
+        .single();
+
+      parejasDisponibles.push({
+        pareja_id: parejaId,
+        nombre: pareja?.nombre || 'Desconocido',
+        grupo_nombre: g.nombre,
+        posicion: indexEnGrupo === 0 ? '1°' : indexEnGrupo === 1 ? '2°' : '3°'
+      });
+    }
+  }
+
+  return {
+    copa_id: copaId,
+    copa_nombre: copaNombre,
+    copa_orden: copaOrden,
+    parejas_con_partido: Array.from(parejasConPartido),
+    parejas_disponibles: parejasDisponibles,
+    semis_existentes: semisExistentes
+  };
+}
+
+/* =========================
+   CREAR SEMIS INCREMENTALES
+========================= */
+
+async function crearSemiConEquipos(copaId, copaNombre, pareja1Id, pareja2Id) {
+  // Obtener el próximo orden_copa disponible
+  const { data: existingSemis, error: errEx } = await supabase
+    .from('partidos')
+    .select('orden_copa')
+    .eq('torneo_id', TORNEO_ID)
+    .eq('copa_id', copaId)
+    .eq('ronda_copa', 'SF')
+    .order('orden_copa', { ascending: false })
+    .limit(1);
+
+  if (errEx) {
+    console.error(errEx);
+    logMsg('❌ Error verificando orden de semis');
     return false;
   }
 
-  logMsg('✅ Pareja asignada');
-  return true;
-}
+  const nextOrden = existingSemis?.length ? existingSemis[0].orden_copa + 1 : 1;
 
-export async function quitarParejaDecopa(parejaId) {
-  const { error } = await supabase
-    .from('parejas')
-    .update({ copa_asignada_id: null })
-    .eq('id', parejaId)
-    .eq('torneo_id', TORNEO_ID);
+  // Crear partido
+  const { error: errInsert } = await supabase.from('partidos').insert({
+    torneo_id: TORNEO_ID,
+    grupo_id: null,
+    copa_id: copaId,
+    pareja_a_id: pareja1Id,
+    pareja_b_id: pareja2Id,
+    ronda_copa: 'SF',
+    orden_copa: nextOrden
+  });
 
-  if (error) {
-    console.error(error);
-    logMsg('❌ Error quitando pareja de copa');
+  if (errInsert) {
+    console.error(errInsert);
+    logMsg(`❌ Error creando semifinal en ${copaNombre}`);
     return false;
   }
 
-  logMsg('✅ Pareja quitada de copa');
+  logMsg(`✅ ${copaNombre}: Semi ${nextOrden} creada`);
   return true;
 }
 
-export async function obtenerEquiposAsignados(copaId) {
-  const { data, error } = await supabase
-    .from('parejas')
-    .select('id, nombre, copa_asignada_id')
-    .eq('torneo_id', TORNEO_ID)
-    .eq('copa_asignada_id', copaId)
-    .order('nombre');
+async function crearSemisConCuatroEquipos(copaId, copaNombre, parejas) {
+  // Con 4 equipos, usar sistema de bombos
+  // Ordenar por stats si están disponibles
+  const { data: gruposData } = await supabase
+    .from('grupos')
+    .select('id')
+    .eq('torneo_id', TORNEO_ID);
 
-  if (error) {
-    console.error(error);
-    return [];
+  const statsMap = {};
+
+  for (const p of parejas) {
+    for (const grupo of (gruposData || [])) {
+      const calc = await calcularTablaGrupoDB(grupo.id);
+      if (calc.ok && calc.rows) {
+        calc.rows.forEach(r => {
+          if (r.pareja_id === p.pareja_id) {
+            statsMap[p.pareja_id] = r;
+          }
+        });
+      }
+    }
   }
 
-  return data || [];
+  // Preparar equipos con stats para seeding
+  const players = parejas.map(p => ({
+    pareja_id: p.pareja_id,
+    nombre: p.nombre,
+    P: statsMap[p.pareja_id]?.P ?? 0,
+    DG: statsMap[p.pareja_id]?.DG ?? 0,
+    GF: statsMap[p.pareja_id]?.GF ?? 0
+  }));
+
+  players.sort(cmpStatsDesc);
+
+  const seed1 = players[0];
+  const seed2 = players[1];
+  const seed3 = players[2];
+  const seed4 = players[3];
+
+  const bomboA = [seed1, seed2];
+  const bomboB = shuffle([seed3, seed4]);
+
+  // Crear las 2 semis
+  const ok1 = await crearSemiConEquipos(copaId, copaNombre, bomboA[0].pareja_id, bomboB[0].pareja_id);
+  const ok2 = await crearSemiConEquipos(copaId, copaNombre, bomboA[1].pareja_id, bomboB[1].pareja_id);
+
+  return ok1 && ok2;
 }
 
-export async function obtenerEquiposDisponibles() {
-  const { data, error } = await supabase
-    .from('parejas')
-    .select('id, nombre, copa_asignada_id')
-    .eq('torneo_id', TORNEO_ID)
-    .is('copa_asignada_id', null)
-    .order('nombre');
+/* =========================
+   MODALES UI
+========================= */
 
-  if (error) {
-    console.error(error);
-    return [];
-  }
+async function mostrarModalConfirmar2Equipos(copa, parejas) {
+  const modal = el('div', {
+    style: 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 24px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 1000; min-width: 400px; max-width: 500px;'
+  });
 
-  return data || [];
+  const overlay = el('div', {
+    style: 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999;'
+  });
+
+  modal.appendChild(el('h3', { style: 'margin-top: 0; margin-bottom: 16px;' }, `${copa.copa_nombre}: Confirmar Semifinal`));
+
+  modal.appendChild(el('p', { style: 'margin-bottom: 12px;' }, 'Se encontraron 2 equipos disponibles:'));
+
+  const listaEquipos = el('ul', { style: 'margin: 12px 0; padding-left: 20px;' });
+  parejas.forEach(p => {
+    const item = el('li', { style: 'margin: 6px 0;' });
+    item.textContent = `${p.nombre} (${p.posicion} ${p.grupo_nombre})`;
+    listaEquipos.appendChild(item);
+  });
+  modal.appendChild(listaEquipos);
+
+  modal.appendChild(el('p', { style: 'margin: 16px 0; font-weight: 600;' }, 
+    `¿Crear semifinal: ${parejas[0].nombre} vs ${parejas[1].nombre}?`
+  ));
+
+  const btnContainer = el('div', { style: 'margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;' });
+
+  const btnCancelar = el('button', { class: 'btn-secondary' }, 'Cancelar');
+  btnCancelar.onclick = () => {
+    document.body.removeChild(overlay);
+    document.body.removeChild(modal);
+  };
+
+  const btnConfirmar = el('button', { class: 'btn-primary' }, 'Crear Semifinal');
+  btnConfirmar.onclick = async () => {
+    const ok = await crearSemiConEquipos(
+      copa.copa_id,
+      copa.copa_nombre,
+      parejas[0].pareja_id,
+      parejas[1].pareja_id
+    );
+
+    if (ok) {
+      document.body.removeChild(overlay);
+      document.body.removeChild(modal);
+      await cargarCopasAdmin();
+    }
+  };
+
+  btnContainer.appendChild(btnCancelar);
+  btnContainer.appendChild(btnConfirmar);
+  modal.appendChild(btnContainer);
+
+  document.body.appendChild(overlay);
+  document.body.appendChild(modal);
 }
+
+async function mostrarModalElegir3Equipos(copa, parejas) {
+  const modal = el('div', {
+    style: 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 24px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 1000; min-width: 400px; max-width: 500px;'
+  });
+
+  const overlay = el('div', {
+    style: 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999;'
+  });
+
+  modal.appendChild(el('h3', { style: 'margin-top: 0; margin-bottom: 16px;' }, `${copa.copa_nombre}: Elegir 2 Equipos`));
+
+  modal.appendChild(el('p', { style: 'margin-bottom: 12px;' }, 'Se encontraron 3 equipos disponibles. Seleccioná 2 para la semifinal:'));
+
+  const checkboxes = [];
+  const listaEquipos = el('div', { style: 'margin: 12px 0;' });
+
+  parejas.forEach((p, idx) => {
+    const item = el('div', { style: 'margin: 8px 0;' });
+    const checkbox = el('input', { type: 'checkbox', id: `eq-${idx}`, style: 'margin-right: 8px;' });
+    const label = el('label', { for: `eq-${idx}`, style: 'cursor: pointer;' });
+    label.textContent = `${p.nombre} (${p.posicion} ${p.grupo_nombre})`;
+
+    item.appendChild(checkbox);
+    item.appendChild(label);
+    listaEquipos.appendChild(item);
+    checkboxes.push({ checkbox, pareja: p });
+  });
+
+  modal.appendChild(listaEquipos);
+
+  const btnContainer = el('div', { style: 'margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;' });
+
+  const btnCancelar = el('button', { class: 'btn-secondary' }, 'Cancelar');
+  btnCancelar.onclick = () => {
+    document.body.removeChild(overlay);
+    document.body.removeChild(modal);
+  };
+
+  const btnConfirmar = el('button', { class: 'btn-primary' }, 'Crear Semifinal');
+  btnConfirmar.disabled = true;
+
+  // Actualizar estado del botón cuando cambian los checkboxes
+  checkboxes.forEach(({ checkbox }) => {
+    checkbox.onchange = () => {
+      const seleccionados = checkboxes.filter(c => c.checkbox.checked).length;
+      btnConfirmar.disabled = seleccionados !== 2;
+    };
+  });
+
+  btnConfirmar.onclick = async () => {
+    const seleccionados = checkboxes.filter(c => c.checkbox.checked);
+
+    if (seleccionados.length !== 2) {
+      logMsg('⚠️ Debés seleccionar exactamente 2 equipos');
+      return;
+    }
+
+    const ok = await crearSemiConEquipos(
+      copa.copa_id,
+      copa.copa_nombre,
+      seleccionados[0].pareja.pareja_id,
+      seleccionados[1].pareja.pareja_id
+    );
+
+    if (ok) {
+      document.body.removeChild(overlay);
+      document.body.removeChild(modal);
+      await cargarCopasAdmin();
+    }
+  };
+
+  btnContainer.appendChild(btnCancelar);
+  btnContainer.appendChild(btnConfirmar);
+  modal.appendChild(btnContainer);
+
+  document.body.appendChild(overlay);
+  document.body.appendChild(modal);
+}
+
+/* =========================
+   FUNCIONES DEPRECATED (ya no se usan con el nuevo sistema)
+========================= */
+
+// NOTA: Estas funciones usaban copa_asignada_id que ya no se usa.
+// Ahora el sistema detecta asignaciones mirando directamente los partidos creados.
+
+// export async function asignarParejaACopa(parejaId, copaId) { ... }
+// export async function quitarParejaDecopa(parejaId) { ... }
+// export async function obtenerEquiposAsignados(copaId) { ... }
+// export async function obtenerEquiposDisponibles() { ... }
 
 export async function sugerirAsignacionesAutomaticas() {
   logMsg('🤖 Sugerir asignaciones: calculando…');
@@ -204,19 +507,9 @@ export async function sugerirAsignacionesAutomaticas() {
 }
 
 export async function aplicarAsignacionesAutomaticas() {
-  logMsg('🤖 Asignaciones automáticas: iniciando…');
+  logMsg('🤖 Analizando estado del torneo...');
 
-  const { data: grupos, error: errG } = await supabase
-    .from('grupos')
-    .select('id, nombre')
-    .eq('torneo_id', TORNEO_ID)
-    .order('nombre');
-
-  if (errG || !grupos || grupos.length !== 4) {
-    logMsg(`❌ Error o no hay 4 grupos (hay ${grupos?.length || 0})`);
-    return false;
-  }
-
+  // 1. Validar que existan las 3 copas
   const { data: copas, error: errC } = await supabase
     .from('copas')
     .select('id, nombre, orden')
@@ -224,94 +517,71 @@ export async function aplicarAsignacionesAutomaticas() {
     .order('orden');
 
   if (errC || !copas || copas.length !== 3) {
-    logMsg(`❌ Error o no hay 3 copas (hay ${copas?.length || 0})`);
+    logMsg(`❌ Necesitás 3 copas creadas primero (hay ${copas?.length || 0})`);
     return false;
   }
 
-  // Obtener parejas ya asignadas
-  const { data: parejasAsignadas, error: errPA } = await supabase
-    .from('parejas')
-    .select('id, copa_asignada_id')
-    .eq('torneo_id', TORNEO_ID)
-    .not('copa_asignada_id', 'is', null);
+  let totalAcciones = 0;
 
-  if (errPA) {
-    console.error(errPA);
-    logMsg('❌ Error obteniendo parejas asignadas');
-    return false;
-  }
+  // 2. Por cada copa, analizar estado y decidir acción
+  for (const copa of copas) {
+    const estado = await analizarEstadoCopa(copa.id, copa.nombre, copa.orden);
 
-  const parejasYaAsignadas = new Set((parejasAsignadas || []).map(p => p.id));
+    if (!estado) {
+      logMsg(`❌ Error analizando ${copa.nombre}`);
+      continue;
+    }
 
-  let count = 0;
-  let gruposNuevos = 0;
+    const numDisponibles = estado.parejas_disponibles.length;
 
-  for (const g of grupos) {
-    // Primero ver si hay orden manual
-    const { data: man, error: errM } = await supabase
-      .from('posiciones_manual')
-      .select('pareja_id, orden_manual')
-      .eq('torneo_id', TORNEO_ID)
-      .eq('grupo_id', g.id)
-      .not('orden_manual', 'is', null)
-      .order('orden_manual', { ascending: true });
+    logMsg(`📊 ${copa.nombre}: ${numDisponibles} equipo(s) disponible(s), ${estado.semis_existentes} semi(s) existente(s)`);
 
-    if (errM) console.error(errM);
-
-    let orden = [];
-
-    if (man && man.length === 3) {
-      orden = man.map(x => x.pareja_id);
-    } else {
-      // Calcular automático
-      const calc = await calcularTablaGrupoDB(g.id);
-      if (!calc.ok || calc.ordenParejas.length !== 3) {
-        logMsg(`⚠️ Grupo ${g.nombre}: ${calc.msg || 'no se pudo calcular orden'} - omitiendo`);
-        continue;
+    // 3. Decidir acción según cantidad de parejas disponibles
+    if (numDisponibles === 0) {
+      if (estado.semis_existentes === 0) {
+        logMsg(`⚠️ ${copa.nombre}: No hay equipos disponibles`);
+      } else {
+        logMsg(`✅ ${copa.nombre}: Todos los equipos ya tienen partido asignado`);
       }
-      orden = calc.ordenParejas;
-    }
-
-    // Verificar si este grupo ya tiene equipos asignados
-    const equiposDeEsteGrupo = orden.filter(pid => parejasYaAsignadas.has(pid));
-    
-    if (equiposDeEsteGrupo.length === 3) {
-      // Todos los equipos de este grupo ya están asignados, skip
       continue;
     }
 
-    if (equiposDeEsteGrupo.length > 0 && equiposDeEsteGrupo.length < 3) {
-      // Parcialmente asignado, advertir
-      logMsg(`⚠️ Grupo ${g.nombre}: tiene ${equiposDeEsteGrupo.length}/3 equipos ya asignados - omitiendo por seguridad`);
+    if (numDisponibles === 1) {
+      logMsg(`⚠️ ${copa.nombre}: Solo hay 1 equipo disponible, se necesitan al menos 2`);
       continue;
     }
 
-    // Este grupo está completo pero NO asignado, asignar ahora
-    gruposNuevos++;
-    
-    const asignaciones = [
-      { pareja_id: orden[0], copa_id: copas[0].id, posicion: '1°', copa_nombre: copas[0].nombre },
-      { pareja_id: orden[1], copa_id: copas[1].id, posicion: '2°', copa_nombre: copas[1].nombre },
-      { pareja_id: orden[2], copa_id: copas[2].id, posicion: '3°', copa_nombre: copas[2].nombre }
-    ];
-
-    for (const asig of asignaciones) {
-      const ok = await asignarParejaACopa(asig.pareja_id, asig.copa_id);
+    if (numDisponibles === 2) {
+      logMsg(`💬 ${copa.nombre}: Mostrando confirmación para 2 equipos...`);
+      await mostrarModalConfirmar2Equipos(estado, estado.parejas_disponibles);
+      totalAcciones++;
+    } else if (numDisponibles === 3) {
+      logMsg(`💬 ${copa.nombre}: Mostrando selector para 3 equipos...`);
+      await mostrarModalElegir3Equipos(estado, estado.parejas_disponibles);
+      totalAcciones++;
+    } else if (numDisponibles >= 4) {
+      logMsg(`⚡ ${copa.nombre}: Generando 2 semis con 4 equipos (sistema de bombos)...`);
+      const ok = await crearSemisConCuatroEquipos(copa.id, copa.nombre, estado.parejas_disponibles);
       if (ok) {
-        count++;
-        logMsg(`  → Grupo ${g.nombre} ${asig.posicion} → ${asig.copa_nombre}`);
+        totalAcciones++;
       }
     }
   }
 
-  if (gruposNuevos === 0) {
-    logMsg('ℹ️ No hay grupos nuevos para asignar (todos ya están asignados)');
-    await cargarCopasAdmin();
-    return true;
+  if (totalAcciones === 0) {
+    logMsg('ℹ️ No hay acciones pendientes. Todas las copas están completas o no hay suficientes equipos.');
   }
 
-  logMsg(`✅ Asignados ${count} equipos de ${gruposNuevos} grupo(s) nuevo(s)`);
-  await cargarCopasAdmin();
+  // Refrescar solo si no hubo modales (los modales refrescan automáticamente al confirmar)
+  const huboModales = copas.some(async (c) => {
+    const e = await analizarEstadoCopa(c.id, c.nombre, c.orden);
+    return e && (e.parejas_disponibles.length === 2 || e.parejas_disponibles.length === 3);
+  });
+
+  if (!huboModales) {
+    await cargarCopasAdmin();
+  }
+
   return true;
 }
 
@@ -358,79 +628,9 @@ export async function cargarCopasAdmin() {
 
   logMsg(`ℹ️ Copas encontradas: ${copas.length}`);
 
-  // Obtener todas las parejas con sus asignaciones
-  const { data: todasParejas, error: errParejas } = await supabase
-    .from('parejas')
-    .select('id, nombre, copa_asignada_id')
-    .eq('torneo_id', TORNEO_ID)
-    .order('nombre');
-
-  if (errParejas) {
-    console.error(errParejas);
-    logMsg('❌ Error cargando parejas');
-  }
-
-  const parejasPorCopa = {};
-  const parejasDisponibles = [];
-
-  for (const p of (todasParejas || [])) {
-    if (p.copa_asignada_id) {
-      if (!parejasPorCopa[p.copa_asignada_id]) parejasPorCopa[p.copa_asignada_id] = [];
-      parejasPorCopa[p.copa_asignada_id].push(p);
-    } else {
-      parejasDisponibles.push(p);
-    }
-  }
-
   for (const copa of copas) {
     const card = el('div', { class: 'admin-grupo' });
     card.appendChild(el('h3', {}, `🏆 ${copa.nombre ?? 'Copa'} (orden ${copa.orden})`));
-
-    // === SECCIÓN: EQUIPOS ASIGNADOS ===
-    const equipos = parejasPorCopa[copa.id] || [];
-    
-    const seccionEquipos = el('div', { style: 'margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 5px;' });
-    seccionEquipos.appendChild(el('h4', { style: 'margin: 0 0 10px 0;' }, `Equipos asignados: ${equipos.length}/4`));
-
-    if (equipos.length > 0) {
-      const listaEquipos = el('ul', { style: 'margin: 5px 0; padding-left: 20px;' });
-      
-      for (const eq of equipos) {
-        const item = el('li', { style: 'margin: 5px 0;' });
-        item.textContent = eq.nombre + ' ';
-        
-        const btnQuitar = el('button', { 
-          style: 'margin-left: 10px; padding: 2px 8px; font-size: 0.85em;',
-          class: 'btn-secondary'
-        }, '✕ Quitar');
-        
-        btnQuitar.onclick = async () => {
-          const ok = await quitarParejaDecopa(eq.id);
-          if (ok) await cargarCopasAdmin();
-        };
-        
-        item.appendChild(btnQuitar);
-        listaEquipos.appendChild(item);
-      }
-      
-      seccionEquipos.appendChild(listaEquipos);
-    } else {
-      seccionEquipos.appendChild(el('p', { style: 'margin: 5px 0; color: #666;' }, 'Ningún equipo asignado todavía.'));
-    }
-
-    // Botón para asignar equipo manualmente
-    const btnAsignar = el('button', { class: 'btn-primary', style: 'margin-top: 10px;' }, '+ Asignar Equipo');
-    btnAsignar.onclick = () => mostrarModalAsignar(copa, parejasDisponibles);
-    seccionEquipos.appendChild(btnAsignar);
-
-    // Botón para generar semis (habilitado si hay 2+ equipos)
-    if (equipos.length >= 2) {
-      const btnGenSemis = el('button', { class: 'btn-primary', style: 'margin-left: 10px;' }, '⚡ Generar Semis');
-      btnGenSemis.onclick = () => generarSemisConAsignados(copa.id, copa.nombre);
-      seccionEquipos.appendChild(btnGenSemis);
-    }
-
-    card.appendChild(seccionEquipos);
 
     // === SECCIÓN: PARTIDOS ===
     const { data: partidos, error: errPartidos } = await supabase
@@ -499,72 +699,15 @@ export async function cargarCopasAdmin() {
   }
 }
 
-function mostrarModalAsignar(copa, parejasDisponibles) {
-  if (parejasDisponibles.length === 0) {
-    logMsg('⚠️ No hay equipos disponibles para asignar');
-    return;
-  }
+/* =========================
+   FUNCIONES OBSOLETAS REMOVIDAS
+========================= */
 
-  const modal = el('div', {
-    style: 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 1000; min-width: 300px;'
-  });
-
-  const overlay = el('div', {
-    style: 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999;'
-  });
-
-  modal.appendChild(el('h3', { style: 'margin-top: 0;' }, `Asignar equipo a ${copa.nombre}`));
-
-  const select = el('select', { 
-    style: 'width: 100%; padding: 8px; margin: 10px 0; font-size: 1em;'
-  });
-
-  const optDefault = el('option', { value: '' });
-  optDefault.textContent = '-- Seleccionar equipo --';
-  select.appendChild(optDefault);
-
-  for (const p of parejasDisponibles) {
-    const opt = el('option', { value: p.id });
-    opt.textContent = p.nombre;
-    select.appendChild(opt);
-  }
-
-  modal.appendChild(select);
-
-  const btnContainer = el('div', { style: 'margin-top: 15px; display: flex; gap: 10px; justify-content: flex-end;' });
-
-  const btnCancelar = el('button', { class: 'btn-secondary' }, 'Cancelar');
-  btnCancelar.onclick = () => {
-    document.body.removeChild(overlay);
-    document.body.removeChild(modal);
-  };
-
-  const btnConfirmar = el('button', { class: 'btn-primary' }, 'Asignar');
-  btnConfirmar.onclick = async () => {
-    const parejaId = select.value;
-    if (!parejaId) {
-      logMsg('⚠️ Seleccioná un equipo');
-      return;
-    }
-
-    const ok = await asignarParejaACopa(parejaId, copa.id);
-    if (ok) {
-      document.body.removeChild(overlay);
-      document.body.removeChild(modal);
-      await cargarCopasAdmin();
-    }
-  };
-
-  btnContainer.appendChild(btnCancelar);
-  btnContainer.appendChild(btnConfirmar);
-  modal.appendChild(btnContainer);
-
-  document.body.appendChild(overlay);
-  document.body.appendChild(modal);
-}
+// function mostrarModalAsignar() - Ya no se usa con el nuevo sistema
+// async function generarSemisConAsignados() - Reemplazada por lógica incremental
 
 /* =========================
-   GENERAR SEMIS CON EQUIPOS ASIGNADOS
+   GENERAR SEMIS CON EQUIPOS ASIGNADOS (LEGACY - MANTENER POR COMPATIBILIDAD)
 ========================= */
 
 async function generarSemisConAsignados(copaId, copaNombre) {
