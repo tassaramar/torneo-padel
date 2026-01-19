@@ -145,9 +145,9 @@ function renderPosiciones(posicionesCont, grupos, overrides) {
     lista.forEach(p => {
       const tr = document.createElement('tr');
       
-      // Nombre (con font-weight forzado)
+      // Nombre (con negrita para todos)
       const tdNombre = document.createElement('td');
-      tdNombre.style.cssText = 'padding:6px 0; border-bottom:1px solid #f0f0f0; font-weight:400 !important;';
+      tdNombre.style.cssText = 'padding:6px 0; border-bottom:1px solid #f0f0f0; font-weight:700 !important;';
       tdNombre.textContent = p.nombre;
       tr.appendChild(tdNombre);
 

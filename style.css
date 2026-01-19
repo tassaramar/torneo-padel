@@ -425,10 +425,8 @@ tbody tr:nth-child(even){
   margin: 0 6px;
 }
 
-/* pequeño highlight en tabla */
-.rank-1 td:first-child{ font-weight: 900; }
-.rank-2 td:first-child{ font-weight: 900; }
-.rank-3 td:first-child{ font-weight: 900; }
+/* negrita para todos los nombres en tablas de posiciones */
+tbody td:first-child{ font-weight: 700; }
 
 /* ===== Top Nav ===== */
 .topnav{
