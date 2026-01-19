@@ -38,7 +38,7 @@ export async function generarPartidosGrupos() {
 
   const { data: parejas, error: errParejas } = await supabase
     .from('parejas')
-    .select('id')
+    .select('id, nombre')
     .eq('torneo_id', TORNEO_ID)
     .order('orden');
 
@@ -63,9 +63,12 @@ export async function generarPartidosGrupos() {
   }
 
   let total = 0;
+  let errores = 0;
 
   for (const grupo of grupos) {
     const ps = gruposMap[grupo.id];
+    console.log(`Generando partidos para grupo ${grupo.nombre}:`, ps.map(p => p.nombre));
+    
     for (let i = 0; i < ps.length; i++) {
       for (let j = i + 1; j < ps.length; j++) {
         const { error } = await supabase
@@ -78,14 +81,23 @@ export async function generarPartidosGrupos() {
             copa_id: null
           });
 
-        if (!error) total++;
-        else console.error(error);
+        if (!error) {
+          total++;
+        } else {
+          errores++;
+          console.error(`Error creando partido en grupo ${grupo.nombre}:`, error);
+        }
       }
     }
   }
 
-  logMsg(`🎾 ${total} partidos de grupos creados`);
-  return true;
+  if (errores > 0) {
+    logMsg(`⚠️ ${total} partidos creados con ${errores} errores`);
+  } else {
+    logMsg(`✅ ${total} partidos de grupos creados`);
+  }
+  
+  return total > 0;
 }
 
 export async function fetchGrupos() {
