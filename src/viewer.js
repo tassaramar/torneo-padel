@@ -1,4 +1,5 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { agruparEnRondas } from './carga/partidosGrupos.js';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -196,6 +197,68 @@ function render() {
   else renderCopas();
 }
 
+function renderPartidosConRondas(partidos) {
+  if (!partidos.length) {
+    return '<div class="viewer-card"><p>Sin partidos.</p></div>';
+  }
+  
+  // Separar pendientes de jugados
+  const pendientes = partidos.filter(p => p.games_a === null || p.games_b === null);
+  const jugados = partidos.filter(p => p.games_a !== null && p.games_b !== null);
+  
+  let html = '';
+  
+  // Mostrar pendientes agrupados por rondas
+  if (pendientes.length > 0) {
+    const rondas = agruparEnRondas(pendientes);
+    
+    rondas.forEach((ronda, idx) => {
+      if (rondas.length > 1) {
+        html += `
+          <div style="margin: 16px 0 8px; padding: 6px 10px; background: var(--primary-soft); border-left: 3px solid var(--primary); border-radius: 6px; font-weight: 700; font-size: 13px;">
+            Ronda ${idx + 1} — ${ronda.length} partido${ronda.length > 1 ? 's' : ''} en paralelo
+          </div>
+        `;
+      }
+      
+      html += '<div class="viewer-card">';
+      ronda.forEach(p => {
+        const a = p.pareja_a?.nombre ?? '—';
+        const b = p.pareja_b?.nombre ?? '—';
+        html += `
+          <div class="viewer-match">
+            <div class="viewer-match-names">${a} <span class="vs">vs</span> ${b}</div>
+            <div class="viewer-match-res">Pendiente</div>
+          </div>
+        `;
+      });
+      html += '</div>';
+    });
+  }
+  
+  // Mostrar jugados
+  if (jugados.length > 0) {
+    if (pendientes.length > 0) {
+      html += '<div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); font-weight: 700; font-size: 13px; color: var(--muted);">Partidos jugados</div>';
+    }
+    html += '<div class="viewer-card">';
+    jugados.forEach(p => {
+      const a = p.pareja_a?.nombre ?? '—';
+      const b = p.pareja_b?.nombre ?? '—';
+      const res = `${p.games_a} - ${p.games_b}`;
+      html += `
+        <div class="viewer-match">
+          <div class="viewer-match-names">${a} <span class="vs">vs</span> ${b}</div>
+          <div class="viewer-match-res">${res}</div>
+        </div>
+      `;
+    });
+    html += '</div>';
+  }
+  
+  return html;
+}
+
 function renderGrupos() {
   const { grupos, partidosGrupo } = cache;
 
@@ -270,19 +333,7 @@ function renderGrupos() {
 
       <details class="viewer-details">
         <summary>Ver partidos del grupo</summary>
-        <div class="viewer-card">
-          ${partidosDelGrupo.length ? partidosDelGrupo.map(p => {
-            const a = p.pareja_a?.nombre ?? '—';
-            const b = p.pareja_b?.nombre ?? '—';
-            const res = (p.games_a === null || p.games_b === null) ? 'Pendiente' : `${p.games_a} - ${p.games_b}`;
-            return `
-              <div class="viewer-match">
-                <div class="viewer-match-names">${a} <span class="vs">vs</span> ${b}</div>
-                <div class="viewer-match-res">${res}</div>
-              </div>
-            `;
-          }).join('') : '<p>Sin partidos.</p>'}
-        </div>
+        ${renderPartidosConRondas(partidosDelGrupo)}
       </details>
     </div>
   `;

@@ -64,9 +64,10 @@ export async function cargarPartidosGrupos({ supabase, torneoId, msgCont, listCo
  * Ordena partidos para maximizar paralelismo.
  * Agrupa en "rondas" donde ninguna pareja se repite.
  * Intenta balancear entre grupos para mejor distribución.
+ * Retorna array de rondas: [[partidos ronda 1], [partidos ronda 2], ...]
  */
-function ordenarParaParalelismo(partidos) {
-  const result = [];
+export function agruparEnRondas(partidos) {
+  const rondas = [];
   const remaining = [...partidos];
   
   // Separar por grupos para mejor distribución
@@ -115,10 +116,12 @@ function ordenarParaParalelismo(partidos) {
       if (idx >= 0) porGrupo[grupo].splice(idx, 1);
     }
     
-    result.push(...ronda);
+    if (ronda.length > 0) {
+      rondas.push(ronda);
+    }
   }
   
-  return result;
+  return rondas;
 }
 
 function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
@@ -132,36 +135,56 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
     return;
   }
 
-  // Ordenar para maximizar paralelismo
-  const partidosOrdenados = state.modo === 'pendientes' 
-    ? ordenarParaParalelismo(partidos)
-    : partidos;
-
-  partidosOrdenados.forEach((p) => {
-    const grupo = p.grupos?.nombre ?? '-';
-    const a = p.pareja_a?.nombre ?? 'Pareja A';
-    const b = p.pareja_b?.nombre ?? 'Pareja B';
-
-    const card = crearCardEditable({
-      headerLeft: `Grupo <strong>${grupo}</strong>`,
-      headerRight: (p.games_a !== null && p.games_b !== null) ? 'Jugado' : 'Pendiente',
-      nombreA: a,
-      nombreB: b,
-      gamesA: p.games_a,
-      gamesB: p.games_b,
-      onSave: async (ga, gb) => {
-        const ok = await guardarResultado(supabase, p.id, ga, gb);
-        if (ok) await onAfterSave?.();
-        return ok;
+  // Agrupar en rondas si es modo pendientes
+  if (state.modo === 'pendientes') {
+    const rondas = agruparEnRondas(partidos);
+    
+    rondas.forEach((ronda, idx) => {
+      // Separador de ronda
+      if (idx > 0 || rondas.length > 1) {
+        const separator = document.createElement('div');
+        separator.style.cssText = 'margin: 24px 0 12px; padding: 8px 12px; background: var(--primary-soft); border-left: 4px solid var(--primary); border-radius: 8px; font-weight: 700; font-size: 14px; color: var(--text);';
+        separator.textContent = `Ronda ${idx + 1} — ${ronda.length} partido${ronda.length > 1 ? 's' : ''} en paralelo`;
+        listCont.appendChild(separator);
       }
+      
+      ronda.forEach((p) => {
+        const card = crearCardParaPartido(p, supabase, onAfterSave);
+        listCont.appendChild(card);
+      });
     });
-
-    // Extra: ayuda al filtro (fallback), sin depender del DOM
-    card.dataset.search = `${grupo} ${a} ${b}`;
-
-    listCont.appendChild(card);
-  });
+  } else {
+    // Modo jugados: orden normal
+    partidos.forEach((p) => {
+      const card = crearCardParaPartido(p, supabase, onAfterSave);
+      listCont.appendChild(card);
+    });
+  }
 
   // zebra inicial (sin filtro)
   aplicarZebraVisible(listCont);
+}
+
+  const grupo = p.grupos?.nombre ?? '-';
+  const a = p.pareja_a?.nombre ?? 'Pareja A';
+  const b = p.pareja_b?.nombre ?? 'Pareja B';
+
+  const card = crearCardEditable({
+    headerLeft: `Grupo <strong>${grupo}</strong>`,
+    headerRight: (p.games_a !== null && p.games_b !== null) ? 'Jugado' : 'Pendiente',
+    nombreA: a,
+    nombreB: b,
+    gamesA: p.games_a,
+    gamesB: p.games_b,
+    onSave: async (ga, gb) => {
+      const ok = await guardarResultado(supabase, p.id, ga, gb);
+      if (ok) await onAfterSave?.();
+      return ok;
+    }
+  });
+
+  // Extra: ayuda al filtro (fallback), sin depender del DOM
+  card.dataset.search = `${grupo} ${a} ${b}`;
+  
+  return card;
 }
