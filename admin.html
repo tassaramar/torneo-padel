@@ -14,7 +14,6 @@
     <a class="topnav-link" href="/admin">🛠 Admin</a>
   </div>
 
-
   <div class="container">
     <h1>Admin – Operación del torneo</h1>
 
@@ -32,7 +31,7 @@
       <summary>🧰 Setup previo (antes del torneo)</summary>
 
       <h2 style="margin-top:14px;">Parejas (import rápido)</h2>
-      <p style="margin-top:0;">
+      <p class="helper" style="margin-top:0;">
         Pegá desde Excel en formato: <code>Pareja[TAB]Grupo</code>.
         Ej: <code>Tincho - Sebi[TAB]B</code>.
         <br />
@@ -41,13 +40,12 @@
 
       <div id="parejas-admin" class="admin-grupo">
         <div class="admin-grupo-header">
-          <div style="font-size:14px; opacity:.9;">Pegado (desde Excel)</div>
+          <div class="helper" style="font-size:14px;">Pegado (desde Excel)</div>
         </div>
 
         <textarea
           id="parejas-paste"
           rows="10"
-          style="width:100%; margin-top:10px;"
           placeholder="Mauri - Diego Sz	a
 Gaby A - Chiqui	a
 Gaby Z - Ari Kan	a
@@ -63,18 +61,17 @@ Andy - Ger	d"></textarea>
 
         <div class="admin-actions" style="margin-top:10px;">
           <button id="parejas-preview" type="button">👀 Previsualizar</button>
-          <!-- Import destructivo: marcarlo como peligroso -->
           <button id="parejas-import" type="button" data-danger="hard">💣 Importar (borra y recrea)</button>
         </div>
 
         <div id="parejas-preview-out" style="margin-top:12px;"></div>
 
-        <div style="margin-top:16px; padding-top:12px; border-top:1px solid #333;">
+        <div class="divider">
           <div style="font-weight:700; margin-bottom:8px;">Edición rápida (reemplazos)</div>
 
           <input
             id="parejas-search"
-            style="width:100%; padding:10px; border-radius:10px; border:1px solid #333; background:#111; color:#fff;"
+            type="search"
             placeholder="Buscar jugador (ej: Ariel, Tincho, Sebi)" />
 
           <div class="admin-actions" style="margin-top:10px;">
@@ -96,7 +93,7 @@ Andy - Ger	d"></textarea>
       </div>
 
       <h2 style="margin-top:18px;">Cierre de grupos (ranking + orden final)</h2>
-      <p style="margin-top:0; opacity:.85;">
+      <p class="helper" style="margin-top:0;">
         Esto se usa cuando terminan los partidos de grupos y querés fijar el orden final (o ajustarlo).
       </p>
 
@@ -122,7 +119,7 @@ Andy - Ger	d"></textarea>
     <details class="admin-section admin-danger">
       <summary>☠️ Zona peligrosa (reset / borrar)</summary>
 
-      <p style="margin-top:8px;">
+      <p class="helper" style="margin-top:8px;">
         Esto borra cosas. Si tocás acá sin querer, te ganaste una noche larga.
       </p>
 
@@ -136,7 +133,6 @@ Andy - Ger	d"></textarea>
     <div id="log" class="log"></div>
   </div>
 
-  <!-- ESTE es el script que conecta TODO el Admin -->
   <script type="module" src="/src/admin.js"></script>
   <script>
     (function () {
@@ -148,6 +144,5 @@ Andy - Ger	d"></textarea>
       });
     })();
   </script>
-
 </body>
 </html>

@@ -2,13 +2,33 @@
 * { box-sizing: border-box; }
 
 :root{
-  --bg: #f6f7f9;
-  --card: #ffffff;
-  --text: #111827;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --border-strong: #d1d5db;
-  --shadow: 0 1px 2px rgba(0,0,0,0.06);
+  /* Surfaces */
+  --bg: #F5F7FB;
+  --card: #FFFFFF;
+
+  /* Text */
+  --text: #0F172A;
+  --muted: #64748B;
+
+  /* Borders / shadows */
+  --border: #E2E8F0;
+  --border-strong: #CBD5E1;
+  --shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.10);
+
+  /* Brand */
+  --primary: #14B8A6;
+  --primary-900: #0F766E;
+
+  /* States */
+  --success: #16A34A;
+  --warning: #F59E0B;
+  --danger:  #EF4444;
+
+  /* Tints (sin fiesta infantil) */
+  --primary-soft: rgba(20, 184, 166, 0.14);
+  --primary-soft-2: rgba(20, 184, 166, 0.22);
+  --ring: rgba(20, 184, 166, 0.25);
 }
 
 html, body { height: 100%; }
@@ -21,6 +41,12 @@ body{
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
                "Apple Color Emoji", "Segoe UI Emoji";
   line-height: 1.35;
+}
+
+/* Layout helper (ya lo usa admin.html) */
+.container{
+  max-width: 1100px;
+  margin: 0 auto;
 }
 
 /* Titulares un poco más 2026 */
@@ -36,12 +62,64 @@ h2{
   letter-spacing: -0.01em;
 }
 
+code{
+  background: rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1px 6px;
+  font-size: 0.95em;
+}
+
+/* ===== Botones (global) ===== */
+button{
+  font-family: inherit;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background: #fff;
+  color: var(--text);
+  padding: 10px 12px;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+button:hover{
+  border-color: var(--primary-900);
+}
+
+button:active{
+  transform: translateY(1px);
+}
+
+button:focus-visible{
+  outline: none;
+  border-color: var(--primary-900);
+  box-shadow: 0 0 0 3px var(--ring), var(--shadow);
+}
+
+button:disabled{
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ===== Inputs (base) ===== */
+input, textarea{
+  font-family: inherit;
+}
+
 /* ===== Partidos / Cards ===== */
 .partido{
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 14px;
   box-shadow: var(--shadow);
+}
+
+/* Filas internas de cada card: mismo padding para todas */
+.partido .row {
+  padding: 10px 10px;
+  border-radius: 12px;
+  box-sizing: border-box;
 }
 
 /* ===== Inputs de score (mobile-friendly + visibles) ===== */
@@ -58,33 +136,20 @@ h2{
   padding: 8px;
   text-align: center;
 
-  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.06);
+  box-shadow: inset 0 0 0 1px rgba(15,23,42,0.06);
 }
 
 .partido input[type="number"]::placeholder{
-  color: #9ca3af;
+  color: #94A3B8;
 }
 
 .partido input[type="number"]:focus{
   outline: none;
-  border-color: #111827;
-  box-shadow: 0 0 0 3px rgba(17,24,39,0.10);
+  border-color: var(--primary-900);
+  box-shadow: 0 0 0 3px var(--ring);
 }
 
-/* ===== Botones (si no están inline) ===== */
-button{
-  font-family: inherit;
-  border-radius: 12px;
-  border: 1px solid var(--border-strong);
-  background: #fff;
-  color: var(--text);
-}
-
-button:disabled{
-  opacity: 0.6;
-}
-
-/* ===== Tablas de posiciones (menos Excel 2003) ===== */
+/* ===== Tablas de posiciones ===== */
 table{
   width: 100%;
   border-collapse: collapse;
@@ -93,19 +158,19 @@ table{
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
-  overflow: hidden; /* para que el borde redondeado aplique */
+  overflow: hidden;
   box-shadow: var(--shadow);
 }
 
 thead th{
-  background: #f3f4f6;
+  background: rgba(15, 23, 42, 0.04);
   font-weight: 700;
   padding: 10px 8px;
   border-bottom: 1px solid var(--border);
 }
 
 thead tr:first-child th{
-  background: #eef2f7;
+  background: rgba(15, 23, 42, 0.06);
   font-size: 15px;
   text-align: left;
 }
@@ -125,7 +190,7 @@ td:first-child, th:first-child{
 }
 
 tbody tr:nth-child(even){
-  background: #fafafa;
+  background: rgba(15, 23, 42, 0.02);
 }
 
 /* ===== Bracket ===== */
@@ -210,8 +275,8 @@ tbody tr:nth-child(even){
 .bracket-team:last-child{ margin-bottom: 0; }
 
 .bracket-team.is-winner{
-  border-color: #1a7f37;
-  background: rgba(26,127,55,0.08);
+  border-color: var(--success);
+  background: rgba(22, 163, 74, 0.10);
   font-weight: 800;
 }
 
@@ -237,7 +302,7 @@ tbody tr:nth-child(even){
   border: 1px dashed var(--border-strong);
   border-radius: 12px;
   color: var(--muted);
-  background: #fafafa;
+  background: rgba(15, 23, 42, 0.02);
 }
 
 /* ===== Viewer ===== */
@@ -283,10 +348,19 @@ tbody tr:nth-child(even){
   font-weight: 700;
 }
 
+.tab-btn:hover{
+  border-color: var(--primary-900);
+}
+
 .tab-btn.active{
-  background: #111827;
+  background: var(--primary);
   color: #fff;
-  border-color: #111827;
+  border-color: var(--primary-900);
+}
+
+.tab-btn:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
 }
 
 .viewer-section{
@@ -355,6 +429,7 @@ tbody tr:nth-child(even){
 .rank-1 td:first-child{ font-weight: 900; }
 .rank-2 td:first-child{ font-weight: 900; }
 .rank-3 td:first-child{ font-weight: 900; }
+
 /* ===== Top Nav ===== */
 .topnav{
   display: flex;
@@ -376,12 +451,15 @@ tbody tr:nth-child(even){
 }
 
 .topnav-link:hover{
-  border-color: #111827;
+  border-color: var(--primary-900);
 }
 
 .topnav-link.is-active{
-  border-color: #111827;
+  border-color: var(--primary-900);
+  background: var(--primary-soft);
 }
+
+/* ===== Admin ===== */
 .admin-section{
   background: var(--card);
   border: 1px solid var(--border);
@@ -397,21 +475,28 @@ tbody tr:nth-child(even){
   font-size: 16px;
 }
 
+.admin-actions{
+  display:flex;
+  gap:10px;
+  flex-wrap: wrap;
+  align-items:center;
+}
+
 .admin-safety{
   display:flex;
   justify-content: space-between;
   gap: 10px;
   align-items:center;
-  background:#fff3cd;
-  border:1px solid #d39e00;
+  background: rgba(15, 23, 42, 0.04);
+  border:1px solid var(--border);
   border-radius:14px;
   padding:10px 12px;
   margin: 8px 0 14px;
 }
 
 .admin-safety.is-unlocked{
-  background:#ffe4e6;
-  border-color:#fb7185;
+  background: rgba(239, 68, 68, 0.10);
+  border-color: rgba(239, 68, 68, 0.45);
 }
 
 .admin-safety-badge{
@@ -419,6 +504,7 @@ tbody tr:nth-child(even){
   font-weight:900;
   opacity:0.9;
 }
+
 button.is-locked {
   opacity: 0.45;
   cursor: not-allowed;
@@ -427,47 +513,491 @@ button.is-locked {
 button.is-locked:active {
   transform: none;
 }
-/* Zebra suave para no perderse scrolleando */
-.partido.is-odd {
-  background: rgba(255, 255, 255, 0.03);
-}
-.partido.is-even {
-  background: rgba(255, 255, 255, 0.00);
+
+/* Log */
+.log{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 12px;
+  min-height: 60px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+  overflow: auto;
 }
 
-/* Cuando hay búsqueda: resaltar los matches */
-.partido.is-match {
-  outline: 2px solid rgba(0, 255, 204, 0.55);
-  box-shadow: 0 0 0 3px rgba(0, 255, 204, 0.10);
-}
-
-/* Texto chiquito para el contador */
-#partidos-msg.search-msg {
-  opacity: 0.9;
-}
 /* Zebra que realmente se ve: una barrita izquierda alternada */
-.partido.is-even { border-left: 6px solid rgba(0, 255, 204, 0.18); }
-.partido.is-odd  { border-left: 6px solid rgba(0, 255, 204, 0.35); }
+.partido.is-even { border-left: 6px solid var(--primary-soft); }
+.partido.is-odd  { border-left: 6px solid var(--primary-soft-2); }
 
 /* Golpes de búsqueda: resaltar SOLO donde matchea */
 .partido .row.hit {
-  background: rgba(0, 255, 204, 0.12);
+  background: var(--primary-soft);
   border-radius: 10px;
   padding: 2px 6px;
 }
 
 .partido .card-header-left.hit {
-  background: rgba(0, 255, 204, 0.10);
+  background: rgba(20, 184, 166, 0.10);
   border-radius: 10px;
   padding: 2px 6px;
 }
 
 /* Mensaje del buscador */
 #partidos-msg.search-msg { opacity: 0.9; }
-
-/* Filas internas de cada card: mismo padding para todas */
-.partido .row {
-  padding: 10px 10px;
+/* ===== UI Fields (global) ===== */
+input[type="text"],
+input[type="search"],
+textarea{
+  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--border-strong);
   border-radius: 12px;
-  box-sizing: border-box;
+  padding: 10px 12px;
+  box-shadow: inset 0 0 0 1px rgba(15,23,42,0.06);
+}
+
+textarea{
+  width: 100%;
+  resize: vertical;
+}
+
+input[type="text"]:focus,
+input[type="search"]:focus,
+textarea:focus{
+  outline: none;
+  border-color: var(--primary-900);
+  box-shadow: 0 0 0 3px var(--ring), inset 0 0 0 1px rgba(15,23,42,0.06);
+}
+
+/* helpers */
+.helper{
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.divider{
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* ===== Danger buttons (Admin) ===== */
+button[data-danger="hard"]{
+  border-color: rgba(239, 68, 68, 0.55);
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--text);
+}
+
+button[data-danger="hard"]:hover{
+  border-color: rgba(239, 68, 68, 0.85);
+  background: rgba(239, 68, 68, 0.18);
+}
+
+button[data-danger="hard"]:focus-visible{
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.22), var(--shadow);
+}
+
+/* Opcional: reforzar visualmente la sección peligrosa */
+.admin-danger{
+  border-color: rgba(239, 68, 68, 0.35);
+}
+/* ===== Carga: Segmented + Search (Paso 3) ===== */
+.segmented{
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.03);
+  box-shadow: var(--shadow);
+}
+
+.segmented__btn{
+  flex: 1;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  padding: 10px 12px;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.segmented__btn:hover{
+  border-color: var(--border-strong);
+}
+
+.segmented__btn.is-active{
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary-900);
+}
+
+.segmented__btn.is-active:hover{
+  border-color: var(--primary-900);
+}
+
+.search{
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.search__input{
+  flex: 1;
+  font-size: 16px;
+}
+
+.btn-icon{
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  border-radius: 12px;
+}
+
+.search-msg{
+  margin: 10px 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* Highlight por clase (sin mover el layout) */
+.partido .row.hit{
+  border-radius: 12px;
+  box-shadow: inset 0 0 0 9999px var(--primary-soft);
+}
+
+.partido .card-header-left.hit{
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 9999px rgba(20, 184, 166, 0.10);
+}
+/* ===== HOTFIX: el highlight NO debe cambiar el tamaño ===== */
+.partido .row.hit{
+  /* vuelve al padding normal de .row para que no "crezca" */
+  padding: 10px 10px;
+  background: transparent; /* evitamos doble pintado */
+}
+
+.partido .card-header-left.hit{
+  padding: 0;              /* no agrandes el header */
+  background: transparent; /* evitamos doble pintado */
+}
+/* ===== Carga: Cards editables (Paso 4) ===== */
+
+.card-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-bottom:8px;
+}
+
+.card-header-left{
+  font-size:14px;
+}
+
+.card-header-right{
+  font-size:12px;
+  color: var(--muted);
+}
+
+.partido .row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-bottom:8px;
+}
+
+.partido .row:last-of-type{
+  margin-bottom:0;
+}
+
+.team-name{
+  font-size:22px;
+  font-weight:900;
+}
+
+.team-name.is-winner{
+  color: var(--success);
+}
+
+.input-score{
+  width: 88px;
+  font-size: 18px;
+}
+
+.actions-row{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  align-items:center;
+  margin-top:0px;
+  min-height:0px;
+  transition: margin-top 140ms ease, min-height 140ms ease;
+}
+
+.actions-row.is-visible{
+  margin-top:10px;
+  min-height:44px;
+}
+
+.actions-row.has-msg{
+  margin-top:6px;
+  min-height:22px;
+}
+
+.save-msg{
+  font-size:13px;
+  color: var(--muted);
+}
+
+.is-hidden{
+  display:none !important;
+}
+
+/* Botón primario reusable */
+.btn-primary{
+  background: var(--primary);
+  border-color: var(--primary-900);
+  color: #fff;
+  box-shadow: var(--shadow);
+}
+
+.btn-primary:hover{
+  background: var(--primary-900);
+  border-color: var(--primary-900);
+}
+
+.btn-primary:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring), var(--shadow);
+}
+/* ===== TWEAK Diseño (Paso 4): jerarquía + spacing ===== */
+
+/* Separación real entre tarjetas (antes venía inline) */
+.partido{
+  margin-bottom: 14px;
+}
+
+/* Header con padding para que no quede “pegado” al borde */
+.card-header{
+  padding: 10px 10px 6px;
+  margin-bottom: 2px; /* más compacto */
+}
+
+/* “Grupo A” debería ser visible, pero secundario */
+.card-header-left{
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+/* Estado (Pendiente/Jugado) más legible y con forma de badge suave */
+.card-header-right{
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.03);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+/* Nombres: bajarlos un toque (hoy están demasiado protagonistas) */
+.team-name{
+  font-size: 20px;
+  font-weight: 850;
+}
+
+/* En pantallas grandes podés volver a 22 sin que moleste */
+@media (min-width: 720px){
+  .team-name{
+    font-size: 22px;
+  }
+}
+/* ===== TWEAK: filas más limpias + highlight más fino ===== */
+
+/* La card tiene padding propio y el header separa mejor */
+.partido{
+  padding: 12px;
+}
+
+.card-header{
+  padding: 0 0 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Filas: neutras (no teal por defecto) */
+.partido .row{
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.02);
+}
+
+/* Separación entre filas */
+.partido .row + .row{
+  margin-top: 10px;
+}
+
+/* Highlight: se nota, pero no “inunda” */
+.partido .row.hit{
+  background: rgba(20, 184, 166, 0.08);
+  box-shadow: inset 0 0 0 2px rgba(20, 184, 166, 0.22);
+}
+
+/* Nombre: apenas más sobrio */
+.team-name{
+  font-size: 19px;
+}
+
+/* Input táctil consistente */
+.input-score{
+  height: 44px;
+}
+/* ===== Zebra por card (Paso 5) ===== */
+.partido.is-even{
+  border-left: 8px solid rgba(20, 184, 166, 0.18);
+}
+
+.partido.is-odd{
+  border-left: 8px solid rgba(20, 184, 166, 0.30);
+}
+/* ===== Zebra por card (más visible) ===== */
+.partido{
+  position: relative;
+}
+
+/* Aumentamos contraste en la barrita */
+.partido.is-even{
+  border-left: 10px solid rgba(20, 184, 166, 0.28);
+}
+
+.partido.is-odd{
+  border-left: 10px solid rgba(15, 118, 110, 0.40); /* un teal más oscuro */
+}
+
+/* Además, un “tinte” de fondo MUY suave en odd para ayudar al ojo */
+.partido.is-odd{
+  background: rgba(15, 23, 42, 0.015);
+}
+/* ===== Viewer (Paso 6): layout + tabs + cards ===== */
+
+.viewer-shell{
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.viewer-header{
+  display:flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.viewer-headings{
+  display:flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.viewer-title{
+  margin: 0;
+}
+
+.viewer-subtitle{
+  font-size: 14px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.viewer-actions{
+  margin: 0;
+  display:flex;
+  align-items:center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.viewer-status{
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.03);
+}
+
+/* Tabs coherentes con el resto (teal) */
+.tabs, .subtabs{
+  gap: 8px;
+}
+
+.tab-btn{
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: #fff;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.tab-btn.active{
+  background: var(--primary, #111827);
+  color: #fff;
+  border-color: var(--primary-900, #111827);
+}
+
+/* Viewer cards: evitar “doble borde” con tablas */
+.viewer-card{
+  padding: 12px;
+}
+
+/* Cuando la tabla está dentro de viewer-card, que no arme otra card adentro */
+.viewer-card table{
+  margin: 0;
+  box-shadow: none;
+}
+
+/* Details/summary más “clickable” */
+.viewer-details summary{
+  display:inline-flex;
+  align-items:center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.02);
+}
+
+.viewer-details[open] summary{
+  background: rgba(15, 23, 42, 0.04);
+}
+
+/* Matches del detalle: un poco más aire */
+.viewer-match{
+  padding: 12px 8px;
+}
+
+/* Mobile: que no se rompa el header */
+@media (max-width: 560px){
+  .viewer-header{
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .viewer-actions{
+    justify-content: space-between;
+  }
 }

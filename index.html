@@ -2,23 +2,28 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Torneo Pádel 14/01– Resultados</title>
+  <title>Torneo Pádel – Resultados</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="/style.css" />
 </head>
+
 <body>
+  <div class="viewer-shell">
+    <div class="viewer-header">
+      <div class="viewer-headings">
+        <h1 class="viewer-title">Torneo Pádel</h1>
+        <div class="viewer-subtitle">Resultados</div>
+      </div>
 
-  <h1>Resultados</h1>
+      <div class="viewer-actions">
+        <button id="viewer-refresh" class="btn-primary" type="button">🔄 Refrescar</button>
+        <span id="viewer-status" class="viewer-status"></span>
+      </div>
+    </div>
 
-  <div class="viewer-actions">
-    <button id="viewer-refresh" type="button">🔄 Refrescar</button>
-    <span id="viewer-status"></span>
+    <div class="tabs" id="tabs-main"></div>
+    <div id="viewer-content"></div>
   </div>
-
-  <div class="tabs" id="tabs-main"></div>
-
-  <div id="viewer-content"></div>
-
 
   <script type="module" src="/src/viewer.js"></script>
 </body>

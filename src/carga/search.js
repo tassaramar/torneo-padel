@@ -10,18 +10,14 @@ function norm(s) {
     .trim();
 }
 
-function clearInlineHit(el) {
-  if (!el) return;
-  el.style.background = '';
-  el.style.borderRadius = '';
-  el.style.padding = '';
-}
+function aplicarZebraVisible(listCont) {
+  const visibles = Array.from(listCont.querySelectorAll('.partido'))
+    .filter(c => c.style.display !== 'none');
 
-function applyInlineHit(el) {
-  if (!el) return;
-  el.style.background = 'rgba(0, 255, 204, 0.14)';
-  el.style.borderRadius = '12px';
-   el.style.boxShadow = 'inset 0 0 0 9999px rgba(0, 255, 204, 0.10)';
+  visibles.forEach((c, i) => {
+    c.classList.toggle('is-even', i % 2 === 0);
+    c.classList.toggle('is-odd', i % 2 === 1);
+  });
 }
 
 export function initSearchUI({ input, clearBtn, onChange }) {
@@ -51,29 +47,22 @@ export function applySearchToPartidos({ listCont, msgCont }) {
   const q = norm(raw);
   const cards = Array.from(listCont.querySelectorAll('.partido'));
 
-  // Limpieza: no queremos que quede highlight viejo pegado
+  // Limpieza de hits
   for (const c of cards) {
-    c.classList.remove('is-match'); // por si quedó de versiones anteriores
-    const headerEl = c.querySelector('.card-header-left');
-    const nameAEl = c.querySelector('.name-a');
-    const nameBEl = c.querySelector('.name-b');
-
-    clearInlineHit(headerEl);
-    clearInlineHit(nameAEl?.parentElement); // fila A (div flex)
-    clearInlineHit(nameBEl?.parentElement); // fila B (div flex)
-    clearInlineHit(nameAEl); // por si querés que resalte solo el texto
-    clearInlineHit(nameBEl);
+    c.querySelector('.card-header-left')?.classList.remove('hit');
+    c.querySelector('.row-a')?.classList.remove('hit');
+    c.querySelector('.row-b')?.classList.remove('hit');
   }
 
-  // Para evitar “tipeo 1 letra y desaparece todo”
   const puedeFiltrar = q.length >= 2;
-
   let visible = 0;
 
   for (const c of cards) {
     const headerEl = c.querySelector('.card-header-left');
     const nameAEl = c.querySelector('.name-a');
     const nameBEl = c.querySelector('.name-b');
+    const rowA = c.querySelector('.row-a');
+    const rowB = c.querySelector('.row-b');
 
     const headerText = norm(headerEl?.textContent || '');
     const aText = norm(nameAEl?.textContent || '');
@@ -83,7 +72,6 @@ export function applySearchToPartidos({ listCont, msgCont }) {
     const matchA = puedeFiltrar && aText.includes(q);
     const matchB = puedeFiltrar && bText.includes(q);
 
-    // Fallback: si por alguna razón no tenemos textos, usamos dataset.search
     const hay = norm(c.dataset.search || '');
     const matchFallback = puedeFiltrar && hay.includes(q);
 
@@ -92,15 +80,15 @@ export function applySearchToPartidos({ listCont, msgCont }) {
     c.style.display = show ? '' : 'none';
     if (show) visible += 1;
 
-    // Highlight SOLO donde matchea (fila dentro del card)
     if (show && puedeFiltrar) {
-      if (matchHeader) applyInlineHit(headerEl);
-
-      // Para “fila”, resaltamos el contenedor (parentElement) y/o el nombre
-      if (matchA) applyInlineHit(nameAEl?.parentElement || nameAEl);
-      if (matchB) applyInlineHit(nameBEl?.parentElement || nameBEl);
+      if (matchHeader) headerEl?.classList.add('hit');
+      if (matchA) rowA?.classList.add('hit');
+      if (matchB) rowB?.classList.add('hit');
     }
   }
+
+  // IMPORTANTÍSIMO: zebra recalculado sobre visibles
+  aplicarZebraVisible(listCont);
 
   if (!msgCont) return;
 

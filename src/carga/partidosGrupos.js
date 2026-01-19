@@ -15,6 +15,16 @@ async function guardarResultado(supabase, partidoId, gamesA, gamesB) {
   return true;
 }
 
+function aplicarZebraVisible(listCont) {
+  const visibles = Array.from(listCont.querySelectorAll('.partido'))
+    .filter(c => c.style.display !== 'none');
+
+  visibles.forEach((c, i) => {
+    c.classList.toggle('is-even', i % 2 === 0);
+    c.classList.toggle('is-odd', i % 2 === 1);
+  });
+}
+
 export async function cargarPartidosGrupos({ supabase, torneoId, msgCont, listCont, onAfterSave }) {
   msgCont.textContent = 'Cargando partidos…';
 
@@ -61,7 +71,7 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
     return;
   }
 
-  partidos.forEach((p, idx) => {
+  partidos.forEach((p) => {
     const grupo = p.grupos?.nombre ?? '-';
     const a = p.pareja_a?.nombre ?? 'Pareja A';
     const b = p.pareja_b?.nombre ?? 'Pareja B';
@@ -80,12 +90,12 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
       }
     });
 
-    // ✅ Zebra visible (no depende de CSS, no lo pisa el border inline)
-    const even = idx % 2 === 0;
-    card.style.borderLeft = even
-      ? '10px solid rgba(0, 255, 204, 0.25)'
-      : '10px solid rgba(0, 255, 204, 0.55)';
+    // Extra: ayuda al filtro (fallback), sin depender del DOM
+    card.dataset.search = `${grupo} ${a} ${b}`;
 
     listCont.appendChild(card);
   });
+
+  // zebra inicial (sin filtro)
+  aplicarZebraVisible(listCont);
 }

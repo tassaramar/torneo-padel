@@ -18,29 +18,26 @@ export function initCargaLayout() {
     document.body.appendChild(copasCont);
   }
 
-  // estructura fija
+  // estructura fija (sin estilos inline)
   app.innerHTML = `
-    <div id="partidos-controls" style="display:flex; gap:8px; margin-bottom:10px;">
-      <button id="btn-pendientes" type="button" style="flex:1; padding:10px; font-size:16px;">Pendientes</button>
-      <button id="btn-jugados" type="button" style="flex:1; padding:10px; font-size:16px;">Jugados</button>
+    <div id="partidos-controls" class="segmented" role="group" aria-label="Modo de carga">
+      <button id="btn-pendientes" class="segmented__btn" type="button" aria-pressed="true">Pendientes</button>
+      <button id="btn-jugados" class="segmented__btn" type="button" aria-pressed="false">Jugados</button>
     </div>
 
-    <div id="search-row" style="display:flex; gap:8px; margin-bottom:12px;">
+    <div id="search-row" class="search">
       <input
         id="search-partidos"
+        class="search__input"
         type="text"
         autocomplete="off"
         inputmode="search"
         placeholder="Buscar jugador o grupo…"
-        style="flex:1; padding:12px; font-size:16px; border:1px solid #ccc; border-radius:10px;"
       />
-      <button id="search-clear" type="button" style="padding:12px 14px; font-size:16px; border:1px solid #ccc; border-radius:10px;">
-        ✖
-      </button>
+      <button id="search-clear" class="btn-icon" type="button" aria-label="Limpiar búsqueda">✖</button>
     </div>
 
-    <div id="partidos-msg" style="margin:10px 0; font-size:14px;"></div>
-
+    <div id="partidos-msg" class="search-msg"></div>
     <div id="partidos-list"></div>
   `;
 
@@ -68,11 +65,13 @@ export function initCargaLayout() {
 }
 
 export function pintarModoToggle(dom) {
-  const activeStyle = 'border:2px solid #333; font-weight:700;';
-  const normalStyle = 'border:1px solid #ccc; font-weight:400;';
+  const pend = state.modo === 'pendientes';
 
-  dom.btnPendientes.style = `flex:1; padding:10px; font-size:16px; ${state.modo === 'pendientes' ? activeStyle : normalStyle}`;
-  dom.btnJugados.style = `flex:1; padding:10px; font-size:16px; ${state.modo === 'jugados' ? activeStyle : normalStyle}`;
+  dom.btnPendientes.classList.toggle('is-active', pend);
+  dom.btnJugados.classList.toggle('is-active', !pend);
+
+  dom.btnPendientes.setAttribute('aria-pressed', String(pend));
+  dom.btnJugados.setAttribute('aria-pressed', String(!pend));
 }
 
 export function wireModoToggle(dom, onChange) {

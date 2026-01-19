@@ -12,62 +12,50 @@ export function crearCardEditable({
 }) {
   const div = document.createElement('div');
   div.className = 'partido';
-  div.style.border = '1px solid #ddd';
-  div.style.borderRadius = '10px';
-  div.style.padding = '12px';
-  div.style.marginBottom = '10px';
 
   const esJugado = gamesA !== null && gamesB !== null;
   const labelBtn = state.modo === 'jugados' ? 'Guardar cambios' : 'Guardar';
 
   div.innerHTML = `
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-      <div class="card-header-left" style="font-size:14px;">${headerLeft}</div>
-      <div style="font-size:12px; opacity:0.8;">${headerRight ?? (esJugado ? 'Jugado' : 'Pendiente')}</div>
+    <div class="card-header">
+      <div class="card-header-left">${headerLeft}</div>
+      <div class="card-header-right">${headerRight ?? (esJugado ? 'Jugado' : 'Pendiente')}</div>
     </div>
 
-    <div class="row row-a" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+    <div class="row row-a">
       <strong class="team-name name-a">${nombreA ?? 'Pareja A'}</strong>
       <input
+        class="input-score input-a"
         type="number"
         inputmode="numeric"
         pattern="[0-9]*"
         min="0"
         step="1"
-        style="width:80px; font-size:18px; padding:8px; text-align:center;"
       />
     </div>
 
-    <div class="row row-b" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+    <div class="row row-b">
       <strong class="team-name name-b">${nombreB ?? 'Pareja B'}</strong>
       <input
+        class="input-score input-b"
         type="number"
         inputmode="numeric"
         pattern="[0-9]*"
         min="0"
         step="1"
-        style="width:80px; font-size:18px; padding:8px; text-align:center;"
       />
     </div>
 
-    <div class="actions-row"
-         style="
-           display:flex;
-           justify-content:flex-end;
-           gap:8px;
-           align-items:center;
-           margin-top:0px;
-           min-height:0px;
-           transition: margin-top 140ms ease, min-height 140ms ease;
-         ">
-      <span class="save-msg" style="font-size:13px; opacity:0.85;"></span>
-      <button type="button" style="padding:10px 14px; font-size:16px;">${labelBtn}</button>
+    <div class="actions-row">
+      <span class="save-msg"></span>
+      <button type="button" class="btn-primary btn-save is-hidden">${labelBtn}</button>
     </div>
   `;
 
-  const [inputA, inputB] = div.querySelectorAll('input');
+  const inputA = div.querySelector('.input-a');
+  const inputB = div.querySelector('.input-b');
   const actionsRow = div.querySelector('.actions-row');
-  const btn = div.querySelector('button');
+  const btn = div.querySelector('.btn-save');
   const saveMsg = div.querySelector('.save-msg');
   const nameA = div.querySelector('.name-a');
   const nameB = div.querySelector('.name-b');
@@ -78,8 +66,8 @@ export function crearCardEditable({
   }
 
   function pintarGanador() {
-    nameA.style.color = '';
-    nameB.style.color = '';
+    nameA.classList.remove('is-winner');
+    nameB.classList.remove('is-winner');
 
     if (inputA.value === '' || inputB.value === '') return;
 
@@ -89,20 +77,20 @@ export function crearCardEditable({
 
     if (ga === gb) return;
 
-    if (ga > gb) nameA.style.color = '#1a7f37';
-    else nameB.style.color = '#1a7f37';
+    if (ga > gb) nameA.classList.add('is-winner');
+    else nameB.classList.add('is-winner');
   }
 
   function setGuardarVisible(visible) {
-    btn.style.display = visible ? 'inline-block' : 'none';
+    btn.classList.toggle('is-hidden', !visible);
 
-    if (visible) {
-      actionsRow.style.marginTop = '10px';
-      actionsRow.style.minHeight = '44px';
-    } else {
+    actionsRow.classList.toggle('is-visible', visible);
+
+    if (!visible) {
       const tieneMensaje = (saveMsg.textContent || '').trim() !== '';
-      actionsRow.style.marginTop = tieneMensaje ? '6px' : '0px';
-      actionsRow.style.minHeight = tieneMensaje ? '22px' : '0px';
+      actionsRow.classList.toggle('has-msg', tieneMensaje);
+    } else {
+      actionsRow.classList.remove('has-msg');
     }
   }
 
@@ -160,6 +148,7 @@ export function crearCardEditable({
     const prev = btn.innerText;
     btn.innerText = 'Guardando…';
     saveMsg.textContent = '';
+    actionsRow.classList.remove('has-msg');
 
     const ok = await onSave(ga, gb);
 
@@ -168,6 +157,7 @@ export function crearCardEditable({
 
     saveMsg.textContent = ok ? '✅ Guardado' : '❌ Error';
     if (!ok) setGuardarVisible(true);
+    else setGuardarVisible(false);
   };
 
   return div;
