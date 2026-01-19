@@ -856,42 +856,6 @@ async function generarSemisConAsignados(copaId, copaNombre) {
    GENERAR COPAS + SEMIS (AUTOMÁTICO COMPLETO)
 ========================= */
 
-async function calcularTablaGrupoDB(grupoId) {
-  const { data: partidos, error } = await supabase
-    .from('partidos')
-    .select(`
-      id,
-      games_a,
-      games_b,
-      pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
-      pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
-    `)
-    .eq('torneo_id', TORNEO_ID)
-    .eq('grupo_id', grupoId)
-    .is('copa_id', null);
-
-  if (error) {
-    console.error(error);
-    return { ok: false, msg: 'Error leyendo partidos del grupo' };
-  }
-
-  const total = (partidos || []).length;
-  const jugados = (partidos || []).filter(p => p.games_a !== null && p.games_b !== null).length;
-
-  if (total > 0 && jugados < total) {
-    return { ok: false, msg: `faltan partidos (${jugados}/${total})` };
-  }
-
-  const rows = calcularTablaGrupo(partidos || []);
-  const ordenadas = ordenarAutomatico(rows);
-
-  if (ordenadas.length !== 3) {
-    return { ok: false, msg: `no pude determinar 3 parejas (rows=${ordenadas.length}, totalPartidos=${total})` };
-  }
-
-  return { ok: true, rows, ordenParejas: ordenadas.map(r => r.pareja_id) };
-}
-
 export async function generarCopasYSemis() {
   logMsg('🏆 Generar Copas + Semis: validando…');
 
