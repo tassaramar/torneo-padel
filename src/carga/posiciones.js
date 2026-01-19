@@ -119,41 +119,67 @@ function renderPosiciones(posicionesCont, grupos, overrides) {
     table.style.marginBottom = '20px';
     table.style.borderCollapse = 'collapse';
 
-    table.innerHTML = `
-      <thead>
-        <tr>
-          <th colspan="8" style="text-align:left; padding:6px 0;">
-            Grupo ${g.nombre}
-            ${hayOv ? '<span style="font-size:12px; opacity:0.7; margin-left:6px;">(orden manual)</span>' : ''}
-          </th>
-        </tr>
-        <tr>
-          <th style="text-align:left; border-bottom:1px solid #ddd; padding:6px 0;">Pareja</th>
-          <th title="Partidos jugados" style="border-bottom:1px solid #ddd;">PJ</th>
-          <th title="Partidos ganados" style="border-bottom:1px solid #ddd;">PG</th>
-          <th title="Partidos perdidos" style="border-bottom:1px solid #ddd;">PP</th>
-          <th title="Games a favor" style="border-bottom:1px solid #ddd;">GF</th>
-          <th title="Games en contra" style="border-bottom:1px solid #ddd;">GC</th>
-          <th title="Diferencia de games" style="border-bottom:1px solid #ddd;">DG</th>
-          <th title="Puntos" style="border-bottom:1px solid #ddd;">P</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${lista.map(p => `
-          <tr>
-            <td style="padding:6px 0; border-bottom:1px solid #f0f0f0; font-weight:normal;">${p.nombre}</td>
-            <td style="text-align:center; border-bottom:1px solid #f0f0f0;">${p.PJ}</td>
-            <td style="text-align:center; border-bottom:1px solid #f0f0f0;">${p.PG}</td>
-            <td style="text-align:center; border-bottom:1px solid #f0f0f0;">${p.PP}</td>
-            <td style="text-align:center; border-bottom:1px solid #f0f0f0;">${p.GF}</td>
-            <td style="text-align:center; border-bottom:1px solid #f0f0f0;">${p.GC}</td>
-            <td style="text-align:center; border-bottom:1px solid #f0f0f0;">${p.DG}</td>
-            <td style="text-align:center; border-bottom:1px solid #f0f0f0;"><strong>${p.P}</strong></td>
-          </tr>
-        `).join('')}
-      </tbody>
+    // Crear thead
+    const thead = document.createElement('thead');
+    thead.innerHTML = `
+      <tr>
+        <th colspan="8" style="text-align:left; padding:6px 0;">
+          Grupo ${g.nombre}
+          ${hayOv ? '<span style="font-size:12px; opacity:0.7; margin-left:6px;">(orden manual)</span>' : ''}
+        </th>
+      </tr>
+      <tr>
+        <th style="text-align:left; border-bottom:1px solid #ddd; padding:6px 0;">Pareja</th>
+        <th title="Partidos jugados" style="border-bottom:1px solid #ddd;">PJ</th>
+        <th title="Partidos ganados" style="border-bottom:1px solid #ddd;">PG</th>
+        <th title="Partidos perdidos" style="border-bottom:1px solid #ddd;">PP</th>
+        <th title="Games a favor" style="border-bottom:1px solid #ddd;">GF</th>
+        <th title="Games en contra" style="border-bottom:1px solid #ddd;">GC</th>
+        <th title="Diferencia de games" style="border-bottom:1px solid #ddd;">DG</th>
+        <th title="Puntos" style="border-bottom:1px solid #ddd;">P</th>
+      </tr>
     `;
 
+    // Crear tbody con DOM para evitar problemas de HTML embebido
+    const tbody = document.createElement('tbody');
+    lista.forEach(p => {
+      const tr = document.createElement('tr');
+      
+      // Nombre (con font-weight forzado)
+      const tdNombre = document.createElement('td');
+      tdNombre.style.cssText = 'padding:6px 0; border-bottom:1px solid #f0f0f0; font-weight:400 !important;';
+      tdNombre.textContent = p.nombre;
+      tr.appendChild(tdNombre);
+
+      // Resto de columnas
+      const cols = [
+        { val: p.PJ },
+        { val: p.PG },
+        { val: p.PP },
+        { val: p.GF },
+        { val: p.GC },
+        { val: p.DG },
+        { val: p.P, strong: true }
+      ];
+
+      cols.forEach(col => {
+        const td = document.createElement('td');
+        td.style.cssText = 'text-align:center; border-bottom:1px solid #f0f0f0;';
+        if (col.strong) {
+          const strong = document.createElement('strong');
+          strong.textContent = col.val;
+          td.appendChild(strong);
+        } else {
+          td.textContent = col.val;
+        }
+        tr.appendChild(td);
+      });
+
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(thead);
+    table.appendChild(tbody);
     posicionesCont.appendChild(table);
   });
 }
