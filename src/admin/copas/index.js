@@ -204,23 +204,113 @@ export async function sugerirAsignacionesAutomaticas() {
 }
 
 export async function aplicarAsignacionesAutomaticas() {
-  const sugerencias = await sugerirAsignacionesAutomaticas();
-  
-  if (!sugerencias) {
-    logMsg('❌ No se pudieron generar sugerencias');
+  logMsg('🤖 Asignaciones automáticas: iniciando…');
+
+  const { data: grupos, error: errG } = await supabase
+    .from('grupos')
+    .select('id, nombre')
+    .eq('torneo_id', TORNEO_ID)
+    .order('nombre');
+
+  if (errG || !grupos || grupos.length !== 4) {
+    logMsg(`❌ Error o no hay 4 grupos (hay ${grupos?.length || 0})`);
     return false;
   }
 
-  let count = 0;
+  const { data: copas, error: errC } = await supabase
+    .from('copas')
+    .select('id, nombre, orden')
+    .eq('torneo_id', TORNEO_ID)
+    .order('orden');
 
-  for (const sug of sugerencias) {
-    for (const pos of [sug.primero, sug.segundo, sug.tercero]) {
-      const ok = await asignarParejaACopa(pos.pareja_id, pos.copa_id);
-      if (ok) count++;
+  if (errC || !copas || copas.length !== 3) {
+    logMsg(`❌ Error o no hay 3 copas (hay ${copas?.length || 0})`);
+    return false;
+  }
+
+  // Obtener parejas ya asignadas
+  const { data: parejasAsignadas, error: errPA } = await supabase
+    .from('parejas')
+    .select('id, copa_asignada_id')
+    .eq('torneo_id', TORNEO_ID)
+    .not('copa_asignada_id', 'is', null);
+
+  if (errPA) {
+    console.error(errPA);
+    logMsg('❌ Error obteniendo parejas asignadas');
+    return false;
+  }
+
+  const parejasYaAsignadas = new Set((parejasAsignadas || []).map(p => p.id));
+
+  let count = 0;
+  let gruposNuevos = 0;
+
+  for (const g of grupos) {
+    // Primero ver si hay orden manual
+    const { data: man, error: errM } = await supabase
+      .from('posiciones_manual')
+      .select('pareja_id, orden_manual')
+      .eq('torneo_id', TORNEO_ID)
+      .eq('grupo_id', g.id)
+      .not('orden_manual', 'is', null)
+      .order('orden_manual', { ascending: true });
+
+    if (errM) console.error(errM);
+
+    let orden = [];
+
+    if (man && man.length === 3) {
+      orden = man.map(x => x.pareja_id);
+    } else {
+      // Calcular automático
+      const calc = await calcularTablaGrupoDB(g.id);
+      if (!calc.ok || calc.ordenParejas.length !== 3) {
+        logMsg(`⚠️ Grupo ${g.nombre}: ${calc.msg || 'no se pudo calcular orden'} - omitiendo`);
+        continue;
+      }
+      orden = calc.ordenParejas;
+    }
+
+    // Verificar si este grupo ya tiene equipos asignados
+    const equiposDeEsteGrupo = orden.filter(pid => parejasYaAsignadas.has(pid));
+    
+    if (equiposDeEsteGrupo.length === 3) {
+      // Todos los equipos de este grupo ya están asignados, skip
+      continue;
+    }
+
+    if (equiposDeEsteGrupo.length > 0 && equiposDeEsteGrupo.length < 3) {
+      // Parcialmente asignado, advertir
+      logMsg(`⚠️ Grupo ${g.nombre}: tiene ${equiposDeEsteGrupo.length}/3 equipos ya asignados - omitiendo por seguridad`);
+      continue;
+    }
+
+    // Este grupo está completo pero NO asignado, asignar ahora
+    gruposNuevos++;
+    
+    const asignaciones = [
+      { pareja_id: orden[0], copa_id: copas[0].id, posicion: '1°', copa_nombre: copas[0].nombre },
+      { pareja_id: orden[1], copa_id: copas[1].id, posicion: '2°', copa_nombre: copas[1].nombre },
+      { pareja_id: orden[2], copa_id: copas[2].id, posicion: '3°', copa_nombre: copas[2].nombre }
+    ];
+
+    for (const asig of asignaciones) {
+      const ok = await asignarParejaACopa(asig.pareja_id, asig.copa_id);
+      if (ok) {
+        count++;
+        logMsg(`  → Grupo ${g.nombre} ${asig.posicion} → ${asig.copa_nombre}`);
+      }
     }
   }
 
-  logMsg(`✅ Asignaciones aplicadas: ${count}`);
+  if (gruposNuevos === 0) {
+    logMsg('ℹ️ No hay grupos nuevos para asignar (todos ya están asignados)');
+    await cargarCopasAdmin();
+    return true;
+  }
+
+  logMsg(`✅ Asignados ${count} equipos de ${gruposNuevos} grupo(s) nuevo(s)`);
   await cargarCopasAdmin();
   return true;
 }
