@@ -61,8 +61,87 @@ export async function cargarPartidosGrupos({ supabase, torneoId, msgCont, listCo
 }
 
 /**
- * Ordena partidos para maximizar paralelismo dentro de cada grupo.
- * Agrupa en "rondas" donde ninguna pareja se repite.
+ * Circle Method: Genera pairings óptimos para round-robin.
+ * Algoritmo estándar de Berger para minimizar rondas y maximizar paralelismo.
+ * @param {Array<string>} equipos - Lista de nombres de equipos
+ * @returns {Array<Array<[string, string]>>} - Array de rondas, cada ronda con pairings
+ */
+function circleMethod(equipos) {
+  let teams = [...equipos];
+  const n = teams.length;
+  
+  // Si hay número impar de equipos, agregar dummy para hacer par
+  if (n % 2 === 1) {
+    teams.push('BYE');
+  }
+  
+  const rounds = [];
+  const totalRounds = teams.length - 1;
+  const fixed = teams[0]; // Equipo fijo en posición estática
+  let rotating = teams.slice(1); // Equipos que rotan
+  
+  for (let r = 0; r < totalRounds; r++) {
+    const roundPairings = [];
+    
+    // Emparejar equipo fijo con primer equipo del círculo
+    roundPairings.push([fixed, rotating[0]]);
+    
+    // Emparejar resto en posiciones opuestas del círculo
+    for (let i = 1; i < rotating.length / 2; i++) {
+      roundPairings.push([
+        rotating[i],
+        rotating[rotating.length - i]
+      ]);
+    }
+    
+    rounds.push(roundPairings);
+    
+    // Rotar círculo: mover último elemento al principio
+    rotating = [rotating[rotating.length - 1], ...rotating.slice(0, -1)];
+  }
+  
+  return rounds;
+}
+
+/**
+ * Crea un mapa para búsqueda rápida de partidos por parejas.
+ * @param {Array} partidos - Lista de partidos
+ * @returns {Map} - Mapa con key "equipoA|equipoB" -> partido
+ */
+function crearMapaPartidos(partidos) {
+  const mapa = new Map();
+  
+  partidos.forEach(p => {
+    const nombreA = p.pareja_a?.nombre;
+    const nombreB = p.pareja_b?.nombre;
+    
+    if (nombreA && nombreB) {
+      // Crear claves en ambas direcciones para lookup bidireccional
+      const key1 = `${nombreA}|${nombreB}`;
+      const key2 = `${nombreB}|${nombreA}`;
+      mapa.set(key1, p);
+      mapa.set(key2, p);
+    }
+  });
+  
+  return mapa;
+}
+
+/**
+ * Busca un partido en el mapa por nombres de equipos.
+ * @param {Map} mapa - Mapa de partidos
+ * @param {string} eq1 - Nombre equipo 1
+ * @param {string} eq2 - Nombre equipo 2
+ * @returns {Object|null} - Partido encontrado o null
+ */
+function buscarPartido(mapa, eq1, eq2) {
+  const key = `${eq1}|${eq2}`;
+  return mapa.get(key) || null;
+}
+
+/**
+ * Ordena partidos usando Circle Method (Berger Tables) para óptimo paralelismo.
+ * Agrupa en "rondas" con mínimo número de rondas y máximo paralelismo.
  * Retorna array de rondas con estructura:
  * [
  *   { grupo: 'A', partidos: [...], parejasLibres: [...] },
@@ -85,45 +164,50 @@ export function agruparEnRondas(partidos) {
   Object.keys(porGrupo).sort().forEach(nombreGrupo => {
     const partidosGrupo = [...porGrupo[nombreGrupo]];
     
-    // Obtener todas las parejas del grupo
-    const todasLasParejas = new Set();
+    // 1. Extraer equipos únicos del grupo
+    const equiposSet = new Set();
     partidosGrupo.forEach(p => {
-      if (p.pareja_a?.nombre) todasLasParejas.add(p.pareja_a.nombre);
-      if (p.pareja_b?.nombre) todasLasParejas.add(p.pareja_b.nombre);
+      if (p.pareja_a?.nombre) equiposSet.add(p.pareja_a.nombre);
+      if (p.pareja_b?.nombre) equiposSet.add(p.pareja_b.nombre);
     });
+    const equipos = Array.from(equiposSet).sort();
     
-    // Agrupar partidos en rondas (greedy algorithm)
-    while (partidosGrupo.length > 0) {
-      const ronda = [];
+    // 2. Crear mapa de partidos para búsqueda rápida
+    const mapaPartidos = crearMapaPartidos(partidosGrupo);
+    
+    // 3. Aplicar Circle Method para generar pairings óptimos
+    const pairings = circleMethod(equipos);
+    
+    // 4. Convertir pairings a rondas con partidos reales
+    pairings.forEach(rondaPairings => {
+      const partidosRonda = [];
       const parejasEnUso = new Set();
       
-      // Buscar todos los partidos que no tienen conflictos entre sí
-      for (let i = partidosGrupo.length - 1; i >= 0; i--) {
-        const p = partidosGrupo[i];
-        const parejaA = p.pareja_a?.nombre;
-        const parejaB = p.pareja_b?.nombre;
-        
-        if (!parejasEnUso.has(parejaA) && !parejasEnUso.has(parejaB)) {
-          ronda.unshift(p); // Agregar al inicio para mantener orden
-          parejasEnUso.add(parejaA);
-          parejasEnUso.add(parejaB);
-          partidosGrupo.splice(i, 1);
+      rondaPairings.forEach(([eq1, eq2]) => {
+        // Ignorar pairings con BYE (equipo dummy)
+        if (eq1 !== 'BYE' && eq2 !== 'BYE') {
+          const partido = buscarPartido(mapaPartidos, eq1, eq2);
+          if (partido) {
+            partidosRonda.push(partido);
+            parejasEnUso.add(eq1);
+            parejasEnUso.add(eq2);
+          }
         }
-      }
+      });
       
       // Calcular parejas libres (no juegan en esta ronda)
-      const parejasLibres = Array.from(todasLasParejas)
-        .filter(p => !parejasEnUso.has(p))
+      const parejasLibres = equipos
+        .filter(e => !parejasEnUso.has(e))
         .sort();
       
-      if (ronda.length > 0) {
+      if (partidosRonda.length > 0 || parejasLibres.length > 0) {
         rondas.push({
           grupo: nombreGrupo,
-          partidos: ronda,
+          partidos: partidosRonda,
           parejasLibres: parejasLibres
         });
       }
-    }
+    });
   });
   
   return rondas;
