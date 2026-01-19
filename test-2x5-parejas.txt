@@ -1,0 +1,10 @@
+Pareja 1 - Pareja 2	A
+Pareja 3 - Pareja 4	A
+Pareja 5 - Pareja 6	A
+Pareja 7 - Pareja 8	A
+Pareja 9 - Pareja 10	A
+Pareja 11 - Pareja 12	B
+Pareja 13 - Pareja 14	B
+Pareja 15 - Pareja 16	B
+Pareja 17 - Pareja 18	B
+Pareja 19 - Pareja 20	B
