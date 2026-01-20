@@ -1,5 +1,6 @@
 import { state } from './state.js';
 import { crearCardEditable } from './cardEditable.js';
+import { obtenerFraseFechaLibre } from '../utils/frasesFechaLibre.js';
 
 async function guardarResultado(supabase, partidoId, gamesA, gamesB) {
   const { error } = await supabase
@@ -255,7 +256,7 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
           cardLibre.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div style="font-weight: 600;">${parejaLibre}</div>
-              <div style="color: var(--muted); font-style: italic;">Fecha libre</div>
+              <div style="color: var(--muted); font-style: italic;">${obtenerFraseFechaLibre()}</div>
             </div>
           `;
           listCont.appendChild(cardLibre);

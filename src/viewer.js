@@ -1,5 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import { agruparEnRondas } from './carga/partidosGrupos.js';
+import { obtenerFraseFechaLibre } from './utils/frasesFechaLibre.js';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -240,7 +241,7 @@ function renderPartidosConRondas(partidos) {
           html += `
             <div class="viewer-match" style="opacity: 0.6; border-left: 3px dashed var(--muted);">
               <div class="viewer-match-names">${parejaLibre}</div>
-              <div class="viewer-match-res" style="font-style: italic;">Fecha libre</div>
+              <div class="viewer-match-res" style="font-style: italic;">${obtenerFraseFechaLibre()}</div>
             </div>
           `;
         });
