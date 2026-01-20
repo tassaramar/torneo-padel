@@ -58,6 +58,20 @@ export async function resetPartidosGrupos() {
 }
 
 export async function generarPartidosGrupos() {
+  // Primero eliminar partidos existentes
+  logMsg('🧹 Eliminando partidos de grupos existentes…');
+  const { error: delError } = await supabase
+    .from('partidos')
+    .delete()
+    .eq('torneo_id', TORNEO_ID)
+    .is('copa_id', null);
+
+  if (delError) {
+    console.error(delError);
+    logMsg('❌ Error eliminando partidos existentes');
+    return false;
+  }
+  
   logMsg('🎾 Generando partidos de grupos…');
 
   const { data: grupos, error: errGrupos } = await supabase

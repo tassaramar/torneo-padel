@@ -6,15 +6,7 @@ import { state } from '../state.js';
 export function initGroups() {
   console.log('INIT GROUPS');
 
-  const btnReset = document.getElementById('reset-grupos');
   const btnGen = document.getElementById('gen-grupos');
-
-  if (btnReset) {
-    btnReset.onclick = async () => {
-      const ok = await resetPartidosGrupos();
-      if (ok) await cargarCierreGrupos();
-    };
-  }
 
   if (btnGen) {
     btnGen.onclick = async () => {

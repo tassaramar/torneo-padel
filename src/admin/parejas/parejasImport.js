@@ -1,4 +1,5 @@
 import { supabase, TORNEO_ID, logMsg, el } from '../context.js';
+import { generarPartidosGrupos } from '../groups/service.js';
 
 function normGroup(raw) {
   let g = String(raw ?? '').trim();
@@ -293,15 +294,25 @@ export function initParejasImport() {
     const okIns = await crearGruposYparejas(lastParsed);
     if (!okIns) return;
 
+    // Generar partidos automáticamente
+    const okPartidos = await generarPartidosGrupos();
+    
     // refresco rápido
     const estado = await fetchEstadoActual();
     out.innerHTML = '';
-    out.appendChild(el('div', { style: 'padding:10px; border:1px solid #2a6; background:#102a16; border-radius:10px;' },
-      '<b>Import terminado.</b> Ahora podés ir a “Generar partidos de grupos”.'
-    ));
+    
+    const mensajeDiv = el('div', { style: 'padding:10px; border:1px solid #2a6; background:#102a16; border-radius:10px;' });
+    if (okPartidos) {
+      mensajeDiv.innerHTML = '<b>✅ Import completado y partidos generados.</b> El torneo está listo.';
+    } else {
+      mensajeDiv.style.borderColor = '#da2';
+      mensajeDiv.style.background = '#2a1606';
+      mensajeDiv.innerHTML = '<b>⚠️ Import completado pero hubo un error al generar partidos.</b> Generá los partidos manualmente.';
+    }
+    out.appendChild(mensajeDiv);
     renderEstadoActual(out, estado);
 
     // Para evitar UI vieja en admin (posiciones/copas renderizadas antes del import)
-    setTimeout(() => window.location.reload(), 400);
+    setTimeout(() => window.location.reload(), 1000);
   });
 }

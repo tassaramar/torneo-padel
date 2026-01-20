@@ -27,7 +27,7 @@
     </div>
 
     <!-- SETUP -->
-    <details class="admin-section" open>
+    <details class="admin-section">
       <summary>🧰 Setup previo (antes del torneo)</summary>
 
       <h2 style="margin-top:14px;">Parejas (import rápido)</h2>
@@ -89,8 +89,11 @@ Andy - Ger	d"></textarea>
 
       <h2 style="margin-top:14px;">Grupos</h2>
       <div class="admin-actions">
-        <button id="gen-grupos" type="button">🎾 Generar partidos de grupos</button>
+        <button id="gen-grupos" type="button" data-danger="hard">🔄 Reset partidos de grupo</button>
       </div>
+      <p class="helper" style="margin-top:4px;">
+        ⚠️ Elimina todos los partidos de grupos existentes y los regenera desde cero.
+      </p>
 
       <h2 style="margin-top:18px;">Cierre de grupos (ranking + orden final)</h2>
       <p class="helper" style="margin-top:0;">
@@ -128,7 +131,6 @@ Andy - Ger	d"></textarea>
       </p>
 
       <div class="admin-actions">
-        <button id="reset-grupos" type="button" data-danger="hard">🧹 Reset partidos de grupos</button>
         <button id="reset-copas" type="button" data-danger="hard">🧹 Reset Copas</button>
       </div>
     </details>
