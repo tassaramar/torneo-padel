@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Circle Method</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+    h2 { color: #333; border-bottom: 2px solid #007bff; padding-bottom: 5px; }
+    .test-case { margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; }
+    .round { margin: 10px 0; padding: 10px; background: white; border-left: 4px solid #007bff; }
+    .round-title { font-weight: bold; color: #007bff; margin-bottom: 5px; }
+    .match { padding: 5px 10px; margin: 3px 0; background: #e9ecef; border-radius: 4px; }
+    .bye { padding: 5px 10px; margin: 3px 0; background: #fff3cd; border-radius: 4px; font-style: italic; }
+    .summary { margin-top: 10px; padding: 10px; background: #d1ecf1; border-radius: 4px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Test Circle Method - Round Robin Tournament</h1>
+  <div id="output"></div>
+
+  <script type="module">
+    // Copiar la función circleMethod del código
+    function circleMethod(equipos) {
+      let teams = [...equipos];
+      const n = teams.length;
+      
+      if (n % 2 === 1) {
+        teams.push('BYE');
+      }
+      
+      const rounds = [];
+      const totalRounds = teams.length - 1;
+      const fixed = teams[0];
+      let rotating = teams.slice(1);
+      
+      for (let r = 0; r < totalRounds; r++) {
+        const roundPairings = [];
+        
+        roundPairings.push([fixed, rotating[0]]);
+        
+        for (let i = 1; i < rotating.length / 2; i++) {
+          roundPairings.push([
+            rotating[i],
+            rotating[rotating.length - i]
+          ]);
+        }
+        
+        rounds.push(roundPairings);
+        
+        rotating = [rotating[rotating.length - 1], ...rotating.slice(0, -1)];
+      }
+      
+      return rounds;
+    }
+
+    function renderTest(numEquipos) {
+      const equipos = [];
+      const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+      for (let i = 0; i < numEquipos; i++) {
+        equipos.push(`Equipo ${letters[i]}`);
+      }
+      
+      const rounds = circleMethod(equipos);
+      
+      let html = `<div class="test-case">`;
+      html += `<h2>Caso: ${numEquipos} equipos</h2>`;
+      
+      rounds.forEach((round, idx) => {
+        html += `<div class="round">`;
+        html += `<div class="round-title">Ronda ${idx + 1}</div>`;
+        
+        let matchesInRound = 0;
+        let byesInRound = 0;
+        
+        round.forEach(([eq1, eq2]) => {
+          if (eq1 === 'BYE' || eq2 === 'BYE') {
+            const playing = eq1 === 'BYE' ? eq2 : eq1;
+            html += `<div class="bye">📅 ${playing} - Fecha libre</div>`;
+            byesInRound++;
+          } else {
+            html += `<div class="match">⚽ ${eq1} vs ${eq2}</div>`;
+            matchesInRound++;
+          }
+        });
+        
+        html += `<div style="margin-top: 8px; font-size: 12px; color: #666;">`;
+        html += `${matchesInRound} partido${matchesInRound > 1 ? 's' : ''} en paralelo`;
+        if (byesInRound > 0) {
+          html += ` | ${byesInRound} fecha${byesInRound > 1 ? 's' : ''} libre${byesInRound > 1 ? 's' : ''}`;
+        }
+        html += `</div>`;
+        html += `</div>`;
+      });
+      
+      // Calcular totales
+      const totalMatches = (numEquipos * (numEquipos - 1)) / 2;
+      const expectedRounds = numEquipos % 2 === 0 ? numEquipos - 1 : numEquipos;
+      
+      html += `<div class="summary">`;
+      html += `✅ Total rondas: ${rounds.length} (esperadas: ${expectedRounds})<br>`;
+      html += `✅ Total partidos: ${totalMatches}<br>`;
+      html += `✅ Máximo paralelismo: ${Math.floor(numEquipos / 2)} partidos/ronda`;
+      html += `</div>`;
+      html += `</div>`;
+      
+      return html;
+    }
+
+    // Renderizar tests
+    const output = document.getElementById('output');
+    output.innerHTML = renderTest(3) + renderTest(4) + renderTest(5);
+  </script>
+</body>
+</html>

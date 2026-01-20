@@ -400,9 +400,10 @@ tbody tr:nth-child(even){
 
 .viewer-match{
   display:flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 10px 8px;
+  gap: 12px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -410,8 +411,60 @@ tbody tr:nth-child(even){
   border-bottom: none;
 }
 
-.viewer-match-names{
+.viewer-match-ronda {
+  font-size: 12px;
   font-weight: 700;
+  color: var(--primary-900);
+  background: var(--primary-soft);
+  padding: 4px 8px;
+  border-radius: 6px;
+  min-width: 32px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.viewer-match-names{
+  flex: 1;
+  font-weight: 700;
+}
+
+.viewer-match-res {
+  font-weight: 700;
+  color: var(--primary-900);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.viewer-match-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--warning);
+  color: white;
+}
+
+.viewer-match-esperando {
+  background: rgba(255, 193, 7, 0.05);
+  border-left: 3px solid var(--warning);
+}
+
+.viewer-match-revision {
+  background: rgba(244, 67, 54, 0.05);
+  border-left: 3px solid var(--danger);
+}
+
+.viewer-match-libre {
+  opacity: 0.6;
+  border-left: 3px dashed var(--muted);
+}
+
+.viewer-match-libre .viewer-match-res {
+  font-style: italic;
+  font-weight: 500;
+  color: var(--muted);
 }
 
 .viewer-match-res{
@@ -899,7 +952,7 @@ button[data-danger="hard"]:focus-visible{
   display:flex;
   justify-content: space-between;
   align-items: flex-end;
-  gap: 14px;
+  gap: 16px;
   margin-bottom: 10px;
 }
 
@@ -917,6 +970,13 @@ button[data-danger="hard"]:focus-visible{
   font-size: 14px;
   color: var(--muted);
   font-weight: 700;
+}
+
+.viewer-nav-buttons{
+  display:flex;
+  align-items:center;
+  gap: 10px;
+  flex: 1;
 }
 
 .viewer-actions{
@@ -995,7 +1055,967 @@ button[data-danger="hard"]:focus-visible{
     flex-direction: column;
     align-items: stretch;
   }
+  .viewer-nav-buttons{
+    order: 2;
+  }
   .viewer-actions{
+    order: 3;
     justify-content: space-between;
+  }
+}
+
+/* ===== Identificación de pareja ===== */
+.identificacion-container {
+  max-width: 580px;
+  margin: 0 auto;
+  padding-top: 20px;
+}
+
+.identificacion-container h1 {
+  font-size: 34px;
+  letter-spacing: -0.02em;
+  margin: 6px 0 8px;
+}
+
+.identificacion-container .subtitle {
+  font-size: 16px;
+  color: var(--muted);
+  margin-bottom: 24px;
+}
+
+.identificacion-input {
+  width: 100%;
+  font-size: 16px;
+  margin-bottom: 12px;
+}
+
+.results-list {
+  margin-top: 12px;
+}
+
+.result-item {
+  background: rgba(15, 23, 42, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.result-item:hover {
+  border-color: var(--primary-900);
+  background: var(--primary-soft);
+  transform: translateY(-1px);
+}
+
+.result-name {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.result-meta {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.options-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.option-btn {
+  padding: 18px;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.success-icon {
+  font-size: 48px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.error-icon {
+  font-size: 48px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.success-message {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.success-title {
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.success-details {
+  font-size: 16px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.pareja-name {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--primary-900);
+  margin: 8px 0;
+}
+
+.error-message {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.error-title {
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 12px;
+}
+
+.error-text {
+  font-size: 15px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.no-results {
+  text-align: center;
+  padding: 24px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.helper-text {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.error-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.error-buttons button {
+  width: 100%;
+  max-width: 320px;
+}
+
+.success-button {
+  display: flex;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.success-button button {
+  width: 100%;
+  max-width: 320px;
+}
+
+/* ===== Vista Personalizada ===== */
+.vista-personal {
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+.personal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+
+.personal-info {
+  flex: 1;
+}
+
+.personal-title {
+  font-size: 28px;
+  font-weight: 900;
+  margin: 0 0 6px 0;
+  color: var(--primary-900);
+}
+
+.personal-meta {
+  font-size: 15px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+/* ===== Dashboard de estadísticas ===== */
+.dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-card.stat-highlight {
+  background: var(--primary-soft);
+  border-color: var(--primary-900);
+}
+
+.stat-card.stat-position {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  border-color: #d97706;
+  color: white;
+}
+
+.stat-card.stat-position .stat-value,
+.stat-card.stat-position .stat-label {
+  color: white;
+}
+
+.stat-value {
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 1;
+  margin-bottom: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.personal-actions button {
+  width: auto;
+}
+
+.personal-section {
+  margin-bottom: 24px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0 0 6px 0;
+}
+
+.section-description {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 16px;
+  padding-left: 2px;
+}
+
+.personal-details summary {
+  cursor: pointer;
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.personal-footer {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+.personal-footer button {
+  max-width: 320px;
+}
+
+/* ===== Alertas ===== */
+.alert {
+  padding: 14px 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  font-size: 15px;
+  border: 1px solid;
+}
+
+.alert-warning {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #92400E;
+}
+
+.alert strong {
+  font-weight: 800;
+}
+
+/* ===== Cards de Partido (Vista Personal) ===== */
+.partido {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.partido-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.partido-vs {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.partido-badge {
+  font-size: 12px;
+  font-weight: 800;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.badge-revision {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #991B1B;
+}
+
+.badge-confirmar {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #92400E;
+}
+
+.badge-pendiente {
+  background: rgba(100, 116, 139, 0.1);
+  border-color: var(--border-strong);
+  color: var(--muted);
+}
+
+.badge-esperando {
+  background: var(--primary-soft);
+  border-color: var(--primary-900);
+  color: var(--primary-900);
+}
+
+.partido-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.btn-sm {
+  font-size: 13px;
+  padding: 8px 12px;
+}
+
+/* Prioridades visuales */
+.priority-high {
+  padding-left: 16px;
+  border-left: 3px solid var(--danger);
+}
+
+.priority-medium {
+  padding-left: 16px;
+  border-left: 3px solid var(--warning);
+}
+
+.priority-normal {
+  /* Sin borde para mantener diseño limpio */
+}
+
+/* ===== Conflicto Box ===== */
+.conflicto-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding: 14px;
+  background: rgba(15, 23, 42, 0.03);
+  border-radius: 12px;
+}
+
+.conflicto-item {
+  flex: 1;
+  text-align: center;
+  padding: 12px;
+  border-radius: 10px;
+  border: 2px solid var(--border);
+  background: var(--card);
+}
+
+.conflicto-item.es-mio {
+  border-color: var(--primary-900);
+  background: var(--primary-soft);
+}
+
+.conflicto-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+
+.conflicto-score {
+  font-size: 24px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.conflicto-mensaje {
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.conflicto-mensaje.ganaste {
+  color: #059669;
+}
+
+.conflicto-mensaje.perdiste {
+  color: #dc2626;
+}
+
+.conflicto-vs {
+  font-weight: 800;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* ===== Resultado Cargado (Por confirmar) ===== */
+.resultado-cargado {
+  padding: 14px;
+  background: var(--primary-soft);
+  border-radius: 12px;
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+.resultado-cargado.ganaste {
+  background: rgba(16, 185, 129, 0.1);
+  border: 2px solid rgba(16, 185, 129, 0.3);
+}
+
+.resultado-cargado.perdiste {
+  background: rgba(239, 68, 68, 0.1);
+  border: 2px solid rgba(239, 68, 68, 0.3);
+}
+
+.resultado-label {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 6px;
+  font-weight: 700;
+}
+
+.resultado-score {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--primary-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.resultado-mensaje {
+  margin-top: 8px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.ganaste {
+  color: #059669;
+}
+
+.perdiste {
+  color: #dc2626;
+}
+
+/* ===== Partidos confirmados (simple) ===== */
+.partido-simple {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.resultado-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.badge-mini {
+  font-size: 16px;
+  opacity: 0.7;
+}
+
+.badge-mini.badge-waiting {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+.partido-confirmado {
+  padding: 12px;
+}
+
+.partido-confirmado .resultado-score {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.partido-confirmado .resultado-score.ganador {
+  color: var(--success);
+}
+
+.partido-confirmado .resultado-score.perdedor {
+  color: var(--muted);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 32px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* ===== Rondas (Vista Personal) ===== */
+.ronda-separator {
+  margin: 20px 0 12px;
+  padding-left: 2px;
+}
+
+.ronda-titulo {
+  display: inline-block;
+  padding: 6px 14px;
+  background: var(--primary-soft);
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--primary-900);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* ===== Fecha libre (Vista Personal) ===== */
+.fecha-libre {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  margin: 12px 0;
+  background: rgba(249, 250, 251, 1);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  opacity: 0.8;
+}
+
+.fecha-libre-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.fecha-libre-text {
+  flex: 1;
+}
+
+.fecha-libre-text strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.fecha-libre-frase {
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* ===== Modal ===== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.modal-content {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.btn-close {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  border-radius: 8px;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-footer {
+  padding: 16px 20px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.modal-footer button {
+  width: auto;
+  min-width: 120px;
+}
+
+/* ===== Match info en modal ===== */
+.match-info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.03);
+  border-radius: 12px;
+}
+
+.match-team {
+  flex: 1;
+  text-align: center;
+}
+
+.match-team.es-mio {
+  background: var(--primary-soft);
+  padding: 12px;
+  border-radius: 10px;
+  border: 2px solid var(--primary-900);
+}
+
+.team-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 800;
+  color: var(--muted);
+  margin-bottom: 6px;
+  letter-spacing: 0.05em;
+}
+
+.team-name {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.match-vs {
+  font-weight: 800;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* ===== Score inputs en modal ===== */
+.score-inputs {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.score-group {
+  flex: 1;
+}
+
+.score-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.input-score-modal {
+  width: 100%;
+  font-size: 24px;
+  font-weight: 800;
+  text-align: center;
+  padding: 14px;
+  border: 2px solid var(--border-strong);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.input-score-modal:focus {
+  outline: none;
+  border-color: var(--primary-900);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.helper-info {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  padding: 10px;
+  background: rgba(15, 23, 42, 0.04);
+  border-radius: 8px;
+}
+
+/* ===== Preview de resultado en modal ===== */
+.mensaje-preview {
+  margin-top: 16px;
+  min-height: 40px;
+}
+
+.mensaje-victoria,
+.mensaje-derrota,
+.mensaje-empate {
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  animation: fadeIn 0.3s ease;
+}
+
+.mensaje-victoria {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+  border: 2px solid rgba(16, 185, 129, 0.3);
+}
+
+.mensaje-derrota {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+  border: 2px solid rgba(239, 68, 68, 0.3);
+}
+
+.mensaje-empate {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+  border: 2px solid rgba(245, 158, 11, 0.3);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== Score groups con colores ganador/perdedor ===== */
+.score-group.ganador {
+  animation: pulseWin 0.5s ease;
+}
+
+.score-group.ganador .input-score-modal {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.05);
+  color: #059669;
+}
+
+.score-group.perdedor .input-score-modal {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.05);
+  color: #dc2626;
+}
+
+@keyframes pulseWin {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* ===== Tabla de posiciones ===== */
+.tabla-posiciones {
+  overflow-x: auto;
+  margin-top: 12px;
+}
+
+.tabla-grupo {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.tabla-grupo thead {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.tabla-grupo th {
+  padding: 10px 8px;
+  text-align: left;
+  font-weight: 800;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  border-bottom: 2px solid var(--border);
+}
+
+.tabla-grupo td {
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tabla-grupo tbody tr {
+  transition: background 0.2s ease;
+}
+
+.tabla-grupo tbody tr:hover {
+  background: rgba(15, 23, 42, 0.02);
+}
+
+.tabla-grupo tbody tr.mi-pareja {
+  background: var(--primary-soft);
+  font-weight: 700;
+}
+
+.tabla-grupo tbody tr.mi-pareja:hover {
+  background: var(--primary-soft);
+}
+
+.tabla-grupo tbody tr.empatado {
+  background: rgba(245, 158, 11, 0.1);
+  border-left: 3px solid #f59e0b;
+}
+
+.tabla-grupo tbody tr.empatado:hover {
+  background: rgba(245, 158, 11, 0.15);
+}
+
+/* Si está empatado Y es mi pareja, combinar estilos */
+.tabla-grupo tbody tr.mi-pareja.empatado {
+  background: linear-gradient(90deg, var(--primary-soft) 0%, rgba(245, 158, 11, 0.15) 100%);
+  border-left: 3px solid #f59e0b;
+}
+
+.tabla-grupo tbody tr.mi-pareja.empatado:hover {
+  background: linear-gradient(90deg, var(--primary-soft) 0%, rgba(245, 158, 11, 0.2) 100%);
+}
+
+.tabla-grupo .pos-col {
+  width: 40px;
+  text-align: center;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.tabla-grupo .nombre-col {
+  min-width: 150px;
+  font-weight: 600;
+}
+
+.tabla-grupo .stat-col {
+  width: 50px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabla-grupo .pts-col {
+  width: 60px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--primary-900);
+  font-weight: 900;
+  font-size: 16px;
+}
+
+.tabla-grupo tbody tr.mi-pareja .pos-col,
+.tabla-grupo tbody tr.mi-pareja .pts-col {
+  color: var(--primary-900);
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 600px) {
+  .personal-header {
+    flex-direction: column;
+  }
+  
+  .conflicto-box {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .match-info {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .score-inputs {
+    flex-direction: column;
+  }
+  
+  .tabla-grupo {
+    font-size: 12px;
+  }
+  
+  .tabla-grupo th,
+  .tabla-grupo td {
+    padding: 8px 4px;
+  }
+  
+  .tabla-grupo .nombre-col {
+    min-width: 100px;
+  }
+  
+  .dashboard {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

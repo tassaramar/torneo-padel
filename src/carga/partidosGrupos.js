@@ -35,6 +35,12 @@ export async function cargarPartidosGrupos({ supabase, torneoId, msgCont, listCo
       id,
       games_a,
       games_b,
+      estado,
+      cargado_por_pareja_id,
+      resultado_temp_a,
+      resultado_temp_b,
+      notas_revision,
+      ronda,
       grupos ( nombre ),
       pareja_a:parejas!partidos_pareja_a_id_fkey ( nombre ),
       pareja_b:parejas!partidos_pareja_b_id_fkey ( nombre )
@@ -44,8 +50,10 @@ export async function cargarPartidosGrupos({ supabase, torneoId, msgCont, listCo
 
   if (state.modo === 'pendientes') {
     q = q.or('games_a.is.null,games_b.is.null');
-  } else {
+  } else if (state.modo === 'jugados') {
     q = q.not('games_a', 'is', null).not('games_b', 'is', null);
+  } else if (state.modo === 'disputas') {
+    q = q.eq('estado', 'en_revision');
   }
 
   const { data, error } = await q;
@@ -62,91 +70,11 @@ export async function cargarPartidosGrupos({ supabase, torneoId, msgCont, listCo
 }
 
 /**
- * Circle Method: Genera pairings óptimos para round-robin.
- * Algoritmo estándar de Berger para minimizar rondas y maximizar paralelismo.
- * @param {Array<string>} equipos - Lista de nombres de equipos
- * @returns {Array<Array<[string, string]>>} - Array de rondas, cada ronda con pairings
- */
-function circleMethod(equipos) {
-  let teams = [...equipos];
-  const n = teams.length;
-  
-  // Si hay número impar de equipos, agregar dummy para hacer par
-  if (n % 2 === 1) {
-    teams.push('BYE');
-  }
-  
-  const rounds = [];
-  const totalRounds = teams.length - 1;
-  const fixed = teams[0]; // Equipo fijo en posición estática
-  let rotating = teams.slice(1); // Equipos que rotan
-  
-  for (let r = 0; r < totalRounds; r++) {
-    const roundPairings = [];
-    
-    // Emparejar equipo fijo con primer equipo del círculo
-    roundPairings.push([fixed, rotating[0]]);
-    
-    // Emparejar resto en posiciones opuestas del círculo
-    for (let i = 1; i < rotating.length / 2; i++) {
-      roundPairings.push([
-        rotating[i],
-        rotating[rotating.length - i]
-      ]);
-    }
-    
-    rounds.push(roundPairings);
-    
-    // Rotar círculo: mover último elemento al principio
-    rotating = [rotating[rotating.length - 1], ...rotating.slice(0, -1)];
-  }
-  
-  return rounds;
-}
-
-/**
- * Crea un mapa para búsqueda rápida de partidos por parejas.
- * @param {Array} partidos - Lista de partidos
- * @returns {Map} - Mapa con key "equipoA|equipoB" -> partido
- */
-function crearMapaPartidos(partidos) {
-  const mapa = new Map();
-  
-  partidos.forEach(p => {
-    const nombreA = p.pareja_a?.nombre;
-    const nombreB = p.pareja_b?.nombre;
-    
-    if (nombreA && nombreB) {
-      // Crear claves en ambas direcciones para lookup bidireccional
-      const key1 = `${nombreA}|${nombreB}`;
-      const key2 = `${nombreB}|${nombreA}`;
-      mapa.set(key1, p);
-      mapa.set(key2, p);
-    }
-  });
-  
-  return mapa;
-}
-
-/**
- * Busca un partido en el mapa por nombres de equipos.
- * @param {Map} mapa - Mapa de partidos
- * @param {string} eq1 - Nombre equipo 1
- * @param {string} eq2 - Nombre equipo 2
- * @returns {Object|null} - Partido encontrado o null
- */
-function buscarPartido(mapa, eq1, eq2) {
-  const key = `${eq1}|${eq2}`;
-  return mapa.get(key) || null;
-}
-
-/**
- * Ordena partidos usando Circle Method (Berger Tables) para óptimo paralelismo.
- * Agrupa en "rondas" con mínimo número de rondas y máximo paralelismo.
+ * Agrupa partidos por ronda usando el campo `ronda` de la BD.
  * Retorna array de rondas con estructura:
  * [
- *   { grupo: 'A', partidos: [...], parejasLibres: [...] },
- *   { grupo: 'A', partidos: [...], parejasLibres: [...] },
+ *   { grupo: 'A', ronda: 1, partidos: [...], parejasLibres: [...] },
+ *   { grupo: 'A', ronda: 2, partidos: [...], parejasLibres: [...] },
  *   ...
  * ]
  */
@@ -165,7 +93,7 @@ export function agruparEnRondas(partidos) {
   Object.keys(porGrupo).sort().forEach(nombreGrupo => {
     const partidosGrupo = [...porGrupo[nombreGrupo]];
     
-    // 1. Extraer equipos únicos del grupo
+    // Extraer todos los equipos del grupo
     const equiposSet = new Set();
     partidosGrupo.forEach(p => {
       if (p.pareja_a?.nombre) equiposSet.add(p.pareja_a.nombre);
@@ -173,27 +101,27 @@ export function agruparEnRondas(partidos) {
     });
     const equipos = Array.from(equiposSet).sort();
     
-    // 2. Crear mapa de partidos para búsqueda rápida
-    const mapaPartidos = crearMapaPartidos(partidosGrupo);
+    // Agrupar partidos por número de ronda (del campo ronda de la BD)
+    const partidosPorRonda = {};
+    partidosGrupo.forEach(p => {
+      const numRonda = p.ronda || 1; // Default a 1 si no tiene ronda
+      if (!partidosPorRonda[numRonda]) {
+        partidosPorRonda[numRonda] = [];
+      }
+      partidosPorRonda[numRonda].push(p);
+    });
     
-    // 3. Aplicar Circle Method para generar pairings óptimos
-    const pairings = circleMethod(equipos);
+    // Crear entrada de ronda para cada número de ronda
+    const numerosRonda = Object.keys(partidosPorRonda).map(Number).sort((a, b) => a - b);
     
-    // 4. Convertir pairings a rondas con partidos reales
-    pairings.forEach(rondaPairings => {
-      const partidosRonda = [];
+    numerosRonda.forEach(numRonda => {
+      const partidosRonda = partidosPorRonda[numRonda];
       const parejasEnUso = new Set();
       
-      rondaPairings.forEach(([eq1, eq2]) => {
-        // Ignorar pairings con BYE (equipo dummy)
-        if (eq1 !== 'BYE' && eq2 !== 'BYE') {
-          const partido = buscarPartido(mapaPartidos, eq1, eq2);
-          if (partido) {
-            partidosRonda.push(partido);
-            parejasEnUso.add(eq1);
-            parejasEnUso.add(eq2);
-          }
-        }
+      // Recolectar parejas que juegan en esta ronda
+      partidosRonda.forEach(p => {
+        if (p.pareja_a?.nombre) parejasEnUso.add(p.pareja_a.nombre);
+        if (p.pareja_b?.nombre) parejasEnUso.add(p.pareja_b.nombre);
       });
       
       // Calcular parejas libres (no juegan en esta ronda)
@@ -201,13 +129,12 @@ export function agruparEnRondas(partidos) {
         .filter(e => !parejasEnUso.has(e))
         .sort();
       
-      if (partidosRonda.length > 0 || parejasLibres.length > 0) {
-        rondas.push({
-          grupo: nombreGrupo,
-          partidos: partidosRonda,
-          parejasLibres: parejasLibres
-        });
-      }
+      rondas.push({
+        grupo: nombreGrupo,
+        ronda: numRonda,
+        partidos: partidosRonda,
+        parejasLibres: parejasLibres
+      });
     });
   });
   
@@ -217,32 +144,91 @@ export function agruparEnRondas(partidos) {
 function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
   listCont.innerHTML = '';
 
-  if (partidos.length === 0) {
-    listCont.innerHTML =
-      state.modo === 'pendientes'
-        ? '<p>No hay partidos pendientes 🎉</p>'
-        : '<p>No hay partidos jugados todavía.</p>';
+  // En modo 'disputas', no separar en revisión (ya están todos en revisión)
+  // En otros modos, separarlos
+  let enRevision = [];
+  let partidosNormales = partidos;
+
+  if (state.modo !== 'disputas') {
+    enRevision = partidos.filter(p => p.estado === 'en_revision');
+    partidosNormales = partidos.filter(p => p.estado !== 'en_revision');
+  }
+
+  // Sección de partidos en revisión (solo si NO estamos en modo disputas)
+  if (enRevision.length > 0 && state.modo !== 'disputas') {
+    const seccionRevision = document.createElement('div');
+    seccionRevision.style.cssText = 'margin-bottom: 32px; padding: 16px; background: rgba(239, 68, 68, 0.08); border: 2px solid rgba(239, 68, 68, 0.3); border-radius: 14px;';
+    
+    const titulo = document.createElement('h3');
+    titulo.style.cssText = 'margin: 0 0 12px 0; font-size: 18px; color: #991B1B;';
+    titulo.textContent = `⚠️ Partidos en revisión (${enRevision.length})`;
+    seccionRevision.appendChild(titulo);
+
+    const descripcion = document.createElement('p');
+    descripcion.style.cssText = 'margin: 0 0 16px 0; font-size: 14px; color: var(--muted);';
+    descripcion.textContent = 'Hay diferencias en los resultados cargados. Revisá y resolvé los conflictos.';
+    seccionRevision.appendChild(descripcion);
+
+    enRevision.forEach(p => {
+      const card = crearCardRevision(p, supabase, onAfterSave);
+      seccionRevision.appendChild(card);
+    });
+
+    listCont.appendChild(seccionRevision);
+  }
+
+  if (partidosNormales.length === 0 && enRevision.length === 0) {
+    const msg = document.createElement('p');
+    if (state.modo === 'pendientes') {
+      msg.textContent = 'No hay partidos pendientes 🎉';
+    } else if (state.modo === 'jugados') {
+      msg.textContent = 'No hay partidos jugados todavía.';
+    } else if (state.modo === 'disputas') {
+      msg.textContent = 'No hay partidos en disputa 👍';
+    }
+    listCont.appendChild(msg);
     return;
+  }
+
+  // Si estamos en modo disputas, todos los partidos son de revisión
+  if (state.modo === 'disputas') {
+    partidos.forEach(p => {
+      const card = crearCardRevision(p, supabase, onAfterSave);
+      listCont.appendChild(card);
+    });
+    aplicarZebraVisible(listCont);
+    return;
+  }
+
+  // En modo jugados, ordenar: primero a_confirmar, luego confirmados
+  if (state.modo === 'jugados') {
+    partidosNormales.sort((a, b) => {
+      const estadoA = a.estado || 'pendiente';
+      const estadoB = b.estado || 'pendiente';
+      
+      // a_confirmar primero
+      if (estadoA === 'a_confirmar' && estadoB !== 'a_confirmar') return -1;
+      if (estadoB === 'a_confirmar' && estadoA !== 'a_confirmar') return 1;
+      
+      return 0; // Mantener orden original para el resto
+    });
   }
 
   // Agrupar en rondas si es modo pendientes
   if (state.modo === 'pendientes') {
-    const rondas = agruparEnRondas(partidos);
+    const rondas = agruparEnRondas(partidosNormales);
     
     // Contar total de parejas libres para generar frases únicas
     const totalParejasLibres = rondas.reduce((sum, r) => sum + r.parejasLibres.length, 0);
     const frases = obtenerFrasesUnicas(totalParejasLibres);
     let fraseIndex = 0;
     
-    let rondaCounter = 0;
     rondas.forEach((rondaData) => {
-      rondaCounter++;
-      
       // Separador de ronda
       const separator = document.createElement('div');
       separator.style.cssText = 'margin: 24px 0 8px; padding: 8px 12px; background: var(--primary-soft); border-left: 4px solid var(--primary); border-radius: 8px; font-weight: 700; font-size: 14px; color: var(--text);';
       
-      let headerText = `Ronda ${rondaCounter} — Grupo ${rondaData.grupo} — ${rondaData.partidos.length} partido${rondaData.partidos.length > 1 ? 's' : ''} en paralelo`;
+      let headerText = `Ronda ${rondaData.ronda} — Grupo ${rondaData.grupo} — ${rondaData.partidos.length} partido${rondaData.partidos.length > 1 ? 's' : ''} en paralelo`;
       separator.textContent = headerText;
       listCont.appendChild(separator);
       
@@ -270,7 +256,7 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
     });
   } else {
     // Modo jugados: orden normal
-    partidos.forEach((p) => {
+    partidosNormales.forEach((p) => {
       const card = crearCardParaPartido(p, supabase, onAfterSave);
       listCont.appendChild(card);
     });
@@ -284,22 +270,191 @@ function crearCardParaPartido(p, supabase, onAfterSave) {
   const grupo = p.grupos?.nombre ?? '-';
   const a = p.pareja_a?.nombre ?? 'Pareja A';
   const b = p.pareja_b?.nombre ?? 'Pareja B';
+  
+  const estado = p.estado || 'pendiente';
+  let estadoDisplay = 'Pendiente';
+  if (estado === 'a_confirmar') estadoDisplay = '🟡 A confirmar';
+  if (estado === 'confirmado') estadoDisplay = '✅ Confirmado';
+  if (p.games_a !== null && p.games_b !== null && estado === 'pendiente') estadoDisplay = 'Jugado';
 
   const card = crearCardEditable({
     headerLeft: `Grupo <strong>${grupo}</strong>`,
-    headerRight: (p.games_a !== null && p.games_b !== null) ? 'Jugado' : 'Pendiente',
+    headerRight: estadoDisplay,
     nombreA: a,
     nombreB: b,
     gamesA: p.games_a,
     gamesB: p.games_b,
     onSave: async (ga, gb) => {
-      const ok = await guardarResultado(supabase, p.id, ga, gb);
-      if (ok) await onAfterSave?.();
-      return ok;
+      // Admin puede forzar confirmado directamente
+      const { error } = await supabase
+        .from('partidos')
+        .update({ 
+          games_a: ga, 
+          games_b: gb,
+          estado: 'confirmado', // Admin confirma directo
+          resultado_temp_a: null,
+          resultado_temp_b: null,
+          cargado_por_pareja_id: null
+        })
+        .eq('id', p.id);
+
+      if (error) {
+        console.error(error);
+        alert('Error guardando el resultado');
+        return false;
+      }
+      
+      if (onAfterSave) await onAfterSave();
+      return true;
     }
   });
 
   // Extra: ayuda al filtro (fallback), sin depender del DOM
+  card.dataset.search = `${grupo} ${a} ${b}`;
+  
+  return card;
+}
+
+/**
+ * Crea card especial para partidos en revisión (admin)
+ */
+function crearCardRevision(p, supabase, onAfterSave) {
+  const grupo = p.grupos?.nombre ?? '-';
+  const a = p.pareja_a?.nombre ?? 'Pareja A';
+  const b = p.pareja_b?.nombre ?? 'Pareja B';
+
+  const card = document.createElement('div');
+  card.className = 'partido partido-revision-admin';
+  card.style.cssText = 'background: var(--card); border: 2px solid rgba(239, 68, 68, 0.4); border-radius: 14px; padding: 16px; margin-bottom: 12px;';
+
+  card.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border);">
+      <div style="font-weight: 700; font-size: 14px;">Grupo <strong>${grupo}</strong></div>
+      <div style="font-size: 12px; color: #991B1B; font-weight: 800;">🔴 EN REVISIÓN</div>
+    </div>
+
+    <div style="margin-bottom: 12px;">
+      <div style="font-weight: 700; font-size: 16px; margin-bottom: 8px;">${a} vs ${b}</div>
+    </div>
+
+    <div style="display: flex; gap: 16px; margin-bottom: 16px; padding: 14px; background: rgba(15, 23, 42, 0.03); border-radius: 10px;">
+      <div style="flex: 1; text-align: center; padding: 10px; background: var(--card); border: 2px solid var(--border); border-radius: 8px;">
+        <div style="font-size: 11px; color: var(--muted); margin-bottom: 4px; font-weight: 700;">PRIMERA CARGA</div>
+        <div style="font-size: 22px; font-weight: 900;">${p.games_a} - ${p.games_b}</div>
+      </div>
+      
+      <div style="display: flex; align-items: center; font-weight: 800; color: var(--muted);">vs</div>
+      
+      <div style="flex: 1; text-align: center; padding: 10px; background: var(--card); border: 2px solid var(--border); border-radius: 8px;">
+        <div style="font-size: 11px; color: var(--muted); margin-bottom: 4px; font-weight: 700;">SEGUNDA CARGA</div>
+        <div style="font-size: 22px; font-weight: 900;">${p.resultado_temp_a} - ${p.resultado_temp_b}</div>
+      </div>
+    </div>
+
+    ${p.notas_revision ? `
+      <div style="padding: 10px; background: rgba(245, 158, 11, 0.1); border-left: 3px solid var(--warning); border-radius: 8px; margin-bottom: 12px; font-size: 13px;">
+        <strong>Nota:</strong> ${p.notas_revision}
+      </div>
+    ` : ''}
+
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+      <button class="btn-primary" style="flex: 1;" data-action="aceptar-1">
+        ✅ Aceptar primera carga
+      </button>
+      <button class="btn-primary" style="flex: 1;" data-action="aceptar-2">
+        ✅ Aceptar segunda carga
+      </button>
+      <button class="btn-secondary" style="flex: 1;" data-action="manual">
+        ✏️ Ingresar resultado correcto
+      </button>
+    </div>
+  `;
+
+  // Event listeners
+  card.querySelector('[data-action="aceptar-1"]').addEventListener('click', async () => {
+    if (!confirm(`¿Aceptar resultado ${p.games_a}-${p.games_b}?`)) return;
+    
+    const { error } = await supabase
+      .from('partidos')
+      .update({
+        estado: 'confirmado',
+        resultado_temp_a: null,
+        resultado_temp_b: null,
+        notas_revision: null
+      })
+      .eq('id', p.id);
+
+    if (error) {
+      console.error(error);
+      alert('Error guardando');
+      return;
+    }
+
+    alert('✅ Conflicto resuelto');
+    if (onAfterSave) await onAfterSave();
+  });
+
+  card.querySelector('[data-action="aceptar-2"]').addEventListener('click', async () => {
+    if (!confirm(`¿Aceptar resultado ${p.resultado_temp_a}-${p.resultado_temp_b}?`)) return;
+    
+    const { error } = await supabase
+      .from('partidos')
+      .update({
+        games_a: p.resultado_temp_a,
+        games_b: p.resultado_temp_b,
+        estado: 'confirmado',
+        resultado_temp_a: null,
+        resultado_temp_b: null,
+        notas_revision: null
+      })
+      .eq('id', p.id);
+
+    if (error) {
+      console.error(error);
+      alert('Error guardando');
+      return;
+    }
+
+    alert('✅ Conflicto resuelto');
+    if (onAfterSave) await onAfterSave();
+  });
+
+  card.querySelector('[data-action="manual"]').addEventListener('click', () => {
+    const gA = prompt('Ingresá games de ' + a + ':', p.games_a);
+    const gB = prompt('Ingresá games de ' + b + ':', p.games_b);
+    
+    if (gA === null || gB === null) return;
+    
+    const gamesA = parseInt(gA);
+    const gamesB = parseInt(gB);
+    
+    if (isNaN(gamesA) || isNaN(gamesB)) {
+      alert('Valores inválidos');
+      return;
+    }
+
+    supabase
+      .from('partidos')
+      .update({
+        games_a: gamesA,
+        games_b: gamesB,
+        estado: 'confirmado',
+        resultado_temp_a: null,
+        resultado_temp_b: null,
+        notas_revision: null
+      })
+      .eq('id', p.id)
+      .then(({ error }) => {
+        if (error) {
+          console.error(error);
+          alert('Error guardando');
+          return;
+        }
+        alert('✅ Resultado guardado');
+        if (onAfterSave) onAfterSave();
+      });
+  });
+
   card.dataset.search = `${grupo} ${a} ${b}`;
   
   return card;

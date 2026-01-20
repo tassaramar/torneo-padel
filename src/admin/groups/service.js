@@ -2,6 +2,42 @@ import { supabase, TORNEO_ID, logMsg } from '../context.js';
 import { state } from '../state.js';
 import { calcularTablaGrupo, ordenarAutomatico, ordenarConOverrides, detectarEmpatesReales } from './compute.js';
 
+/**
+ * Circle Method (Berger Tables) para generar pairings óptimos de round-robin
+ */
+function circleMethod(equipos) {
+  let teams = [...equipos];
+  const n = teams.length;
+  
+  if (n % 2 !== 0) {
+    teams.push('BYE');
+  }
+  
+  const numRounds = teams.length - 1;
+  const matchesPerRound = teams.length / 2;
+  const rounds = [];
+  
+  const fixed = teams[0];
+  let rotating = teams.slice(1);
+  
+  for (let r = 0; r < numRounds; r++) {
+    const roundPairings = [];
+    roundPairings.push([fixed, rotating[0]]);
+    
+    for (let i = 1; i < matchesPerRound; i++) {
+      roundPairings.push([
+        rotating[i],
+        rotating[rotating.length - i]
+      ]);
+    }
+    
+    rounds.push(roundPairings);
+    rotating = [rotating[rotating.length - 1], ...rotating.slice(0, -1)];
+  }
+  
+  return rounds;
+}
+
 export async function resetPartidosGrupos() {
   logMsg('🧹 Eliminando partidos de grupos…');
 
@@ -69,23 +105,50 @@ export async function generarPartidosGrupos() {
     const ps = gruposMap[grupo.id];
     console.log(`Generando partidos para grupo ${grupo.nombre}:`, ps.map(p => p.nombre));
     
-    for (let i = 0; i < ps.length; i++) {
-      for (let j = i + 1; j < ps.length; j++) {
+    // Usar Circle Method para generar pairings con rondas
+    const nombresParaCircle = ps.map(p => p.nombre);
+    const pairings = circleMethod(nombresParaCircle);
+    
+    // Crear mapa de nombre a ID para búsqueda rápida
+    const nombreAId = {};
+    ps.forEach(p => {
+      nombreAId[p.nombre] = p.id;
+    });
+    
+    // Crear partidos con número de ronda
+    for (let rondaIdx = 0; rondaIdx < pairings.length; rondaIdx++) {
+      const rondaPairings = pairings[rondaIdx];
+      const numeroRonda = rondaIdx + 1;
+      
+      for (const [nombre1, nombre2] of rondaPairings) {
+        // Saltar partidos con BYE
+        if (nombre1 === 'BYE' || nombre2 === 'BYE') continue;
+        
+        const pareja1Id = nombreAId[nombre1];
+        const pareja2Id = nombreAId[nombre2];
+        
+        if (!pareja1Id || !pareja2Id) {
+          console.error(`No se encontró ID para ${nombre1} o ${nombre2}`);
+          errores++;
+          continue;
+        }
+        
         const { error } = await supabase
           .from('partidos')
           .insert({
             torneo_id: TORNEO_ID,
             grupo_id: grupo.id,
-            pareja_a_id: ps[i].id,
-            pareja_b_id: ps[j].id,
-            copa_id: null
+            pareja_a_id: pareja1Id,
+            pareja_b_id: pareja2Id,
+            copa_id: null,
+            ronda: numeroRonda
           });
 
         if (!error) {
           total++;
         } else {
           errores++;
-          console.error(`Error creando partido en grupo ${grupo.nombre}:`, error);
+          console.error(`Error creando partido R${numeroRonda} (${nombre1} vs ${nombre2}):`, error);
         }
       }
     }
@@ -94,7 +157,7 @@ export async function generarPartidosGrupos() {
   if (errores > 0) {
     logMsg(`⚠️ ${total} partidos creados con ${errores} errores`);
   } else {
-    logMsg(`✅ ${total} partidos de grupos creados`);
+    logMsg(`✅ ${total} partidos de grupos creados (con rondas asignadas)`);
   }
   
   return total > 0;

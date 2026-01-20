@@ -1,6 +1,14 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import { agruparEnRondas } from './carga/partidosGrupos.js';
 import { obtenerFrasesUnicas } from './utils/frasesFechaLibre.js';
+import { getIdentidad, clearIdentidad } from './identificacion/identidad.js';
+import { iniciarIdentificacion } from './identificacion/ui.js';
+import { cargarVistaPersonalizada } from './viewer/vistaPersonal.js';
+import { 
+  cargarResultado, 
+  aceptarOtroResultado,
+  mostrarModalCargarResultado 
+} from './viewer/cargarResultado.js';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -77,7 +85,7 @@ async function fetchAll() {
     await Promise.all([
       supabase.from('grupos').select('id, nombre').eq('torneo_id', TORNEO_ID).order('nombre'),
       supabase.from('partidos').select(`
-        id, games_a, games_b,
+        id, games_a, games_b, estado, ronda,
         grupos ( id, nombre ),
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
@@ -132,6 +140,10 @@ function computeTablaGrupo(partidos) {
 
     const jugado = m.games_a !== null && m.games_b !== null;
     if (!jugado) continue;
+    
+    // Incluir partidos confirmados y a_confirmar, pero NO en_revision
+    const contabilizar = m.estado === 'confirmado' || m.estado === 'a_confirmar';
+    if (!contabilizar) continue;
 
     const ga = Number(m.games_a);
     const gb = Number(m.games_b);
@@ -203,78 +215,100 @@ function renderPartidosConRondas(partidos) {
     return '<div class="viewer-card"><p>Sin partidos.</p></div>';
   }
   
-  // Separar pendientes de jugados
-  const pendientes = partidos.filter(p => p.games_a === null || p.games_b === null);
-  const jugados = partidos.filter(p => p.games_a !== null && p.games_b !== null);
+  // Detectar si hay fechas libres calculando con Circle Method
+  const partidosConFecha = partidos.filter(p => p.games_a !== null || p.games_b !== null);
+  const rondas = partidosConFecha.length > 0 ? agruparEnRondas(partidosConFecha) : [];
+  const totalParejasLibres = rondas.reduce((sum, r) => sum + r.parejasLibres.length, 0);
+  const frases = obtenerFrasesUnicas(totalParejasLibres);
+  let fraseIndex = 0;
   
-  let html = '';
+  // Crear mapa de parejas libres por ronda
+  const fechasLibresPorRonda = {};
+  rondas.forEach((rondaData, idx) => {
+    fechasLibresPorRonda[idx + 1] = rondaData.parejasLibres || [];
+  });
   
-  // Mostrar pendientes agrupados por rondas
-  if (pendientes.length > 0) {
-    const rondas = agruparEnRondas(pendientes);
+  // Ordenar partidos por ronda (de la BD), luego por estado
+  const ordenEstado = {
+    'pendiente': 0,
+    'a_confirmar': 1,
+    'confirmado': 2,
+    'en_revision': 3
+  };
+  
+  const partidosOrdenados = [...partidos].sort((a, b) => {
+    // Primero por ronda
+    if (a.ronda !== b.ronda) return (a.ronda || 999) - (b.ronda || 999);
+    // Luego por estado
+    return (ordenEstado[a.estado] || 9) - (ordenEstado[b.estado] || 9);
+  });
+  
+  let html = '<div class="viewer-card">';
+  let ultimaRonda = null;
+  
+  partidosOrdenados.forEach(p => {
+    const ronda = p.ronda || '?';
+    const a = p.pareja_a?.nombre ?? '—';
+    const b = p.pareja_b?.nombre ?? '—';
+    const jugado = p.games_a !== null && p.games_b !== null;
+    const esperandoConfirmacion = p.estado === 'a_confirmar';
+    const enRevision = p.estado === 'en_revision';
     
-    // Contar total de parejas libres para generar frases únicas
-    const totalParejasLibres = rondas.reduce((sum, r) => sum + r.parejasLibres.length, 0);
-    const frases = obtenerFrasesUnicas(totalParejasLibres);
-    let fraseIndex = 0;
-    
-    rondas.forEach((rondaData, idx) => {
-      // Encabezado de ronda
-      html += `
-        <div style="margin: 16px 0 8px; padding: 6px 10px; background: var(--primary-soft); border-left: 3px solid var(--primary); border-radius: 6px; font-weight: 700; font-size: 13px;">
-          Ronda ${idx + 1} — ${rondaData.partidos.length} partido${rondaData.partidos.length > 1 ? 's' : ''} en paralelo
-        </div>
-      `;
-      
-      html += '<div class="viewer-card">';
-      
-      // Partidos de la ronda
-      rondaData.partidos.forEach(p => {
-        const a = p.pareja_a?.nombre ?? '—';
-        const b = p.pareja_b?.nombre ?? '—';
+    // Mostrar fechas libres cuando cambia de ronda
+    if (ultimaRonda !== null && ronda !== ultimaRonda && fechasLibresPorRonda[ultimaRonda]) {
+      fechasLibresPorRonda[ultimaRonda].forEach(parejaLibre => {
         html += `
-          <div class="viewer-match">
-            <div class="viewer-match-names">${a} <span class="vs">vs</span> ${b}</div>
-            <div class="viewer-match-res">Pendiente</div>
+          <div class="viewer-match viewer-match-libre">
+            <div class="viewer-match-ronda">R${ultimaRonda}</div>
+            <div class="viewer-match-names">${parejaLibre}</div>
+            <div class="viewer-match-res">${frases[fraseIndex++] || 'Fecha libre'}</div>
           </div>
         `;
       });
-      
-      // Parejas libres
-      if (rondaData.parejasLibres.length > 0) {
-        rondaData.parejasLibres.forEach(parejaLibre => {
-          html += `
-            <div class="viewer-match" style="opacity: 0.6; border-left: 3px dashed var(--muted);">
-              <div class="viewer-match-names">${parejaLibre}</div>
-              <div class="viewer-match-res" style="font-style: italic;">${frases[fraseIndex++]}</div>
-            </div>
-          `;
-        });
-      }
-      
-      html += '</div>';
-    });
-  }
-  
-  // Mostrar jugados
-  if (jugados.length > 0) {
-    if (pendientes.length > 0) {
-      html += '<div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); font-weight: 700; font-size: 13px; color: var(--muted);">Partidos jugados</div>';
+      delete fechasLibresPorRonda[ultimaRonda];
     }
-    html += '<div class="viewer-card">';
-    jugados.forEach(p => {
-      const a = p.pareja_a?.nombre ?? '—';
-      const b = p.pareja_b?.nombre ?? '—';
+    
+    ultimaRonda = ronda;
+    
+    // Renderizar partido
+    if (jugado) {
       const res = `${p.games_a} - ${p.games_b}`;
       html += `
-        <div class="viewer-match">
+        <div class="viewer-match ${esperandoConfirmacion ? 'viewer-match-esperando' : ''} ${enRevision ? 'viewer-match-revision' : ''}">
+          <div class="viewer-match-ronda">R${ronda}</div>
           <div class="viewer-match-names">${a} <span class="vs">vs</span> ${b}</div>
-          <div class="viewer-match-res">${res}</div>
+          <div class="viewer-match-res">
+            ${res}
+            ${esperandoConfirmacion ? '<span class="viewer-match-badge">⏳ Esperando confirmación</span>' : ''}
+            ${enRevision ? '<span class="viewer-match-badge">⚠️ En revisión</span>' : ''}
+          </div>
+        </div>
+      `;
+    } else {
+      html += `
+        <div class="viewer-match">
+          <div class="viewer-match-ronda">R${ronda}</div>
+          <div class="viewer-match-names">${a} <span class="vs">vs</span> ${b}</div>
+          <div class="viewer-match-res">Pendiente</div>
+        </div>
+      `;
+    }
+  });
+  
+  // Mostrar fechas libres de la última ronda si quedan
+  if (ultimaRonda !== null && fechasLibresPorRonda[ultimaRonda]) {
+    fechasLibresPorRonda[ultimaRonda].forEach(parejaLibre => {
+      html += `
+        <div class="viewer-match viewer-match-libre">
+          <div class="viewer-match-ronda">R${ultimaRonda}</div>
+          <div class="viewer-match-names">${parejaLibre}</div>
+          <div class="viewer-match-res">${frases[fraseIndex++] || 'Fecha libre'}</div>
         </div>
       `;
     });
-    html += '</div>';
   }
+  
+  html += '</div>';
   
   return html;
 }
@@ -481,17 +515,245 @@ function renderCopas() {
   contentEl.appendChild(wrap);
 }
 
-async function init() {
+async function init(modoVista = 'auto') {
   try {
     setStatus('Cargando…');
-    cache = await fetchAll();
-    setStatus(`Actualizado ${nowStr()}`);
-    render();
+    
+    const identidad = getIdentidad();
+    const forzarVistaCompleta = sessionStorage.getItem('mostrarVistaCompleta') === 'true';
+    
+    // Si hay flag de vista completa, removerlo ahora
+    if (forzarVistaCompleta) {
+      sessionStorage.removeItem('mostrarVistaCompleta');
+    }
+    
+    // Decidir qué vista mostrar
+    if (modoVista === 'personal' || (modoVista === 'auto' && identidad && !forzarVistaCompleta)) {
+      // Vista personalizada
+      await cargarVistaPersonalizada(
+        supabase, 
+        TORNEO_ID, 
+        identidad,
+        () => cambiarDePareja(),
+        () => cargarVistaCompleta()
+      );
+      setStatus(`Actualizado ${nowStr()}`);
+    } else {
+      // Vista completa (todos los grupos)
+      cache = await fetchAll();
+      setStatus(`Actualizado ${nowStr()}`);
+      render();
+      
+      // Si hay identidad, agregar botón para volver a vista personal
+      if (identidad) {
+        agregarBotonVistaPersonal();
+      }
+    }
   } catch (e) {
     console.error(e);
     setStatus('❌ Error (ver consola)');
-    contentEl.innerHTML = '<p>❌ Error cargando viewer.</p>';
+    if (contentEl) contentEl.innerHTML = '<p>❌ Error cargando viewer.</p>';
   }
 }
 
-init();
+async function cargarVistaCompleta() {
+  // Guardar flag temporalmente para mostrar vista completa
+  sessionStorage.setItem('mostrarVistaCompleta', 'true');
+  // Recargar para volver a la vista completa
+  location.reload();
+}
+
+function volverAVistaPersonal() {
+  // Simplemente recargar sin el flag
+  sessionStorage.removeItem('mostrarVistaCompleta');
+  location.reload();
+}
+
+function agregarBotonVistaPersonal() {
+  // Buscar el contenedor de navegación
+  const navContainer = document.getElementById('viewer-nav-buttons');
+  if (!navContainer) return;
+  
+  // Limpiar contenedor
+  navContainer.innerHTML = '';
+  
+  // Crear el botón
+  const btnVistaPersonal = document.createElement('button');
+  btnVistaPersonal.id = 'btn-vista-personal';
+  btnVistaPersonal.className = 'btn-secondary';
+  btnVistaPersonal.type = 'button';
+  btnVistaPersonal.textContent = '👤 Mi vista';
+  btnVistaPersonal.addEventListener('click', volverAVistaPersonal);
+  
+  navContainer.appendChild(btnVistaPersonal);
+}
+
+function cambiarDePareja() {
+  clearIdentidad();
+  location.reload();
+}
+
+/**
+ * Agrega el grupo inferido a cada pareja (basado en bloques por orden)
+ */
+function agregarGrupoAParejas(parejas, grupos) {
+  if (!grupos.length || !parejas.length) {
+    return parejas.map(p => ({ ...p, grupo: '?' }));
+  }
+  
+  const n = grupos.length;
+  const per = parejas.length / n;
+  
+  if (!Number.isInteger(per)) {
+    return parejas.map(p => ({ ...p, grupo: '?' }));
+  }
+  
+  const orderedGroups = [...grupos].map(g => g.nombre).sort();
+  
+  return parejas.map((p, idx) => {
+    const grupoIdx = Math.floor(idx / per);
+    const grupo = orderedGroups[grupoIdx] || '?';
+    return { ...p, grupo };
+  });
+}
+
+async function checkIdentidadYCargar() {
+  // Verificar si se solicitó vista completa
+  const mostrarVistaCompleta = sessionStorage.getItem('mostrarVistaCompleta');
+  if (mostrarVistaCompleta) {
+    // NO remover el flag aquí, init() lo hará
+    // Cargar vista completa (init verá el flag)
+    await init();
+    return;
+  }
+  
+  // Verificar si ya hay identidad guardada
+  const identidad = getIdentidad();
+  
+  if (identidad) {
+    // Ya está identificado, cargar vista personalizada
+    console.log('Usuario identificado:', identidad.parejaNombre);
+    await init();
+  } else {
+    // No está identificado, mostrar flujo de identificación
+    console.log('Usuario no identificado, iniciando flujo de identificación...');
+    
+    // Cargar parejas para el flujo de identificación
+    const { data: parejas, error } = await supabase
+      .from('parejas')
+      .select('id, nombre, orden')
+      .eq('torneo_id', TORNEO_ID)
+      .order('orden');
+    
+    if (error) {
+      console.error('Error cargando parejas:', error);
+      alert('Error cargando datos del torneo. Por favor, recargá la página.');
+      return;
+    }
+    
+    // Calcular grupo por pareja (inferido del orden)
+    const { data: grupos } = await supabase
+      .from('grupos')
+      .select('id, nombre')
+      .eq('torneo_id', TORNEO_ID)
+      .order('nombre');
+    
+    const parejasConGrupo = agregarGrupoAParejas(parejas, grupos || []);
+    
+    // Iniciar flujo de identificación
+    // Ocultamos el viewer y mostramos identificación
+    const viewerShell = document.querySelector('.viewer-shell');
+    if (viewerShell) viewerShell.style.display = 'none';
+    
+    // Crear contenedor temporal para identificación
+    let identContainer = document.getElementById('identificacion-container');
+    if (!identContainer) {
+      identContainer = document.createElement('div');
+      identContainer.id = 'identificacion-container';
+      document.body.appendChild(identContainer);
+    }
+    
+    iniciarIdentificacion(parejasConGrupo, async (identidad) => {
+      console.log('Identificación completada:', identidad.parejaNombre);
+      // Limpiar contenedor de identificación y mostrar viewer
+      if (identContainer) identContainer.remove();
+      if (viewerShell) viewerShell.style.display = '';
+      // Cargar el viewer
+      await init();
+    }, 'identificacion-container');
+  }
+}
+
+// Exponer funciones globales para onclick en HTML
+window.app = {
+  async cargarResultado(partidoId) {
+    const identidad = getIdentidad();
+    if (!identidad) return;
+
+    // Buscar partido en cache o fetche ar
+    const { data: partido } = await supabase
+      .from('partidos')
+      .select(`
+        id, games_a, games_b, estado,
+        pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
+        pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
+      `)
+      .eq('id', partidoId)
+      .single();
+
+    if (!partido) return;
+
+    mostrarModalCargarResultado(partido, identidad, async (gamesA, gamesB) => {
+      const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
+      
+      if (resultado.ok) {
+        alert(resultado.mensaje);
+        await init('personal'); // Recargar vista personalizada
+      } else {
+        alert('Error: ' + resultado.mensaje);
+      }
+    });
+  },
+
+  async confirmarResultado(partidoId, gamesA, gamesB) {
+    const identidad = getIdentidad();
+    if (!identidad) return;
+
+    const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
+    
+    if (resultado.ok) {
+      alert(resultado.mensaje);
+      await init('personal');
+    } else {
+      alert('Error: ' + resultado.mensaje);
+    }
+  },
+
+  async cargarResultadoDiferente(partidoId) {
+    // Mismo que cargarResultado pero con mensaje diferente
+    await this.cargarResultado(partidoId);
+  },
+
+  async aceptarOtroResultado(partidoId) {
+    const identidad = getIdentidad();
+    if (!identidad) return;
+
+    if (!confirm('¿Estás seguro de aceptar el resultado de la otra pareja?')) return;
+
+    const resultado = await aceptarOtroResultado(supabase, partidoId, identidad);
+    
+    if (resultado.ok) {
+      alert(resultado.mensaje);
+      await init('personal');
+    } else {
+      alert('Error: ' + resultado.mensaje);
+    }
+  },
+
+  async recargarResultado(partidoId) {
+    await this.cargarResultado(partidoId);
+  }
+};
+
+// Iniciar la app con check de identidad
+checkIdentidadYCargar();
