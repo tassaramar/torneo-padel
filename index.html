@@ -9,20 +9,21 @@
 
 <body>
   <div class="viewer-shell">
+    <!-- Header simplificado -->
     <div class="viewer-header">
-      <div class="viewer-headings">
-        <h1 class="viewer-title">Torneo Pádel</h1>
-        <div class="viewer-subtitle">Resultados</div>
-      </div>
+      <h1 class="viewer-title">Torneo Pádel</h1>
+      <div class="viewer-subtitle">Resultados</div>
+    </div>
 
-      <div class="viewer-nav-buttons" id="viewer-nav-buttons">
-        <!-- Botones de navegación dinámicos (Ver todos/Mi vista) -->
-      </div>
+    <!-- Contenedor para card de identidad (se inyecta dinámicamente) -->
+    <div id="viewer-identity-container"></div>
 
-      <div class="viewer-actions">
-        <button id="viewer-refresh" class="btn-primary" type="button">🔄 Refrescar</button>
-        <span id="viewer-status" class="viewer-status"></span>
+    <!-- Botones de acción principales (grandes, táctiles) -->
+    <div class="viewer-main-actions">
+      <div id="viewer-nav-buttons" class="viewer-nav-slot">
+        <!-- Botón "Ver todos los grupos" / "Mi vista" dinámico -->
       </div>
+      <div id="viewer-status" class="viewer-status-text"></div>
     </div>
 
     <div class="tabs" id="tabs-main"></div>

@@ -25,7 +25,7 @@
   --warning: #F59E0B;
   --danger:  #EF4444;
 
-  /* Tints (sin fiesta infantil) */
+  /* Tints */
   --primary-soft: rgba(20, 184, 166, 0.14);
   --primary-soft-2: rgba(20, 184, 166, 0.22);
   --ring: rgba(20, 184, 166, 0.25);
@@ -43,13 +43,13 @@ body{
   line-height: 1.35;
 }
 
-/* Layout helper (ya lo usa admin.html) */
+/* Layout helper */
 .container{
   max-width: 1100px;
   margin: 0 auto;
 }
 
-/* Titulares un poco más 2026 */
+/* Headings */
 h1{
   margin: 6px 0 14px;
   font-size: 34px;
@@ -102,51 +102,266 @@ button:disabled{
   transform: none;
 }
 
-/* ===== Inputs (base) ===== */
+.btn-primary{
+  background: var(--primary);
+  border-color: var(--primary-900);
+  color: #fff;
+  box-shadow: var(--shadow);
+}
+
+.btn-primary:hover{
+  background: var(--primary-900);
+  border-color: var(--primary-900);
+}
+
+.btn-primary:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring), var(--shadow);
+}
+
+.btn-secondary{
+  background: #fff;
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.btn-sm {
+  font-size: 13px;
+  padding: 8px 12px;
+}
+
+.btn-icon{
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  border-radius: 12px;
+}
+
+.btn-close {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  border-radius: 8px;
+}
+
+/* Danger buttons (Admin) */
+button[data-danger="hard"]{
+  border-color: rgba(239, 68, 68, 0.55);
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--text);
+}
+
+button[data-danger="hard"]:hover{
+  border-color: rgba(239, 68, 68, 0.85);
+  background: rgba(239, 68, 68, 0.18);
+}
+
+button[data-danger="hard"]:focus-visible{
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.22), var(--shadow);
+}
+
+button.is-locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(1);
+}
+
+button.is-locked:active {
+  transform: none;
+}
+
+/* ===== Inputs (global) ===== */
 input, textarea{
   font-family: inherit;
 }
 
+input[type="text"],
+input[type="search"],
+textarea{
+  background: #fff;
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: inset 0 0 0 1px rgba(15,23,42,0.06);
+}
+
+textarea{
+  width: 100%;
+  resize: vertical;
+}
+
+input[type="text"]:focus,
+input[type="search"]:focus,
+textarea:focus{
+  outline: none;
+  border-color: var(--primary-900);
+  box-shadow: 0 0 0 3px var(--ring), inset 0 0 0 1px rgba(15,23,42,0.06);
+}
+
 /* ===== Partidos / Cards ===== */
 .partido{
+  position: relative;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 14px;
   box-shadow: var(--shadow);
+  padding: 12px;
+  margin-bottom: 14px;
 }
 
-/* Filas internas de cada card: mismo padding para todas */
-.partido .row {
-  padding: 10px 10px;
+/* Zebra striping */
+.partido.is-even{
+  border-left: 10px solid rgba(20, 184, 166, 0.28);
+}
+
+.partido.is-odd{
+  border-left: 10px solid rgba(15, 118, 110, 0.40);
+  background: rgba(15, 23, 42, 0.015);
+}
+
+/* Card header */
+.card-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  padding: 0 0 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.card-header-left{
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.card-header-right{
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.03);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+/* Rows dentro del card */
+.partido .row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  padding: 10px 12px;
+  margin-bottom:8px;
   border-radius: 12px;
-  box-sizing: border-box;
+  background: rgba(15, 23, 42, 0.02);
 }
 
-/* ===== Inputs de score (mobile-friendly + visibles) ===== */
-.partido input[type="number"]{
+.partido .row:last-of-type{
+  margin-bottom:0;
+}
+
+.partido .row + .row{
+  margin-top: 10px;
+}
+
+/* Search highlight */
+.partido .row.hit{
+  background: rgba(20, 184, 166, 0.08);
+  box-shadow: inset 0 0 0 2px rgba(20, 184, 166, 0.22);
+  padding: 10px 12px;
+}
+
+.partido .card-header-left.hit{
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 9999px rgba(20, 184, 166, 0.10);
+  padding: 0;
+  background: transparent;
+}
+
+/* Team names */
+.team-name{
+  font-size: 19px;
+  font-weight: 850;
+}
+
+.team-name.is-winner{
+  color: var(--success);
+}
+
+@media (min-width: 720px){
+  .team-name{
+    font-size: 22px;
+  }
+}
+
+/* Score inputs */
+.partido input[type="number"],
+.input-score{
   -webkit-appearance: none;
   appearance: none;
-
   background: #fff;
   color: var(--text);
-
   border: 2px solid var(--border-strong);
   border-radius: 10px;
-
   padding: 8px;
   text-align: center;
-
   box-shadow: inset 0 0 0 1px rgba(15,23,42,0.06);
+  width: 88px;
+  font-size: 18px;
+  height: 44px;
 }
 
-.partido input[type="number"]::placeholder{
+.partido input[type="number"]::placeholder,
+.input-score::placeholder{
   color: #94A3B8;
 }
 
-.partido input[type="number"]:focus{
+.partido input[type="number"]:focus,
+.input-score:focus{
   outline: none;
   border-color: var(--primary-900);
   box-shadow: 0 0 0 3px var(--ring);
+}
+
+/* Actions row */
+.actions-row{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  align-items:center;
+  margin-top:0px;
+  min-height:0px;
+  transition: margin-top 140ms ease, min-height 140ms ease;
+}
+
+.actions-row.is-visible{
+  margin-top:10px;
+  min-height:44px;
+}
+
+.actions-row.has-msg{
+  margin-top:6px;
+  min-height:22px;
+}
+
+.save-msg{
+  font-size:13px;
+  color: var(--muted);
+}
+
+.is-hidden{
+  display:none !important;
 }
 
 /* ===== Tablas de posiciones ===== */
@@ -193,7 +408,111 @@ tbody tr:nth-child(even){
   background: rgba(15, 23, 42, 0.02);
 }
 
-/* ===== Bracket ===== */
+/* Nombres en negrita en tablas */
+tbody td:first-child{ 
+  font-weight: 700; 
+}
+
+/* Tablas personalizadas de grupos */
+.tabla-posiciones {
+  overflow-x: auto;
+  margin-top: 12px;
+}
+
+.tabla-grupo {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.tabla-grupo thead {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.tabla-grupo th {
+  padding: 10px 8px;
+  text-align: left;
+  font-weight: 800;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  border-bottom: 2px solid var(--border);
+}
+
+.tabla-grupo td {
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tabla-grupo tbody tr {
+  transition: background 0.2s ease;
+}
+
+.tabla-grupo tbody tr:hover {
+  background: rgba(15, 23, 42, 0.02);
+}
+
+.tabla-grupo tbody tr.mi-pareja {
+  background: var(--primary-soft);
+  font-weight: 700;
+}
+
+.tabla-grupo tbody tr.mi-pareja:hover {
+  background: var(--primary-soft);
+}
+
+.tabla-grupo tbody tr.empatado {
+  background: rgba(245, 158, 11, 0.1);
+  border-left: 3px solid #f59e0b;
+}
+
+.tabla-grupo tbody tr.empatado:hover {
+  background: rgba(245, 158, 11, 0.15);
+}
+
+.tabla-grupo tbody tr.mi-pareja.empatado {
+  background: linear-gradient(90deg, var(--primary-soft) 0%, rgba(245, 158, 11, 0.15) 100%);
+  border-left: 3px solid #f59e0b;
+}
+
+.tabla-grupo tbody tr.mi-pareja.empatado:hover {
+  background: linear-gradient(90deg, var(--primary-soft) 0%, rgba(245, 158, 11, 0.2) 100%);
+}
+
+.tabla-grupo .pos-col {
+  width: 40px;
+  text-align: center;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.tabla-grupo .nombre-col {
+  min-width: 150px;
+  font-weight: 600;
+}
+
+.tabla-grupo .stat-col {
+  width: 50px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabla-grupo .pts-col {
+  width: 60px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  color: var(--primary-900);
+  font-weight: 900;
+  font-size: 16px;
+}
+
+.tabla-grupo tbody tr.mi-pareja .pos-col,
+.tabla-grupo tbody tr.mi-pareja .pts-col {
+  color: var(--primary-900);
+}
+
+/* ===== Bracket (Copas) ===== */
 .bracket-nav{
   display:flex;
   gap:10px;
@@ -201,17 +520,20 @@ tbody tr:nth-child(even){
   margin-bottom: 10px;
   font-size: 14px;
 }
+
 .bracket-nav a{
   color: var(--text);
   text-decoration: none;
   border-bottom: 1px dashed var(--border-strong);
 }
+
 .bracket-actions{
   display:flex;
   align-items:center;
   gap:10px;
   margin: 10px 0 14px;
 }
+
 #bracket-status{
   font-size: 13px;
   color: var(--muted);
@@ -252,6 +574,7 @@ tbody tr:nth-child(even){
   background: #fff;
   margin-bottom: 10px;
 }
+
 .bracket-match.is-pending{
   opacity: 0.92;
 }
@@ -272,7 +595,10 @@ tbody tr:nth-child(even){
   border: 1px solid var(--border);
   margin-bottom: 6px;
 }
-.bracket-team:last-child{ margin-bottom: 0; }
+
+.bracket-team:last-child{ 
+  margin-bottom: 0; 
+}
 
 .bracket-team.is-winner{
   border-color: var(--success);
@@ -306,6 +632,107 @@ tbody tr:nth-child(even){
 }
 
 /* ===== Viewer ===== */
+.viewer-shell{
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.viewer-header{
+  text-align: center;
+  margin-bottom: 20px;
+  padding-top: 12px;
+}
+
+.viewer-title{
+  margin: 0 0 4px 0;
+  font-size: 32px;
+  font-weight: 900;
+}
+
+.viewer-subtitle{
+  font-size: 16px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+/* Contenedor de identidad (para card personalizado) */
+#viewer-identity-container {
+  margin-bottom: 16px;
+}
+
+/* Botones de acción principales - GRANDES y táctiles para +40 */
+.viewer-main-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.btn-action-primary,
+.btn-action-secondary {
+  width: 100%;
+  min-height: 56px;
+  padding: 16px 20px;
+  font-size: 18px;
+  font-weight: 700;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 2px solid;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: all 0.15s ease;
+}
+
+.btn-action-primary {
+  background: var(--primary);
+  border-color: var(--primary-900);
+  color: white;
+}
+
+.btn-action-primary:active {
+  transform: scale(0.98);
+  background: var(--primary-900);
+}
+
+.btn-action-secondary {
+  background: white;
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.btn-action-secondary:active {
+  transform: scale(0.98);
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.btn-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.btn-text {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.viewer-nav-slot {
+  width: 100%;
+}
+
+.viewer-status-text,
+#viewer-status {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  padding: 8px;
+  display: block;
+}
+
+/* Legacy classes (mantener compatibilidad) */
 .viewer-nav{
   display:flex;
   gap:10px;
@@ -320,47 +747,22 @@ tbody tr:nth-child(even){
   border-bottom: 1px dashed var(--border-strong);
 }
 
-.viewer-actions{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  margin: 10px 0 14px;
+.viewer-nav-buttons{
+  width: 100%;
 }
 
-#viewer-status{
+.viewer-actions{
+  display: none; /* Ocultar viejo contenedor */
+}
+
+.viewer-status{
   font-size: 13px;
   color: var(--muted);
-}
-
-.tabs, .subtabs{
-  display:flex;
-  gap:8px;
-  flex-wrap: wrap;
-  margin: 10px 0 12px;
-}
-
-.tab-btn{
-  padding: 10px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border-strong);
-  background: #fff;
-  cursor: pointer;
   font-weight: 700;
-}
-
-.tab-btn:hover{
-  border-color: var(--primary-900);
-}
-
-.tab-btn.active{
-  background: var(--primary);
-  color: #fff;
-  border-color: var(--primary-900);
-}
-
-.tab-btn:focus-visible{
-  outline: none;
-  box-shadow: 0 0 0 3px var(--ring);
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.03);
 }
 
 .viewer-section{
@@ -387,15 +789,31 @@ tbody tr:nth-child(even){
   padding: 12px;
 }
 
+.viewer-card table{
+  margin: 0;
+  box-shadow: none;
+}
+
 .viewer-details{
   margin-top: 10px;
 }
 
 .viewer-details summary{
+  display:inline-flex;
+  align-items:center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 42, 0.02);
   cursor: pointer;
   font-weight: 800;
   color: var(--text);
   margin: 8px 0;
+}
+
+.viewer-details[open] summary{
+  background: rgba(15, 23, 42, 0.04);
 }
 
 .viewer-match{
@@ -403,7 +821,7 @@ tbody tr:nth-child(even){
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 12px;
+  padding: 12px 8px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -429,12 +847,13 @@ tbody tr:nth-child(even){
 }
 
 .viewer-match-res {
-  font-weight: 700;
+  font-weight: 900;
   color: var(--primary-900);
   white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 8px;
+  font-variant-numeric: tabular-nums;
 }
 
 .viewer-match-badge {
@@ -467,19 +886,58 @@ tbody tr:nth-child(even){
   color: var(--muted);
 }
 
-.viewer-match-res{
-  font-variant-numeric: tabular-nums;
-  font-weight: 900;
-}
-
 .vs{
   opacity: 0.6;
   font-weight: 700;
   margin: 0 6px;
 }
 
-/* negrita para todos los nombres en tablas de posiciones */
-tbody td:first-child{ font-weight: 700; }
+/* Mobile responsive */
+@media (max-width: 560px){
+  .viewer-header{
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .viewer-nav-buttons{
+    order: 2;
+  }
+  .viewer-actions{
+    order: 3;
+    justify-content: space-between;
+  }
+}
+
+/* ===== Tabs ===== */
+.tabs, .subtabs{
+  display:flex;
+  gap:8px;
+  flex-wrap: wrap;
+  margin: 10px 0 12px;
+}
+
+.tab-btn{
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: #fff;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.tab-btn:hover{
+  border-color: var(--primary-900);
+}
+
+.tab-btn.active{
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary-900);
+}
+
+.tab-btn:focus-visible{
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ring);
+}
 
 /* ===== Top Nav ===== */
 .topnav{
@@ -556,13 +1014,8 @@ tbody td:first-child{ font-weight: 700; }
   opacity:0.9;
 }
 
-button.is-locked {
-  opacity: 0.45;
-  cursor: not-allowed;
-  filter: grayscale(1);
-}
-button.is-locked:active {
-  transform: none;
+.admin-danger{
+  border-color: rgba(239, 68, 68, 0.35);
 }
 
 /* Log */
@@ -578,83 +1031,7 @@ button.is-locked:active {
   overflow: auto;
 }
 
-/* Zebra que realmente se ve: una barrita izquierda alternada */
-.partido.is-even { border-left: 6px solid var(--primary-soft); }
-.partido.is-odd  { border-left: 6px solid var(--primary-soft-2); }
-
-/* Golpes de búsqueda: resaltar SOLO donde matchea */
-.partido .row.hit {
-  background: var(--primary-soft);
-  border-radius: 10px;
-  padding: 2px 6px;
-}
-
-.partido .card-header-left.hit {
-  background: rgba(20, 184, 166, 0.10);
-  border-radius: 10px;
-  padding: 2px 6px;
-}
-
-/* Mensaje del buscador */
-#partidos-msg.search-msg { opacity: 0.9; }
-/* ===== UI Fields (global) ===== */
-input[type="text"],
-input[type="search"],
-textarea{
-  background: #fff;
-  color: var(--text);
-  border: 1px solid var(--border-strong);
-  border-radius: 12px;
-  padding: 10px 12px;
-  box-shadow: inset 0 0 0 1px rgba(15,23,42,0.06);
-}
-
-textarea{
-  width: 100%;
-  resize: vertical;
-}
-
-input[type="text"]:focus,
-input[type="search"]:focus,
-textarea:focus{
-  outline: none;
-  border-color: var(--primary-900);
-  box-shadow: 0 0 0 3px var(--ring), inset 0 0 0 1px rgba(15,23,42,0.06);
-}
-
-/* helpers */
-.helper{
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.divider{
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-
-/* ===== Danger buttons (Admin) ===== */
-button[data-danger="hard"]{
-  border-color: rgba(239, 68, 68, 0.55);
-  background: rgba(239, 68, 68, 0.12);
-  color: var(--text);
-}
-
-button[data-danger="hard"]:hover{
-  border-color: rgba(239, 68, 68, 0.85);
-  background: rgba(239, 68, 68, 0.18);
-}
-
-button[data-danger="hard"]:focus-visible{
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.22), var(--shadow);
-}
-
-/* Opcional: reforzar visualmente la sección peligrosa */
-.admin-danger{
-  border-color: rgba(239, 68, 68, 0.35);
-}
-/* ===== Carga: Segmented + Search (Paso 3) ===== */
+/* ===== Carga: Segmented + Search ===== */
 .segmented{
   display: flex;
   gap: 8px;
@@ -703,365 +1080,42 @@ button[data-danger="hard"]:focus-visible{
   font-size: 16px;
 }
 
-.btn-icon{
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  border-radius: 12px;
-}
-
 .search-msg{
   margin: 10px 0;
   font-size: 14px;
   color: var(--muted);
 }
 
-/* Highlight por clase (sin mover el layout) */
-.partido .row.hit{
-  border-radius: 12px;
-  box-shadow: inset 0 0 0 9999px var(--primary-soft);
+#partidos-msg.search-msg { 
+  opacity: 0.9; 
 }
 
-.partido .card-header-left.hit{
-  border-radius: 10px;
-  box-shadow: inset 0 0 0 9999px rgba(20, 184, 166, 0.10);
-}
-/* ===== HOTFIX: el highlight NO debe cambiar el tamaño ===== */
-.partido .row.hit{
-  /* vuelve al padding normal de .row para que no "crezca" */
-  padding: 10px 10px;
-  background: transparent; /* evitamos doble pintado */
-}
-
-.partido .card-header-left.hit{
-  padding: 0;              /* no agrandes el header */
-  background: transparent; /* evitamos doble pintado */
-}
-/* ===== Carga: Cards editables (Paso 4) ===== */
-
-.card-header{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:10px;
-  margin-bottom:8px;
-}
-
-.card-header-left{
-  font-size:14px;
-}
-
-.card-header-right{
-  font-size:12px;
-  color: var(--muted);
-}
-
-.partido .row{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:10px;
-  margin-bottom:8px;
-}
-
-.partido .row:last-of-type{
-  margin-bottom:0;
-}
-
-.team-name{
-  font-size:22px;
-  font-weight:900;
-}
-
-.team-name.is-winner{
-  color: var(--success);
-}
-
-.input-score{
-  width: 88px;
-  font-size: 18px;
-}
-
-.actions-row{
-  display:flex;
-  justify-content:flex-end;
-  gap:8px;
-  align-items:center;
-  margin-top:0px;
-  min-height:0px;
-  transition: margin-top 140ms ease, min-height 140ms ease;
-}
-
-.actions-row.is-visible{
-  margin-top:10px;
-  min-height:44px;
-}
-
-.actions-row.has-msg{
-  margin-top:6px;
-  min-height:22px;
-}
-
-.save-msg{
-  font-size:13px;
-  color: var(--muted);
-}
-
-.is-hidden{
-  display:none !important;
-}
-
-/* Botón primario reusable */
-.btn-primary{
-  background: var(--primary);
-  border-color: var(--primary-900);
-  color: #fff;
-  box-shadow: var(--shadow);
-}
-
-.btn-primary:hover{
-  background: var(--primary-900);
-  border-color: var(--primary-900);
-}
-
-.btn-primary:focus-visible{
-  outline: none;
-  box-shadow: 0 0 0 3px var(--ring), var(--shadow);
-}
-/* ===== TWEAK Diseño (Paso 4): jerarquía + spacing ===== */
-
-/* Separación real entre tarjetas (antes venía inline) */
-.partido{
-  margin-bottom: 14px;
-}
-
-/* Header con padding para que no quede “pegado” al borde */
-.card-header{
-  padding: 10px 10px 6px;
-  margin-bottom: 2px; /* más compacto */
-}
-
-/* “Grupo A” debería ser visible, pero secundario */
-.card-header-left{
-  font-size: 15px;
-  font-weight: 800;
-  color: var(--muted);
-}
-
-/* Estado (Pendiente/Jugado) más legible y con forma de badge suave */
-.card-header-right{
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--muted);
-  border: 1px solid var(--border);
-  background: rgba(15, 23, 42, 0.03);
-  border-radius: 999px;
-  padding: 4px 10px;
-}
-
-/* Nombres: bajarlos un toque (hoy están demasiado protagonistas) */
-.team-name{
-  font-size: 20px;
-  font-weight: 850;
-}
-
-/* En pantallas grandes podés volver a 22 sin que moleste */
-@media (min-width: 720px){
-  .team-name{
-    font-size: 22px;
-  }
-}
-/* ===== TWEAK: filas más limpias + highlight más fino ===== */
-
-/* La card tiene padding propio y el header separa mejor */
-.partido{
-  padding: 12px;
-}
-
-.card-header{
-  padding: 0 0 10px;
-  margin-bottom: 10px;
-  border-bottom: 1px solid var(--border);
-}
-
-/* Filas: neutras (no teal por defecto) */
-.partido .row{
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(15, 23, 42, 0.02);
-}
-
-/* Separación entre filas */
-.partido .row + .row{
-  margin-top: 10px;
-}
-
-/* Highlight: se nota, pero no “inunda” */
-.partido .row.hit{
-  background: rgba(20, 184, 166, 0.08);
-  box-shadow: inset 0 0 0 2px rgba(20, 184, 166, 0.22);
-}
-
-/* Nombre: apenas más sobrio */
-.team-name{
-  font-size: 19px;
-}
-
-/* Input táctil consistente */
-.input-score{
-  height: 44px;
-}
-/* ===== Zebra por card (Paso 5) ===== */
-.partido.is-even{
-  border-left: 8px solid rgba(20, 184, 166, 0.18);
-}
-
-.partido.is-odd{
-  border-left: 8px solid rgba(20, 184, 166, 0.30);
-}
-/* ===== Zebra por card (más visible) ===== */
-.partido{
-  position: relative;
-}
-
-/* Aumentamos contraste en la barrita */
-.partido.is-even{
-  border-left: 10px solid rgba(20, 184, 166, 0.28);
-}
-
-.partido.is-odd{
-  border-left: 10px solid rgba(15, 118, 110, 0.40); /* un teal más oscuro */
-}
-
-/* Además, un “tinte” de fondo MUY suave en odd para ayudar al ojo */
-.partido.is-odd{
-  background: rgba(15, 23, 42, 0.015);
-}
-/* ===== Viewer (Paso 6): layout + tabs + cards ===== */
-
-.viewer-shell{
-  max-width: 980px;
-  margin: 0 auto;
-}
-
-.viewer-header{
-  display:flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 16px;
-  margin-bottom: 10px;
-}
-
-.viewer-headings{
-  display:flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.viewer-title{
-  margin: 0;
-}
-
-.viewer-subtitle{
-  font-size: 14px;
-  color: var(--muted);
-  font-weight: 700;
-}
-
-.viewer-nav-buttons{
-  display:flex;
-  align-items:center;
-  gap: 10px;
-  flex: 1;
-}
-
-.viewer-actions{
-  margin: 0;
-  display:flex;
-  align-items:center;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.viewer-status{
+/* ===== Helpers ===== */
+.helper{
   font-size: 13px;
   color: var(--muted);
-  font-weight: 700;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: rgba(15, 23, 42, 0.03);
 }
 
-/* Tabs coherentes con el resto (teal) */
-.tabs, .subtabs{
-  gap: 8px;
+.helper-text {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 16px;
+  text-align: center;
 }
 
-.tab-btn{
-  padding: 10px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--border-strong);
-  background: #fff;
-  cursor: pointer;
-  font-weight: 800;
-}
-
-.tab-btn.active{
-  background: var(--primary, #111827);
-  color: #fff;
-  border-color: var(--primary-900, #111827);
-}
-
-/* Viewer cards: evitar “doble borde” con tablas */
-.viewer-card{
-  padding: 12px;
-}
-
-/* Cuando la tabla está dentro de viewer-card, que no arme otra card adentro */
-.viewer-card table{
-  margin: 0;
-  box-shadow: none;
-}
-
-/* Details/summary más “clickable” */
-.viewer-details summary{
-  display:inline-flex;
-  align-items:center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(15, 23, 42, 0.02);
-}
-
-.viewer-details[open] summary{
+.helper-info {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  padding: 10px;
   background: rgba(15, 23, 42, 0.04);
+  border-radius: 8px;
 }
 
-/* Matches del detalle: un poco más aire */
-.viewer-match{
-  padding: 12px 8px;
-}
-
-/* Mobile: que no se rompa el header */
-@media (max-width: 560px){
-  .viewer-header{
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .viewer-nav-buttons{
-    order: 2;
-  }
-  .viewer-actions{
-    order: 3;
-    justify-content: space-between;
-  }
+.divider{
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 
 /* ===== Identificación de pareja ===== */
@@ -1133,24 +1187,21 @@ button[data-danger="hard"]:focus-visible{
   text-align: center;
 }
 
-.success-icon {
-  font-size: 48px;
-  text-align: center;
-  margin-bottom: 16px;
-}
-
+.success-icon,
 .error-icon {
   font-size: 48px;
   text-align: center;
   margin-bottom: 16px;
 }
 
-.success-message {
+.success-message,
+.error-message {
   text-align: center;
   margin-bottom: 20px;
 }
 
-.success-title {
+.success-title,
+.error-title {
   font-size: 24px;
   font-weight: 800;
   margin-bottom: 8px;
@@ -1162,6 +1213,12 @@ button[data-danger="hard"]:focus-visible{
   margin-bottom: 4px;
 }
 
+.error-text {
+  font-size: 15px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .pareja-name {
   font-size: 22px;
   font-weight: 900;
@@ -1169,35 +1226,11 @@ button[data-danger="hard"]:focus-visible{
   margin: 8px 0;
 }
 
-.error-message {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.error-title {
-  font-size: 24px;
-  font-weight: 800;
-  margin-bottom: 12px;
-}
-
-.error-text {
-  font-size: 15px;
-  color: var(--muted);
-  line-height: 1.5;
-}
-
 .no-results {
   text-align: center;
   padding: 24px;
   color: var(--muted);
   font-size: 15px;
-}
-
-.helper-text {
-  font-size: 14px;
-  color: var(--muted);
-  margin-bottom: 16px;
-  text-align: center;
 }
 
 .error-buttons {
@@ -1210,6 +1243,9 @@ button[data-danger="hard"]:focus-visible{
 .error-buttons button {
   width: 100%;
   max-width: 320px;
+  padding: 16px 20px;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .success-button {
@@ -1221,6 +1257,9 @@ button[data-danger="hard"]:focus-visible{
 .success-button button {
   width: 100%;
   max-width: 320px;
+  padding: 16px 20px;
+  font-size: 16px;
+  font-weight: 700;
 }
 
 /* ===== Vista Personalizada ===== */
@@ -1230,33 +1269,90 @@ button[data-danger="hard"]:focus-visible{
 }
 
 .personal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-  margin-bottom: 20px;
-  padding: 16px;
+  position: relative;
+  margin-bottom: 24px;
+  padding: 24px 20px;
   background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: var(--shadow);
+  border: 2px solid var(--primary-soft);
+  border-radius: 16px;
+  box-shadow: var(--shadow-md);
+  text-align: center;
 }
 
 .personal-info {
-  flex: 1;
+  margin-bottom: 8px;
 }
 
 .personal-title {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 900;
-  margin: 0 0 6px 0;
+  margin: 0 0 8px 0;
   color: var(--primary-900);
+  line-height: 1.2;
 }
 
 .personal-meta {
-  font-size: 15px;
+  font-size: 16px;
   color: var(--muted);
   font-weight: 700;
+}
+
+.personal-actions {
+  margin-top: 12px;
+}
+
+.personal-actions button {
+  font-size: 14px;
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  min-height: auto;
+}
+
+.personal-actions button {
+  width: auto;
+}
+
+.personal-section {
+  margin-bottom: 32px;
+  padding-top: 20px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 900;
+  margin: 0 0 8px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--primary-soft);
+  color: var(--text);
+}
+
+.section-description {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 16px;
+  padding-left: 2px;
+}
+
+.personal-details summary {
+  cursor: pointer;
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.personal-footer {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+.personal-footer button {
+  max-width: 320px;
 }
 
 /* ===== Dashboard de estadísticas ===== */
@@ -1264,7 +1360,9 @@ button[data-danger="hard"]:focus-visible{
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 2px solid var(--border);
 }
 
 .stat-card {
@@ -1307,47 +1405,6 @@ button[data-danger="hard"]:focus-visible{
   letter-spacing: 0.05em;
 }
 
-.personal-actions button {
-  width: auto;
-}
-
-.personal-section {
-  margin-bottom: 24px;
-}
-
-.section-title {
-  font-size: 18px;
-  font-weight: 800;
-  margin: 0 0 6px 0;
-}
-
-.section-description {
-  font-size: 14px;
-  color: var(--muted);
-  margin-bottom: 16px;
-  padding-left: 2px;
-}
-
-.personal-details summary {
-  cursor: pointer;
-  padding: 12px;
-  background: rgba(15, 23, 42, 0.03);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  font-weight: 700;
-}
-
-.personal-footer {
-  margin-top: 32px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border);
-  text-align: center;
-}
-
-.personal-footer button {
-  max-width: 320px;
-}
-
 /* ===== Alertas ===== */
 .alert {
   padding: 14px 16px;
@@ -1367,16 +1424,7 @@ button[data-danger="hard"]:focus-visible{
   font-weight: 800;
 }
 
-/* ===== Cards de Partido (Vista Personal) ===== */
-.partido {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: var(--shadow);
-  padding: 16px;
-  margin-bottom: 12px;
-}
-
+/* ===== Partido header y badges ===== */
 .partido-header {
   display: flex;
   justify-content: space-between;
@@ -1430,11 +1478,6 @@ button[data-danger="hard"]:focus-visible{
   flex-direction: column;
   gap: 8px;
   margin-top: 14px;
-}
-
-.btn-sm {
-  font-size: 13px;
-  padding: 8px 12px;
 }
 
 /* Prioridades visuales */
@@ -1510,7 +1553,7 @@ button[data-danger="hard"]:focus-visible{
   font-size: 14px;
 }
 
-/* ===== Resultado Cargado (Por confirmar) ===== */
+/* ===== Resultado Cargado ===== */
 .resultado-cargado {
   padding: 14px;
   background: var(--primary-soft);
@@ -1626,7 +1669,7 @@ button[data-danger="hard"]:focus-visible{
   text-transform: uppercase;
 }
 
-/* ===== Fecha libre (Vista Personal) ===== */
+/* ===== Fecha libre ===== */
 .fecha-libre {
   display: flex;
   align-items: center;
@@ -1702,17 +1745,6 @@ button[data-danger="hard"]:focus-visible{
   font-weight: 800;
 }
 
-.btn-close {
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  border-radius: 8px;
-}
-
 .modal-body {
   padding: 20px;
 }
@@ -1762,11 +1794,6 @@ button[data-danger="hard"]:focus-visible{
   letter-spacing: 0.05em;
 }
 
-.team-name {
-  font-size: 16px;
-  font-weight: 800;
-}
-
 .match-vs {
   font-weight: 800;
   color: var(--muted);
@@ -1809,15 +1836,6 @@ button[data-danger="hard"]:focus-visible{
   outline: none;
   border-color: var(--primary-900);
   box-shadow: 0 0 0 3px var(--ring);
-}
-
-.helper-info {
-  font-size: 13px;
-  color: var(--muted);
-  text-align: center;
-  padding: 10px;
-  background: rgba(15, 23, 42, 0.04);
-  border-radius: 8px;
 }
 
 /* ===== Preview de resultado en modal ===== */
@@ -1880,106 +1898,6 @@ button[data-danger="hard"]:focus-visible{
 @keyframes pulseWin {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.05); }
-}
-
-/* ===== Tabla de posiciones ===== */
-.tabla-posiciones {
-  overflow-x: auto;
-  margin-top: 12px;
-}
-
-.tabla-grupo {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
-}
-
-.tabla-grupo thead {
-  background: rgba(15, 23, 42, 0.04);
-}
-
-.tabla-grupo th {
-  padding: 10px 8px;
-  text-align: left;
-  font-weight: 800;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted);
-  border-bottom: 2px solid var(--border);
-}
-
-.tabla-grupo td {
-  padding: 12px 8px;
-  border-bottom: 1px solid var(--border);
-}
-
-.tabla-grupo tbody tr {
-  transition: background 0.2s ease;
-}
-
-.tabla-grupo tbody tr:hover {
-  background: rgba(15, 23, 42, 0.02);
-}
-
-.tabla-grupo tbody tr.mi-pareja {
-  background: var(--primary-soft);
-  font-weight: 700;
-}
-
-.tabla-grupo tbody tr.mi-pareja:hover {
-  background: var(--primary-soft);
-}
-
-.tabla-grupo tbody tr.empatado {
-  background: rgba(245, 158, 11, 0.1);
-  border-left: 3px solid #f59e0b;
-}
-
-.tabla-grupo tbody tr.empatado:hover {
-  background: rgba(245, 158, 11, 0.15);
-}
-
-/* Si está empatado Y es mi pareja, combinar estilos */
-.tabla-grupo tbody tr.mi-pareja.empatado {
-  background: linear-gradient(90deg, var(--primary-soft) 0%, rgba(245, 158, 11, 0.15) 100%);
-  border-left: 3px solid #f59e0b;
-}
-
-.tabla-grupo tbody tr.mi-pareja.empatado:hover {
-  background: linear-gradient(90deg, var(--primary-soft) 0%, rgba(245, 158, 11, 0.2) 100%);
-}
-
-.tabla-grupo .pos-col {
-  width: 40px;
-  text-align: center;
-  font-weight: 800;
-  color: var(--muted);
-}
-
-.tabla-grupo .nombre-col {
-  min-width: 150px;
-  font-weight: 600;
-}
-
-.tabla-grupo .stat-col {
-  width: 50px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.tabla-grupo .pts-col {
-  width: 60px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-  color: var(--primary-900);
-  font-weight: 900;
-  font-size: 16px;
-}
-
-.tabla-grupo tbody tr.mi-pareja .pos-col,
-.tabla-grupo tbody tr.mi-pareja .pts-col {
-  color: var(--primary-900);
 }
 
 /* ===== Responsive ===== */

@@ -355,15 +355,15 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
   
   contentEl.innerHTML = `
     <div class="vista-personal">
-      <!-- Header personalizado -->
+      <!-- Header personalizado - GRANDE para +40 -->
       <div class="personal-header">
         <div class="personal-info">
           <h1 class="personal-title">${escapeHtml(identidad.parejaNombre)}</h1>
           <div class="personal-meta">Grupo ${escapeHtml(identidad.grupo)}</div>
         </div>
         <div class="personal-actions">
-          <button class="btn-secondary" id="btn-change-pareja" type="button">
-            🔄 Cambiar de pareja
+          <button class="btn-secondary btn-sm" id="btn-change-pareja" type="button">
+            <span style="font-size: 12px;">🔄</span> Cambiar
           </button>
         </div>
       </div>
@@ -828,12 +828,15 @@ function agregarBotonVerTodos(onVerTodos) {
   // Limpiar contenedor
   navContainer.innerHTML = '';
   
-  // Crear el botón
+  // Crear el botón GRANDE para +40
   const btnVerTodos = document.createElement('button');
   btnVerTodos.id = 'btn-ver-todos-header';
-  btnVerTodos.className = 'btn-secondary';
+  btnVerTodos.className = 'btn-action-secondary';
   btnVerTodos.type = 'button';
-  btnVerTodos.textContent = '👀 Ver todos los grupos';
+  btnVerTodos.innerHTML = `
+    <span class="btn-icon">👀</span>
+    <span class="btn-text">Ver Todos los Grupos</span>
+  `;
   btnVerTodos.addEventListener('click', onVerTodos);
   
   navContainer.appendChild(btnVerTodos);

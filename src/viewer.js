@@ -22,6 +22,41 @@ const statusEl = document.getElementById('viewer-status');
 const tabsMainEl = document.getElementById('tabs-main');
 const contentEl = document.getElementById('viewer-content');
 
+// Polling automático
+let pollingInterval = null;
+const POLLING_INTERVAL_MS = 30000; // 30 segundos
+
+function startPolling() {
+  stopPolling();
+  
+  // Iniciar polling
+  pollingInterval = setInterval(() => {
+    console.log('[Polling] Auto-refresh...');
+    init();
+  }, POLLING_INTERVAL_MS);
+  
+  // Pausar polling cuando tab no está visible (ahorro de recursos)
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+}
+
+function stopPolling() {
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
+  }
+}
+
+function handleVisibilityChange() {
+  if (document.hidden) {
+    console.log('[Polling] Tab oculto - pausando polling');
+    stopPolling();
+  } else {
+    console.log('[Polling] Tab visible - reiniciando polling');
+    startPolling();
+  }
+}
+
+// Mantener compatibilidad con botón manual (por si acaso)
 btnRefresh?.addEventListener('click', () => init());
 
 function setStatus(txt) {
@@ -577,12 +612,15 @@ function agregarBotonVistaPersonal() {
   // Limpiar contenedor
   navContainer.innerHTML = '';
   
-  // Crear el botón
+  // Crear el botón GRANDE para +40
   const btnVistaPersonal = document.createElement('button');
   btnVistaPersonal.id = 'btn-vista-personal';
-  btnVistaPersonal.className = 'btn-secondary';
+  btnVistaPersonal.className = 'btn-action-secondary';
   btnVistaPersonal.type = 'button';
-  btnVistaPersonal.textContent = '👤 Mi vista';
+  btnVistaPersonal.innerHTML = `
+    <span class="btn-icon">👤</span>
+    <span class="btn-text">Mi Vista</span>
+  `;
   btnVistaPersonal.addEventListener('click', volverAVistaPersonal);
   
   navContainer.appendChild(btnVistaPersonal);
@@ -624,6 +662,7 @@ async function checkIdentidadYCargar() {
     // NO remover el flag aquí, init() lo hará
     // Cargar vista completa (init verá el flag)
     await init();
+    startPolling(); // Iniciar auto-refresh
     return;
   }
   
@@ -634,6 +673,7 @@ async function checkIdentidadYCargar() {
     // Ya está identificado, cargar vista personalizada
     console.log('Usuario identificado:', identidad.parejaNombre);
     await init();
+    startPolling(); // Iniciar auto-refresh
   } else {
     // No está identificado, mostrar flujo de identificación
     console.log('Usuario no identificado, iniciando flujo de identificación...');
@@ -680,6 +720,7 @@ async function checkIdentidadYCargar() {
       if (viewerShell) viewerShell.style.display = '';
       // Cargar el viewer
       await init();
+      startPolling(); // Iniciar auto-refresh
     }, 'identificacion-container');
   }
 }
