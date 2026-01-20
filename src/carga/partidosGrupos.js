@@ -1,6 +1,6 @@
 import { state } from './state.js';
 import { crearCardEditable } from './cardEditable.js';
-import { obtenerFraseFechaLibre } from '../utils/frasesFechaLibre.js';
+import { obtenerFrasesUnicas } from '../utils/frasesFechaLibre.js';
 
 async function guardarResultado(supabase, partidoId, gamesA, gamesB) {
   const { error } = await supabase
@@ -229,6 +229,11 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
   if (state.modo === 'pendientes') {
     const rondas = agruparEnRondas(partidos);
     
+    // Contar total de parejas libres para generar frases únicas
+    const totalParejasLibres = rondas.reduce((sum, r) => sum + r.parejasLibres.length, 0);
+    const frases = obtenerFrasesUnicas(totalParejasLibres);
+    let fraseIndex = 0;
+    
     let rondaCounter = 0;
     rondas.forEach((rondaData) => {
       rondaCounter++;
@@ -256,7 +261,7 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
           cardLibre.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <div style="font-weight: 600;">${parejaLibre}</div>
-              <div style="color: var(--muted); font-style: italic;">${obtenerFraseFechaLibre()}</div>
+              <div style="color: var(--muted); font-style: italic;">${frases[fraseIndex++]}</div>
             </div>
           `;
           listCont.appendChild(cardLibre);

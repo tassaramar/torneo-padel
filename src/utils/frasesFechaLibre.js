@@ -22,10 +22,36 @@ const FRASES_FECHA_LIBRE = [
 ];
 
 /**
- * Obtiene una frase aleatoria para fecha libre
- * @returns {string} Frase con emoji
+ * Mezcla un array usando algoritmo Fisher-Yates
+ * @param {Array} array - Array a mezclar
+ * @returns {Array} Array mezclado
  */
-export function obtenerFraseFechaLibre() {
-  const index = Math.floor(Math.random() * FRASES_FECHA_LIBRE.length);
-  return FRASES_FECHA_LIBRE[index];
+function shuffle(array) {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+/**
+ * Obtiene una lista de frases sin repetir
+ * @param {number} cantidad - Cantidad de frases necesarias
+ * @returns {Array<string>} Array de frases únicas
+ */
+export function obtenerFrasesUnicas(cantidad) {
+  const frasesMezcladas = shuffle(FRASES_FECHA_LIBRE);
+  
+  // Si se necesitan más frases que las disponibles, repetir el array mezclado
+  if (cantidad > frasesMezcladas.length) {
+    const veces = Math.ceil(cantidad / frasesMezcladas.length);
+    const frasesExtendidas = [];
+    for (let i = 0; i < veces; i++) {
+      frasesExtendidas.push(...shuffle(FRASES_FECHA_LIBRE));
+    }
+    return frasesExtendidas.slice(0, cantidad);
+  }
+  
+  return frasesMezcladas.slice(0, cantidad);
 }

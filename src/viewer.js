@@ -1,6 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import { agruparEnRondas } from './carga/partidosGrupos.js';
-import { obtenerFraseFechaLibre } from './utils/frasesFechaLibre.js';
+import { obtenerFrasesUnicas } from './utils/frasesFechaLibre.js';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -213,6 +213,11 @@ function renderPartidosConRondas(partidos) {
   if (pendientes.length > 0) {
     const rondas = agruparEnRondas(pendientes);
     
+    // Contar total de parejas libres para generar frases únicas
+    const totalParejasLibres = rondas.reduce((sum, r) => sum + r.parejasLibres.length, 0);
+    const frases = obtenerFrasesUnicas(totalParejasLibres);
+    let fraseIndex = 0;
+    
     rondas.forEach((rondaData, idx) => {
       // Encabezado de ronda
       html += `
@@ -241,7 +246,7 @@ function renderPartidosConRondas(partidos) {
           html += `
             <div class="viewer-match" style="opacity: 0.6; border-left: 3px dashed var(--muted);">
               <div class="viewer-match-names">${parejaLibre}</div>
-              <div class="viewer-match-res" style="font-style: italic;">${obtenerFraseFechaLibre()}</div>
+              <div class="viewer-match-res" style="font-style: italic;">${frases[fraseIndex++]}</div>
             </div>
           `;
         });
