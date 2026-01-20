@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prototipo: Identificación de Pareja</title>
+  <style>
+    /* Reset básico */
+    * { box-sizing: border-box; }
+    
+    :root {
+      /* Surfaces */
+      --bg: #F5F7FB;
+      --card: #FFFFFF;
+      
+      /* Text */
+      --text: #0F172A;
+      --muted: #64748B;
+      
+      /* Borders / shadows */
+      --border: #E2E8F0;
+      --border-strong: #CBD5E1;
+      --shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+      --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.10);
+      
+      /* Brand */
+      --primary: #14B8A6;
+      --primary-900: #0F766E;
+      
+      /* States */
+      --success: #16A34A;
+      --warning: #F59E0B;
+      --danger: #EF4444;
+      
+      /* Tints */
+      --primary-soft: rgba(20, 184, 166, 0.14);
+      --ring: rgba(20, 184, 166, 0.25);
+    }
+    
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial;
+      line-height: 1.35;
+      padding: 18px;
+    }
+    
+    .container {
+      max-width: 580px;
+      margin: 0 auto;
+      padding-top: 20px;
+    }
+    
+    h1 {
+      font-size: 34px;
+      letter-spacing: -0.02em;
+      margin: 6px 0 8px;
+    }
+    
+    .subtitle {
+      font-size: 16px;
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+    
+    /* Cards */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+      margin-bottom: 14px;
+    }
+    
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0 0 16px 0;
+    }
+    
+    /* Inputs */
+    input[type="text"],
+    input[type="search"] {
+      width: 100%;
+      background: #fff;
+      color: var(--text);
+      border: 1px solid var(--border-strong);
+      border-radius: 12px;
+      padding: 14px 16px;
+      font-size: 16px;
+      box-shadow: inset 0 0 0 1px rgba(15,23,42,0.06);
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: var(--primary-900);
+      box-shadow: 0 0 0 3px var(--ring), inset 0 0 0 1px rgba(15,23,42,0.06);
+    }
+    
+    /* Botones */
+    button {
+      font-family: inherit;
+      border-radius: 12px;
+      border: 1px solid var(--border-strong);
+      background: #fff;
+      color: var(--text);
+      padding: 14px 16px;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      font-size: 16px;
+      font-weight: 600;
+      width: 100%;
+    }
+    
+    button:hover {
+      border-color: var(--primary-900);
+    }
+    
+    button:active {
+      transform: translateY(1px);
+    }
+    
+    button:focus-visible {
+      outline: none;
+      border-color: var(--primary-900);
+      box-shadow: 0 0 0 3px var(--ring), var(--shadow);
+    }
+    
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .btn-primary {
+      background: var(--primary);
+      border-color: var(--primary-900);
+      color: #fff;
+    }
+    
+    .btn-primary:hover {
+      background: var(--primary-900);
+    }
+    
+    .btn-secondary {
+      background: rgba(15, 23, 42, 0.04);
+    }
+    
+    /* Lista de resultados */
+    .results-list {
+      margin-top: 12px;
+    }
+    
+    .result-item {
+      background: rgba(15, 23, 42, 0.02);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    
+    .result-item:hover {
+      border-color: var(--primary-900);
+      background: var(--primary-soft);
+      transform: translateY(-1px);
+    }
+    
+    .result-name {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    
+    .result-meta {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    
+    /* Opciones de compañero */
+    .options-grid {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    
+    .option-btn {
+      padding: 18px;
+      font-size: 18px;
+      font-weight: 700;
+      text-align: center;
+    }
+    
+    /* Estados */
+    .screen {
+      display: none;
+    }
+    
+    .screen.active {
+      display: block;
+    }
+    
+    .success-icon {
+      font-size: 48px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    
+    .error-icon {
+      font-size: 48px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    
+    .success-message {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .success-title {
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    
+    .success-details {
+      font-size: 16px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    
+    .pareja-name {
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--primary-900);
+      margin: 8px 0;
+    }
+    
+    .error-message {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    
+    .error-title {
+      font-size: 24px;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+    
+    .error-text {
+      font-size: 15px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    
+    .no-results {
+      text-align: center;
+      padding: 24px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+    
+    .helper-text {
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    
+    /* Reset button (para testing) */
+    .reset-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 10px 16px;
+      font-size: 13px;
+      width: auto;
+      opacity: 0.6;
+    }
+    
+    .reset-btn:hover {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="app">
+      <!-- PANTALLA 1: Búsqueda de jugador -->
+      <div id="screen-search" class="screen active">
+        <h1>🎾 ¿Quién sos?</h1>
+        <p class="subtitle">Buscá tu nombre para identificarte</p>
+        
+        <div class="card">
+          <input 
+            type="search" 
+            id="search-input" 
+            placeholder="Escribí tu nombre..."
+            autocomplete="off"
+          />
+          
+          <div id="results" class="results-list"></div>
+        </div>
+      </div>
+      
+      <!-- PANTALLA 2: Selección de compañero -->
+      <div id="screen-partner" class="screen">
+        <h1>Hola <span id="selected-name"></span>! 👋</h1>
+        <p class="subtitle">¿Quién es tu compañero?</p>
+        
+        <div class="card">
+          <div id="partner-options" class="options-grid"></div>
+        </div>
+      </div>
+      
+      <!-- PANTALLA 3A: Éxito -->
+      <div id="screen-success" class="screen">
+        <div class="card">
+          <div class="success-icon">✅</div>
+          <div class="success-message">
+            <div class="success-title">¡Perfecto!</div>
+            <div class="success-details">Identificado como:</div>
+            <div class="pareja-name" id="success-pareja"></div>
+            <div class="success-details" id="success-meta"></div>
+          </div>
+          <button class="btn-primary" onclick="app.continuar()">Continuar →</button>
+        </div>
+      </div>
+      
+      <!-- PANTALLA 3B: Error -->
+      <div id="screen-error" class="screen">
+        <div class="card">
+          <div class="error-icon">🤔</div>
+          <div class="error-message">
+            <div class="error-title">Algo no coincide...</div>
+            <div class="error-text">
+              No encontramos la pareja:<br>
+              <strong id="error-combination"></strong>
+            </div>
+          </div>
+          
+          <div class="helper-text">¿Qué querés hacer?</div>
+          
+          <button class="btn-primary" style="margin-bottom: 10px;" onclick="app.retryPartner()">
+            🔄 Elegir otro compañero
+          </button>
+          
+          <button class="btn-secondary" onclick="app.notMe()">
+            ❌ No soy <span id="error-not-me"></span>
+          </button>
+        </div>
+      </div>
+      
+      <!-- PANTALLA: Ya identificado (no se usa más - va directo a la app) -->
+      <!-- <div id="screen-identified" class="screen">
+        <div class="card">
+          <div class="success-message">
+            <div class="success-title">Ya estás identificado</div>
+            <div class="pareja-name" id="identified-pareja"></div>
+            <div class="success-details" id="identified-meta"></div>
+          </div>
+          
+          <button class="btn-primary" style="margin-bottom: 10px;" onclick="app.continuar()">
+            Continuar a la App
+          </button>
+          
+          <button class="btn-secondary" onclick="app.changePareja()">
+            Cambiar de pareja
+          </button>
+        </div>
+      </div> -->
+    </div>
+  </div>
+  
+  <!-- Botón de reset para testing -->
+  <button class="reset-btn" onclick="app.reset()">🔄 Reset (test)</button>
+  
+  <script>
+    // ====================
+    // DATOS MOCK
+    // ====================
+    const MOCK_PAREJAS = [
+      { id: 1, nombre: "Ari Kan - Martin G", grupo: "A", orden: 1 },
+      { id: 2, nombre: "Ari Kul - Pedro W", grupo: "A", orden: 2 },
+      { id: 3, nombre: "Pablo A - Lucas M", grupo: "A", orden: 3 },
+      { id: 4, nombre: "Pablo W - Sofia R", grupo: "B", orden: 4 },
+      { id: 5, nombre: "Ana L - Carlos D", grupo: "B", orden: 5 },
+      { id: 6, nombre: "Marta S - Juan K", grupo: "B", orden: 6 },
+      { id: 7, nombre: "Diego F - Laura P", grupo: "C", orden: 7 },
+      { id: 8, nombre: "Roberto M - Elena V", grupo: "C", orden: 8 },
+    ];
+    
+    // ====================
+    // LÓGICA DE PARSEO
+    // ====================
+    function parseJugadores(parejas) {
+      const jugadores = [];
+      
+      parejas.forEach(pareja => {
+        const partes = pareja.nombre.split(' - ');
+        if (partes.length === 2) {
+          const [j1, j2] = partes.map(s => s.trim());
+          
+          jugadores.push({
+            nombre: j1,
+            nombreBusqueda: j1.toLowerCase(),
+            companero: j2,
+            parejaId: pareja.id,
+            parejaNombre: pareja.nombre,
+            grupo: pareja.grupo,
+            orden: pareja.orden
+          });
+          
+          jugadores.push({
+            nombre: j2,
+            nombreBusqueda: j2.toLowerCase(),
+            companero: j1,
+            parejaId: pareja.id,
+            parejaNombre: pareja.nombre,
+            grupo: pareja.grupo,
+            orden: pareja.orden
+          });
+        }
+      });
+      
+      return jugadores;
+    }
+    
+    // ====================
+    // APP STATE
+    // ====================
+    const app = {
+      jugadores: parseJugadores(MOCK_PAREJAS),
+      selectedJugador: null,
+      
+      init() {
+        // Check si ya está identificado
+        const saved = localStorage.getItem('torneo_identidad');
+        if (saved) {
+          try {
+            const identidad = JSON.parse(saved);
+            // Ir directo a la app personalizada
+            this.continuar(identidad);
+            return;
+          } catch (e) {
+            localStorage.removeItem('torneo_identidad');
+          }
+        }
+        
+        // Setup búsqueda
+        const input = document.getElementById('search-input');
+        input.addEventListener('input', (e) => this.search(e.target.value));
+        input.focus();
+      },
+      
+      showScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+      },
+      
+      search(query) {
+        const results = document.getElementById('results');
+        const q = query.trim().toLowerCase();
+        
+        if (!q) {
+          results.innerHTML = '';
+          return;
+        }
+        
+        const matches = this.jugadores.filter(j => 
+          j.nombreBusqueda.includes(q)
+        );
+        
+        if (matches.length === 0) {
+          results.innerHTML = '<div class="no-results">No se encontraron resultados</div>';
+          return;
+        }
+        
+        results.innerHTML = matches.map(j => `
+          <div class="result-item" onclick="app.selectJugador(${j.parejaId}, '${j.nombre}')">
+            <div class="result-name">${j.nombre}</div>
+            <div class="result-meta">Grupo ${j.grupo} · Pareja #${j.orden}</div>
+          </div>
+        `).join('');
+      },
+      
+      selectJugador(parejaId, nombre) {
+        // Encontrar el jugador completo
+        this.selectedJugador = this.jugadores.find(j => 
+          j.parejaId === parejaId && j.nombre === nombre
+        );
+        
+        if (!this.selectedJugador) return;
+        
+        // Mostrar pantalla de compañero
+        document.getElementById('selected-name').textContent = nombre;
+        
+        // Generar 3 opciones (1 correcta + 2 random)
+        const companeroCorrecto = this.selectedJugador.companero;
+        const opciones = this.generatePartnerOptions(companeroCorrecto);
+        
+        const container = document.getElementById('partner-options');
+        container.innerHTML = opciones.map(opt => `
+          <button class="option-btn" onclick="app.selectPartner('${opt.nombre}', ${opt.correcto})">
+            ${opt.nombre}
+          </button>
+        `).join('');
+        
+        this.showScreen('screen-partner');
+      },
+      
+      generatePartnerOptions(correcto) {
+        // Todos los jugadores menos el correcto
+        const otros = this.jugadores
+          .filter(j => j.nombre !== correcto && j.nombre !== this.selectedJugador.nombre)
+          .map(j => j.nombre);
+        
+        // Eliminar duplicados
+        const otrosUnicos = [...new Set(otros)];
+        
+        // Shuffle y tomar 2
+        const shuffled = otrosUnicos.sort(() => Math.random() - 0.5);
+        const incorrectos = shuffled.slice(0, 2);
+        
+        // Crear array con 1 correcto + 2 incorrectos
+        const opciones = [
+          { nombre: correcto, correcto: true },
+          { nombre: incorrectos[0], correcto: false },
+          { nombre: incorrectos[1], correcto: false }
+        ];
+        
+        // Shuffle para que el correcto no esté siempre primero
+        return opciones.sort(() => Math.random() - 0.5);
+      },
+      
+      selectPartner(nombreCompanero, esCorrecto) {
+        if (esCorrecto) {
+          // ¡ÉXITO!
+          const identidad = {
+            parejaId: this.selectedJugador.parejaId,
+            parejaNombre: this.selectedJugador.parejaNombre,
+            miNombre: this.selectedJugador.nombre,
+            companero: nombreCompanero,
+            grupo: this.selectedJugador.grupo,
+            orden: this.selectedJugador.orden,
+            validatedAt: new Date().toISOString()
+          };
+          
+          // Guardar en localStorage
+          localStorage.setItem('torneo_identidad', JSON.stringify(identidad));
+          
+          // Mostrar pantalla de éxito
+          document.getElementById('success-pareja').textContent = identidad.parejaNombre;
+          document.getElementById('success-meta').textContent = 
+            `Grupo ${identidad.grupo} · Pareja #${identidad.orden}`;
+          
+          this.showScreen('screen-success');
+        } else {
+          // ERROR
+          const combination = `${this.selectedJugador.nombre} - ${nombreCompanero}`;
+          document.getElementById('error-combination').textContent = combination;
+          document.getElementById('error-not-me').textContent = this.selectedJugador.nombre;
+          
+          this.showScreen('screen-error');
+        }
+      },
+      
+      retryPartner() {
+        // Volver a pantalla de compañero con nuevas opciones
+        this.selectJugador(this.selectedJugador.parejaId, this.selectedJugador.nombre);
+      },
+      
+      notMe() {
+        // Volver a búsqueda inicial
+        this.selectedJugador = null;
+        document.getElementById('search-input').value = '';
+        document.getElementById('results').innerHTML = '';
+        this.showScreen('screen-search');
+        document.getElementById('search-input').focus();
+      },
+      
+      continuar(identidad = null) {
+        // Si no pasaron identidad, la leemos del localStorage
+        if (!identidad) {
+          const saved = localStorage.getItem('torneo_identidad');
+          identidad = saved ? JSON.parse(saved) : null;
+        }
+        
+        const mensaje = identidad 
+          ? `¡Bienvenido ${identidad.miNombre}! 🎾\n\n` +
+            `Pareja: ${identidad.parejaNombre}\n` +
+            `Grupo ${identidad.grupo} · #${identidad.orden}\n\n` +
+            `En la app real verías:\n` +
+            `- Próximos partidos\n` +
+            `- Últimos resultados\n` +
+            `- Posición en tabla\n` +
+            `- Cargar resultados\n` +
+            `- Botón "Cambiar de pareja" en el menú`
+          : '¡Continuarías a la app principal! 🎾';
+        
+        alert(mensaje);
+      },
+      
+      // Ya no se usa - se va directo a continuar()
+      // showIdentified(identidad) {
+      //   document.getElementById('identified-pareja').textContent = identidad.parejaNombre;
+      //   document.getElementById('identified-meta').textContent = 
+      //     `Grupo ${identidad.grupo} · Pareja #${identidad.orden}`;
+      //   this.showScreen('screen-identified');
+      // },
+      
+      changePareja() {
+        localStorage.removeItem('torneo_identidad');
+        this.selectedJugador = null;
+        document.getElementById('search-input').value = '';
+        document.getElementById('results').innerHTML = '';
+        this.showScreen('screen-search');
+        document.getElementById('search-input').focus();
+      },
+      
+      reset() {
+        if (confirm('¿Borrar identificación guardada?')) {
+          localStorage.removeItem('torneo_identidad');
+          location.reload();
+        }
+      }
+    };
+    
+    // Init
+    app.init();
+  </script>
+</body>
+</html>

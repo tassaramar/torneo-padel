@@ -290,9 +290,13 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   // Determinar qué inputs corresponden a cada pareja
   const soyA = partido.pareja_a?.id === identidad.parejaId;
   
-  // Valores iniciales (null si no hay previos)
-  const valorInicialA = gamesAPrevia !== null ? gamesAPrevia : '';
-  const valorInicialB = gamesBPrevia !== null ? gamesBPrevia : '';
+  // Valores iniciales - SIEMPRE en orden: mis games, games del rival
+  const valorInicialMisGames = soyA 
+    ? (gamesAPrevia !== null ? gamesAPrevia : '')
+    : (gamesBPrevia !== null ? gamesBPrevia : '');
+  const valorInicialRivalGames = soyA 
+    ? (gamesBPrevia !== null ? gamesBPrevia : '')
+    : (gamesAPrevia !== null ? gamesAPrevia : '');
 
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
@@ -305,42 +309,42 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
       
       <div class="modal-body">
         <div class="match-info">
-          <div class="match-team ${soyA ? 'es-mio' : ''}">
-            <div class="team-label">${soyA ? 'Vos' : oponente}</div>
-            <div class="team-name">${escapeHtml(soyA ? miNombre : oponente)}</div>
+          <div class="match-team es-mio">
+            <div class="team-label">Vos</div>
+            <div class="team-name">${escapeHtml(miNombre)}</div>
           </div>
           
           <div class="match-vs">vs</div>
           
-          <div class="match-team ${!soyA ? 'es-mio' : ''}">
-            <div class="team-label">${!soyA ? 'Vos' : oponente}</div>
-            <div class="team-name">${escapeHtml(!soyA ? miNombre : oponente)}</div>
+          <div class="match-team">
+            <div class="team-label">${escapeHtml(oponente)}</div>
+            <div class="team-name">${escapeHtml(oponente)}</div>
           </div>
         </div>
 
         <div class="score-inputs" id="score-inputs-container">
-          <div class="score-group" id="score-group-a">
-            <label for="input-games-a">${escapeHtml(soyA ? 'Tus games' : 'Games de ' + oponente)}</label>
+          <div class="score-group" id="score-group-mis-games">
+            <label for="input-mis-games">Tus games</label>
             <input 
               type="number" 
-              id="input-games-a" 
+              id="input-mis-games" 
               class="input-score-modal"
               min="0" 
               max="20"
-              value="${valorInicialA}"
+              value="${valorInicialMisGames}"
               placeholder=""
             />
           </div>
           
-          <div class="score-group" id="score-group-b">
-            <label for="input-games-b">${escapeHtml(!soyA ? 'Tus games' : 'Games de ' + oponente)}</label>
+          <div class="score-group" id="score-group-rival-games">
+            <label for="input-rival-games">Games de ${escapeHtml(oponente)}</label>
             <input 
               type="number" 
-              id="input-games-b" 
+              id="input-rival-games" 
               class="input-score-modal"
               min="0" 
               max="20"
-              value="${valorInicialB}"
+              value="${valorInicialRivalGames}"
               placeholder=""
             />
           </div>
@@ -350,7 +354,7 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
 
         ${gamesAPrevia !== null ? `
           <div class="helper-info">
-            Resultado anterior: ${gamesAPrevia} - ${gamesBPrevia}
+            Resultado anterior: ${soyA ? gamesAPrevia : gamesBPrevia} - ${soyA ? gamesBPrevia : gamesAPrevia}
           </div>
         ` : ''}
       </div>
@@ -374,26 +378,27 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   
   // Actualizar preview cuando cambien los valores
   const actualizarPreview = () => {
-    const inputA = document.getElementById('input-games-a');
-    const inputB = document.getElementById('input-games-b');
-    const groupA = document.getElementById('score-group-a');
-    const groupB = document.getElementById('score-group-b');
+    const inputMisGames = document.getElementById('input-mis-games');
+    const inputRivalGames = document.getElementById('input-rival-games');
+    const groupMisGames = document.getElementById('score-group-mis-games');
+    const groupRivalGames = document.getElementById('score-group-rival-games');
     const mensajeDiv = document.getElementById('mensaje-preview');
     
-    const gA = parseInt(inputA.value);
-    const gB = parseInt(inputB.value);
+    const misGames = parseInt(inputMisGames.value);
+    const rivalGames = parseInt(inputRivalGames.value);
 
     // Limpiar clases previas
-    groupA.classList.remove('ganador', 'perdedor');
-    groupB.classList.remove('ganador', 'perdedor');
+    groupMisGames.classList.remove('ganador', 'perdedor');
+    groupRivalGames.classList.remove('ganador', 'perdedor');
     mensajeDiv.innerHTML = '';
 
-    if (isNaN(gA) || isNaN(gB) || gA < 0 || gB < 0) {
+    if (isNaN(misGames) || isNaN(rivalGames) || misGames < 0 || rivalGames < 0) {
       return; // No mostrar nada si no son válidos
     }
 
     // Obtener mensaje y aplicar colores
-    const resultado = getMensajeResultado(gA, gB, soyA);
+    // Siempre comparamos desde la perspectiva del usuario (yo siempre soy "A" en esta vista)
+    const resultado = getMensajeResultado(misGames, rivalGames, true);
     
     if (resultado.tipo === 'empate') {
       mensajeDiv.innerHTML = `<div class="mensaje-empate">${resultado.mensaje}</div>`;
@@ -401,12 +406,12 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
     }
 
     // Colorear ganador/perdedor
-    if (gA > gB) {
-      groupA.classList.add('ganador');
-      groupB.classList.add('perdedor');
+    if (misGames > rivalGames) {
+      groupMisGames.classList.add('ganador');
+      groupRivalGames.classList.add('perdedor');
     } else {
-      groupB.classList.add('ganador');
-      groupA.classList.add('perdedor');
+      groupRivalGames.classList.add('ganador');
+      groupMisGames.classList.add('perdedor');
     }
 
     // Mostrar mensaje
@@ -414,35 +419,39 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
     mensajeDiv.innerHTML = `<div class="${clase}">${resultado.mensaje}</div>`;
   };
 
-  document.getElementById('input-games-a').addEventListener('input', actualizarPreview);
-  document.getElementById('input-games-b').addEventListener('input', actualizarPreview);
+  document.getElementById('input-mis-games').addEventListener('input', actualizarPreview);
+  document.getElementById('input-rival-games').addEventListener('input', actualizarPreview);
   
   document.getElementById('modal-submit').addEventListener('click', () => {
-    const gA = parseInt(document.getElementById('input-games-a').value);
-    const gB = parseInt(document.getElementById('input-games-b').value);
+    const misGames = parseInt(document.getElementById('input-mis-games').value);
+    const rivalGames = parseInt(document.getElementById('input-rival-games').value);
 
-    if (isNaN(gA) || isNaN(gB)) {
+    if (isNaN(misGames) || isNaN(rivalGames)) {
       alert('Por favor ingresá ambos resultados.');
       return;
     }
 
-    if (gA < 0 || gB < 0) {
+    if (misGames < 0 || rivalGames < 0) {
       alert('Los resultados no pueden ser negativos.');
       return;
     }
 
-    if (gA === gB) {
+    if (misGames === rivalGames) {
       alert('No se puede empatar en pádel. Revisá el resultado.');
       return;
     }
 
-    onSubmit(gA, gB);
+    // Mapear los valores según si soy pareja A o B
+    const gamesA = soyA ? misGames : rivalGames;
+    const gamesB = soyA ? rivalGames : misGames;
+
+    onSubmit(gamesA, gamesB);
     close();
   });
 
   // Focus en primer input
   setTimeout(() => {
-    document.getElementById('input-games-a')?.focus();
+    document.getElementById('input-mis-games')?.focus();
     actualizarPreview(); // Actualizar si hay valores previos
   }, 100);
 }

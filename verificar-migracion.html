@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verificar Migración</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f8fafc;
+    }
+    .result {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin-top: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .success { color: #059669; }
+    .error { color: #dc2626; }
+    button {
+      background: #0ea5e9;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:hover {
+      background: #0284c7;
+    }
+    pre {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔍 Verificar Migración de Estados</h1>
+  <p>Este script verifica que los nuevos campos se agregaron correctamente a la tabla <code>partidos</code>.</p>
+  
+  <button onclick="verificar()">Verificar Migración</button>
+  
+  <div id="resultado"></div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+    
+    // Obtener credenciales del .env o src/carga/context.js
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    window.verificar = async function() {
+      const resultado = document.getElementById('resultado');
+      resultado.innerHTML = '<div class="result">⏳ Verificando...</div>';
+      
+      try {
+        // Intentar obtener un partido con los campos nuevos
+        const { data, error } = await supabase
+          .from('partidos')
+          .select('id, estado, cargado_por_pareja_id, resultado_temp_a, resultado_temp_b, notas_revision, games_a, games_b')
+          .limit(1);
+        
+        if (error) throw error;
+        
+        if (!data || data.length === 0) {
+          resultado.innerHTML = `
+            <div class="result">
+              <h2 class="error">⚠️ No hay partidos en la base de datos</h2>
+              <p>Creá algunos partidos primero para verificar.</p>
+            </div>
+          `;
+          return;
+        }
+        
+        const partido = data[0];
+        
+        // Verificar que existan los campos
+        const camposNuevos = ['estado', 'cargado_por_pareja_id', 'resultado_temp_a', 'resultado_temp_b', 'notas_revision'];
+        const camposFaltantes = camposNuevos.filter(campo => !(campo in partido));
+        
+        if (camposFaltantes.length > 0) {
+          resultado.innerHTML = `
+            <div class="result">
+              <h2 class="error">❌ Migración incompleta</h2>
+              <p>Faltan los siguientes campos:</p>
+              <ul>
+                ${camposFaltantes.map(c => `<li><code>${c}</code></li>`).join('')}
+              </ul>
+            </div>
+          `;
+          return;
+        }
+        
+        // Todo bien!
+        resultado.innerHTML = `
+          <div class="result">
+            <h2 class="success">✅ Migración aplicada correctamente</h2>
+            <p>Todos los campos nuevos existen en la tabla <code>partidos</code>:</p>
+            <ul>
+              <li>✅ <code>estado</code> = "${partido.estado || 'pendiente'}"</li>
+              <li>✅ <code>cargado_por_pareja_id</code></li>
+              <li>✅ <code>resultado_temp_a</code></li>
+              <li>✅ <code>resultado_temp_b</code></li>
+              <li>✅ <code>notas_revision</code></li>
+            </ul>
+            
+            <h3>Ejemplo de partido:</h3>
+            <pre>${JSON.stringify(partido, null, 2)}</pre>
+            
+            <p><strong>🎉 ¡Listo para probar el sistema!</strong></p>
+            <p>Seguí con el Paso 2 en <code>PASOS-PARA-APLICAR.md</code></p>
+          </div>
+        `;
+        
+      } catch (error) {
+        resultado.innerHTML = `
+          <div class="result">
+            <h2 class="error">❌ Error al verificar</h2>
+            <p>${error.message}</p>
+            <pre>${JSON.stringify(error, null, 2)}</pre>
+          </div>
+        `;
+      }
+    };
+  </script>
+</body>
+</html>

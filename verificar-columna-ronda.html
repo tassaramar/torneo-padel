@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Verificar Columna Ronda</title>
+  <style>
+    body {
+      font-family: system-ui;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 16px;
+      cursor: pointer;
+      background: #10b981;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      margin: 10px 0;
+    }
+    button:hover {
+      background: #059669;
+    }
+    #result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      font-family: monospace;
+    }
+    .success {
+      background: #d1fae5;
+      border: 1px solid #10b981;
+    }
+    .error {
+      background: #fee2e2;
+      border: 1px solid #ef4444;
+    }
+  </style>
+</head>
+<body>
+  <h1>Verificar Columna Ronda</h1>
+  <p>Este script verifica si la columna <code>ronda</code> existe en la tabla <code>partidos</code>.</p>
+  
+  <button onclick="verificar()">🔍 Verificar Columna</button>
+  
+  <div id="result"></div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    window.verificar = async function() {
+      const result = document.getElementById('result');
+      result.textContent = '⏳ Verificando...';
+      result.className = '';
+
+      try {
+        // Intentar obtener un partido con el campo ronda
+        const { data, error } = await supabase
+          .from('partidos')
+          .select('id, ronda, pareja_a_id, pareja_b_id')
+          .limit(1);
+
+        if (error) {
+          result.className = 'error';
+          result.textContent = `❌ Error al consultar:\n\n${error.message}\n\nSi el error dice "column partidos.ronda does not exist", significa que la columna NO existe y necesitás aplicar la migración.`;
+          return;
+        }
+
+        // Si llegamos aquí, la columna existe
+        result.className = 'success';
+        result.textContent = `✅ La columna 'ronda' EXISTE en la tabla partidos.\n\nPartido de ejemplo:\n${JSON.stringify(data[0], null, 2)}`;
+
+      } catch (err) {
+        result.className = 'error';
+        result.textContent = `❌ Error: ${err.message}`;
+      }
+    };
+  </script>
+</body>
+</html>

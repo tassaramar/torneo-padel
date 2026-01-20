@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Calcular y Asignar Rondas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    h1 {
+      margin: 0 0 20px;
+      color: #0f172a;
+    }
+    .warning {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .success {
+      background: #d4edda;
+      border: 1px solid #28a745;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    .error {
+      background: #f8d7da;
+      border: 1px solid #dc3545;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 20px;
+    }
+    button {
+      background: #0ea5e9;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #0284c7;
+    }
+    button:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+    }
+    #log {
+      background: #1e293b;
+      color: #e2e8f0;
+      border-radius: 8px;
+      padding: 16px;
+      font-family: monospace;
+      font-size: 13px;
+      max-height: 400px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      display: none;
+    }
+    #log.visible {
+      display: block;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin: 20px 0;
+    }
+    .stat {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .stat-label {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🎾 Calcular y Asignar Rondas</h1>
+    
+    <div class="warning">
+      <strong>⚠️ Atención:</strong> Este script calculará y asignará el número de ronda a todos los partidos de grupos usando el método Circle Method (Berger Tables).
+      <br><br>
+      <strong>Esto sobrescribirá cualquier valor existente en la columna "ronda".</strong>
+    </div>
+
+    <div id="stats" class="stats" style="display: none;">
+      <div class="stat">
+        <div class="stat-value" id="stat-grupos">-</div>
+        <div class="stat-label">Grupos</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="stat-partidos">-</div>
+        <div class="stat-label">Partidos</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="stat-actualizados">-</div>
+        <div class="stat-label">Actualizados</div>
+      </div>
+    </div>
+
+    <button id="btn-calcular" onclick="calcularRondas()">
+      Calcular y Asignar Rondas
+    </button>
+
+    <div id="result"></div>
+    <div id="log"></div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+    const supabase = createClient(
+      import.meta.env.VITE_SUPABASE_URL,
+      import.meta.env.VITE_SUPABASE_ANON_KEY
+    );
+
+    const TORNEO_ID = 'ad58a855-fa74-4c2e-825e-32c20f972136';
+
+    // Circle Method (Berger Tables)
+    function circleMethod(equipos) {
+      let teams = [...equipos];
+      const n = teams.length;
+      
+      if (n % 2 !== 0) {
+        teams.push('BYE');
+      }
+      
+      const numRounds = teams.length - 1;
+      const matchesPerRound = teams.length / 2;
+      const rounds = [];
+      
+      const fixed = teams[0];
+      let rotating = teams.slice(1);
+      
+      for (let r = 0; r < numRounds; r++) {
+        const roundPairings = [];
+        roundPairings.push([fixed, rotating[0]]);
+        
+        for (let i = 1; i < matchesPerRound; i++) {
+          roundPairings.push([
+            rotating[i],
+            rotating[rotating.length - i]
+          ]);
+        }
+        
+        rounds.push(roundPairings);
+        rotating = [rotating[rotating.length - 1], ...rotating.slice(0, -1)];
+      }
+      
+      return rounds;
+    }
+
+    function log(msg) {
+      const logEl = document.getElementById('log');
+      logEl.classList.add('visible');
+      logEl.textContent += msg + '\n';
+      console.log(msg);
+    }
+
+    function showResult(type, msg) {
+      const resultEl = document.getElementById('result');
+      resultEl.className = type;
+      resultEl.textContent = msg;
+    }
+
+    function updateStats(grupos, partidos, actualizados) {
+      document.getElementById('stats').style.display = 'grid';
+      document.getElementById('stat-grupos').textContent = grupos;
+      document.getElementById('stat-partidos').textContent = partidos;
+      document.getElementById('stat-actualizados').textContent = actualizados;
+    }
+
+    window.calcularRondas = async function() {
+      const btn = document.getElementById('btn-calcular');
+      const logEl = document.getElementById('log');
+      
+      btn.disabled = true;
+      logEl.textContent = '';
+      logEl.classList.add('visible');
+      
+      try {
+        log('🚀 Iniciando cálculo de rondas...\n');
+
+        // 1. Obtener grupos
+        log('📊 Obteniendo grupos del torneo...');
+        const { data: grupos, error: errG } = await supabase
+          .from('grupos')
+          .select('id, nombre')
+          .eq('torneo_id', TORNEO_ID)
+          .order('nombre');
+
+        if (errG) throw errG;
+        log(`✅ Encontrados ${grupos.length} grupos\n`);
+
+        // 2. Obtener todos los partidos de grupos
+        log('⚽ Obteniendo partidos de grupos...');
+        const { data: partidos, error: errP } = await supabase
+          .from('partidos')
+          .select(`
+            id,
+            grupo_id,
+            grupos ( nombre ),
+            pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
+            pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
+          `)
+          .eq('torneo_id', TORNEO_ID)
+          .is('copa_id', null);
+
+        if (errP) throw errP;
+        log(`✅ Encontrados ${partidos.length} partidos de grupos\n`);
+
+        let totalActualizados = 0;
+
+        // 3. Procesar cada grupo
+        for (const grupo of grupos) {
+          log(`\n🔷 Procesando Grupo ${grupo.nombre}...`);
+
+          // Filtrar partidos del grupo
+          const partidosGrupo = partidos.filter(p => p.grupo_id === grupo.id);
+          log(`   Partidos en el grupo: ${partidosGrupo.length}`);
+
+          if (partidosGrupo.length === 0) {
+            log('   ⚠️ Sin partidos, saltando...');
+            continue;
+          }
+
+          // Extraer parejas únicas
+          const parejasSet = new Set();
+          partidosGrupo.forEach(p => {
+            if (p.pareja_a?.nombre) parejasSet.add(p.pareja_a.nombre);
+            if (p.pareja_b?.nombre) parejasSet.add(p.pareja_b.nombre);
+          });
+          const parejas = Array.from(parejasSet).sort();
+          log(`   Parejas: ${parejas.join(', ')}`);
+
+          // Calcular rondas con Circle Method
+          const pairings = circleMethod(parejas);
+          log(`   Rondas calculadas: ${pairings.length}`);
+
+          // Crear mapa de partidos para búsqueda rápida
+          const mapaPartidos = new Map();
+          partidosGrupo.forEach(p => {
+            const a = p.pareja_a?.nombre;
+            const b = p.pareja_b?.nombre;
+            if (a && b) {
+              mapaPartidos.set(`${a}|${b}`, p);
+              mapaPartidos.set(`${b}|${a}`, p);
+            }
+          });
+
+          // Asignar ronda a cada partido
+          for (let rondaIdx = 0; rondaIdx < pairings.length; rondaIdx++) {
+            const rondaPairings = pairings[rondaIdx];
+            
+            for (const [eq1, eq2] of rondaPairings) {
+              if (eq1 === 'BYE' || eq2 === 'BYE') continue;
+
+              const partido = mapaPartidos.get(`${eq1}|${eq2}`);
+              if (partido) {
+                const numeroRonda = rondaIdx + 1;
+                
+                // Actualizar en BD
+                const { error: updateErr } = await supabase
+                  .from('partidos')
+                  .update({ ronda: numeroRonda })
+                  .eq('id', partido.id);
+
+                if (updateErr) {
+                  log(`   ❌ Error actualizando ${eq1} vs ${eq2}: ${updateErr.message}`);
+                } else {
+                  log(`   ✅ R${numeroRonda}: ${eq1} vs ${eq2}`);
+                  totalActualizados++;
+                }
+              }
+            }
+          }
+
+          log(`   ✅ Grupo ${grupo.nombre} completado`);
+        }
+
+        log(`\n🎉 ¡Proceso completado!`);
+        log(`📊 Total de partidos actualizados: ${totalActualizados}`);
+        
+        showResult('success', `✅ ¡Éxito! Se asignaron rondas a ${totalActualizados} partidos.`);
+        updateStats(grupos.length, partidos.length, totalActualizados);
+
+      } catch (error) {
+        log(`\n❌ ERROR: ${error.message}`);
+        console.error(error);
+        showResult('error', `❌ Error: ${error.message}`);
+      } finally {
+        btn.disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>

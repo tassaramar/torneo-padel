@@ -23,6 +23,7 @@ export function initCargaLayout() {
     <div id="partidos-controls" class="segmented" role="group" aria-label="Modo de carga">
       <button id="btn-pendientes" class="segmented__btn" type="button" aria-pressed="true">Pendientes</button>
       <button id="btn-jugados" class="segmented__btn" type="button" aria-pressed="false">Jugados</button>
+      <button id="btn-disputas" class="segmented__btn" type="button" aria-pressed="false">Disputas</button>
     </div>
 
     <div id="search-row" class="search">
@@ -43,6 +44,7 @@ export function initCargaLayout() {
 
   const btnPendientes = document.getElementById('btn-pendientes');
   const btnJugados = document.getElementById('btn-jugados');
+  const btnDisputas = document.getElementById('btn-disputas');
   const msgCont = document.getElementById('partidos-msg');
   const listCont = document.getElementById('partidos-list');
   const searchInput = document.getElementById('search-partidos');
@@ -57,6 +59,7 @@ export function initCargaLayout() {
     copasCont,
     btnPendientes,
     btnJugados,
+    btnDisputas,
     msgCont,
     listCont,
     searchInput,
@@ -65,13 +68,17 @@ export function initCargaLayout() {
 }
 
 export function pintarModoToggle(dom) {
-  const pend = state.modo === 'pendientes';
+  const isPendientes = state.modo === 'pendientes';
+  const isJugados = state.modo === 'jugados';
+  const isDisputas = state.modo === 'disputas';
 
-  dom.btnPendientes.classList.toggle('is-active', pend);
-  dom.btnJugados.classList.toggle('is-active', !pend);
+  dom.btnPendientes.classList.toggle('is-active', isPendientes);
+  dom.btnJugados.classList.toggle('is-active', isJugados);
+  dom.btnDisputas.classList.toggle('is-active', isDisputas);
 
-  dom.btnPendientes.setAttribute('aria-pressed', String(pend));
-  dom.btnJugados.setAttribute('aria-pressed', String(!pend));
+  dom.btnPendientes.setAttribute('aria-pressed', String(isPendientes));
+  dom.btnJugados.setAttribute('aria-pressed', String(isJugados));
+  dom.btnDisputas.setAttribute('aria-pressed', String(isDisputas));
 }
 
 export function wireModoToggle(dom, onChange) {
@@ -82,6 +89,11 @@ export function wireModoToggle(dom, onChange) {
 
   dom.btnJugados.onclick = async () => {
     state.modo = 'jugados';
+    await onChange?.();
+  };
+
+  dom.btnDisputas.onclick = async () => {
+    state.modo = 'disputas';
     await onChange?.();
   };
 }

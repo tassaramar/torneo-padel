@@ -776,6 +776,13 @@ function renderPartidosConfirmados(partidos, identidad) {
             ${esperandoConfirmacion ? '<span class="badge-mini badge-waiting">⏳</span>' : ''}
           </div>
         </div>
+        ${esperandoConfirmacion ? `
+          <div class="partido-actions" style="margin-top: 8px;">
+            <button class="btn-secondary btn-sm" onclick="app.cargarResultado('${p.id}')">
+              ✏️ Editar resultado
+            </button>
+          </div>
+        ` : ''}
       </div>
     `;
   }).join('');
