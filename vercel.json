@@ -3,7 +3,8 @@
     { "source": "/admin", "destination": "/admin/", "permanent": false },
     { "source": "/bracket", "destination": "/bracket/", "permanent": false },
     { "source": "/carga", "destination": "/carga/", "permanent": false },
-    { "source": "/analytics", "destination": "/analytics/", "permanent": false }
+    { "source": "/analytics", "destination": "/analytics/", "permanent": false },
+    { "source": "/general", "destination": "/general/", "permanent": false }
   ],
   "rewrites": [
     { "source": "/", "destination": "/index.html" },
@@ -11,6 +12,7 @@
     { "source": "/carga/", "destination": "/carga.html" },
     { "source": "/admin/", "destination": "/admin.html" },
     { "source": "/bracket/", "destination": "/bracket.html" },
-    { "source": "/analytics/", "destination": "/analytics.html" }
+    { "source": "/analytics/", "destination": "/analytics.html" },
+    { "source": "/general/", "destination": "/general.html" }
   ]
 }
