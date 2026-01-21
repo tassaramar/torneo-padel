@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Swing Padel: Segundo Saque - Mis Partidos</title>
+  <title>Swing Padel: Segundo Saque - Todos los Resultados</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="/style.css" />
 </head>
@@ -12,16 +12,13 @@
     <!-- Header -->
     <div class="viewer-header">
       <h1 class="viewer-title">Swing Padel: Segundo Saque</h1>
-      <div class="viewer-subtitle">Mis Partidos</div>
+      <div class="viewer-subtitle">Todos los Resultados</div>
     </div>
 
-    <!-- Contenedor para card de identidad (se inyecta dinámicamente) -->
-    <div id="viewer-identity-container"></div>
-
-    <!-- Botones de acción principales (grandes, táctiles) -->
+    <!-- Botón para volver a vista personal -->
     <div class="viewer-main-actions">
       <div id="viewer-nav-buttons" class="viewer-nav-slot">
-        <!-- Botón "Ver todos los grupos" dinámico -->
+        <!-- Botón "Ver mis partidos" se inyecta aquí -->
       </div>
       <div id="viewer-status" class="viewer-status-text"></div>
     </div>
@@ -30,6 +27,6 @@
     <div id="viewer-content"></div>
   </div>
 
-  <script type="module" src="/src/personal.js"></script>
+  <script type="module" src="/src/general.js"></script>
 </body>
 </html>

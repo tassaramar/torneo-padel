@@ -10,6 +10,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         viewer: resolve(__dirname, 'index.html'),
+        general: resolve(__dirname, 'general.html'),
         carga: resolve(__dirname, 'carga.html'),
         admin: resolve(__dirname, 'admin.html'),
       },
