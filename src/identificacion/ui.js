@@ -51,15 +51,18 @@ function mostrarPantallaBusqueda() {
   
   app.innerHTML = `
     <div class="identificacion-container">
-      <h1>🎾 ¿Quién sos?</h1>
-      <p class="subtitle">Buscá tu nombre para identificarte</p>
+      <h1>¡Bienvenido al torneo Swing Padel: Segundo Saque! 🎾</h1>
+      <p class="subtitle">Para ver tus partidos, primero necesitamos saber quién sos</p>
       
       <div class="card">
+        <div class="helper-text" style="margin-bottom: 12px; color: var(--muted); font-size: 14px;">
+          💡 Tu nombre como figura en el fixture
+        </div>
         <input 
           type="search" 
           id="search-input" 
           class="identificacion-input"
-          placeholder="Escribí tu nombre..."
+          placeholder="Empezá a escribir tu nombre..."
           autocomplete="off"
         />
         
@@ -90,7 +93,14 @@ function buscarJugador(query) {
   );
   
   if (matches.length === 0) {
-    results.innerHTML = '<div class="no-results">No se encontraron resultados</div>';
+    results.innerHTML = `
+      <div class="no-results">
+        No encontramos ese nombre 🤔<br>
+        <small style="font-size: 13px; display: block; margin-top: 8px;">
+          ¿Probaste con tu nombre completo como figura en el fixture?
+        </small>
+      </div>
+    `;
     return;
   }
   
@@ -140,10 +150,13 @@ function mostrarPantallaCompanero() {
   
   app.innerHTML = `
     <div class="identificacion-container">
-      <h1>Hola ${escapeHtml(state.selectedJugador.nombre)}! 👋</h1>
-      <p class="subtitle">¿Quién es tu compañero?</p>
+      <h1>Perfecto, ${escapeHtml(state.selectedJugador.nombre)}! 👋</h1>
+      <p class="subtitle">Última pregunta: ¿Quién es tu compañero de pareja?</p>
       
       <div class="card">
+        <div class="helper-text" style="margin-bottom: 12px; color: var(--muted); font-size: 14px; text-align: center;">
+          Esto nos ayuda a confirmar tu identidad
+        </div>
         <div class="options-grid">
           ${opciones.map(opt => `
             <button class="option-btn" data-nombre="${escapeHtml(opt.nombre)}" data-correcto="${opt.correcto}">
@@ -201,7 +214,10 @@ function mostrarPantallaExito(identidad) {
       <div class="card">
         <div class="success-icon">✅</div>
         <div class="success-message">
-          <div class="success-title">¡Perfecto!</div>
+          <div class="success-title">¡Perfecto! Ya estás dentro del torneo 🎾</div>
+          <div class="success-details" style="font-size: 15px; font-weight: 600; color: var(--primary-900); margin: 8px 0;">
+            Swing Padel: Segundo Saque
+          </div>
           <div class="success-details">Identificado como:</div>
           <div class="pareja-name">${escapeHtml(identidad.parejaNombre)}</div>
           <div class="success-details">Grupo ${escapeHtml(identidad.grupo)} · Pareja #${identidad.orden}</div>
@@ -237,10 +253,11 @@ function mostrarPantallaError(nombreCompaneroIncorrecto) {
       <div class="card">
         <div class="error-icon">🤔</div>
         <div class="error-message">
-          <div class="error-title">Algo no coincide...</div>
+          <div class="error-title">Mmm... algo no cierra</div>
           <div class="error-text">
-            No encontramos la pareja:<br>
-            <strong>${escapeHtml(combination)}</strong>
+            La pareja <strong>${escapeHtml(combination)}</strong> no coincide con nuestros registros.
+            <br><br>
+            ¿Puede ser que te confundiste de compañero?
           </div>
         </div>
         
