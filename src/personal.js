@@ -163,6 +163,37 @@ async function init() {
   }
 }
 
+/**
+ * Anima la salida de una tarjeta de partido con efecto de éxito
+ * @param {string} partidoId - ID del partido a animar
+ * @returns {Promise} Promise que se resuelve cuando termina la animación
+ */
+function animarPartidoSalida(partidoId) {
+  return new Promise((resolve) => {
+    const tarjeta = document.querySelector(`[data-partido-id="${partidoId}"]`);
+    
+    if (!tarjeta) {
+      // Si no encuentra la tarjeta, continuar sin animación
+      resolve();
+      return;
+    }
+    
+    // Agregar clase de animación
+    tarjeta.classList.add('partido-moving');
+    
+    // Crear y agregar mensaje flotante
+    const mensaje = document.createElement('div');
+    mensaje.className = 'moving-message';
+    mensaje.textContent = '¡Movido a partidos jugados! 🎾';
+    tarjeta.appendChild(mensaje);
+    
+    // Resolver después de que termine la animación (600ms)
+    setTimeout(() => {
+      resolve();
+    }, 600);
+  });
+}
+
 // Exponer funciones globales para onclick en HTML
 window.app = {
   async cargarResultado(partidoId) {
@@ -183,6 +214,9 @@ window.app = {
     if (!partido) return;
 
     mostrarModalCargarResultado(partido, identidad, async (gamesA, gamesB) => {
+      // Animar salida de la tarjeta
+      await animarPartidoSalida(partidoId);
+      
       const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
       
       if (resultado.ok) {
@@ -197,6 +231,9 @@ window.app = {
   async confirmarResultado(partidoId, gamesA, gamesB) {
     const identidad = getIdentidad();
     if (!identidad) return;
+
+    // Animar salida de la tarjeta
+    await animarPartidoSalida(partidoId);
 
     const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
     
@@ -217,6 +254,9 @@ window.app = {
     if (!identidad) return;
 
     if (!confirm('¿Estás seguro de aceptar el resultado de la otra pareja?')) return;
+
+    // Animar salida de la tarjeta
+    await animarPartidoSalida(partidoId);
 
     const resultado = await aceptarOtroResultado(supabase, partidoId, identidad);
     
