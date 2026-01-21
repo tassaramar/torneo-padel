@@ -223,7 +223,7 @@ function renderMainTabs() {
     tabsMainEl,
     [
       { id: 'grupos', label: 'Grupos' },
-      { id: 'copas', label: 'Copas' }
+      { id: 'copas', label: 'Último Saque' }
     ],
     mainTab,
     (id) => {
@@ -444,7 +444,7 @@ function renderCopas() {
   const { copas, partidosCopas } = cache;
 
   if (!copas.length) {
-    contentEl.innerHTML = '<p>No hay copas todavía.</p>';
+    contentEl.innerHTML = '<p>No hay partidos definidos todavía.</p>';
     return;
   }
 

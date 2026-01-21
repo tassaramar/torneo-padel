@@ -1,4 +1,4 @@
-import { logMsg } from './admin/context.js';
+import { logMsg, supabase, TORNEO_ID } from './admin/context.js';
 import { initSafetyLock } from './admin/safetyLock.js';
 
 import { initGroups } from './admin/groups/index.js';
@@ -53,3 +53,101 @@ debugClick('gen-grupos', 'Generar grupos');
 debugClick('reset-copas', 'Reset copas');
 debugClick('gen-copas', 'Generar copas');
 debugClick('gen-finales', 'Generar finales');
+debugClick('reset-resultados', 'Reset resultados');
+
+/* =========================
+   RESET RESULTADOS PRE-TORNEO
+========================= */
+
+export async function resetearResultados() {
+  const confirmacion = confirm(
+    'RESETEAR RESULTADOS\n\n' +
+    'Esto va a:\n' +
+    '• Borrar todos los resultados de partidos\n' +
+    '• Volver todos los partidos a estado "pendiente"\n\n' +
+    'MANTIENE:\n' +
+    '✅ Parejas\n' +
+    '✅ Grupos\n' +
+    '✅ Copas\n' +
+    '✅ Estructura de partidos\n\n' +
+    '¿Continuar?'
+  );
+
+  if (!confirmacion) {
+    logMsg('❌ Operación cancelada');
+    return;
+  }
+
+  logMsg('🧹 Reseteando resultados de partidos...');
+  
+  // Reset de partidos de GRUPOS
+  const { error: errorGrupos, count: countGrupos } = await supabase
+    .from('partidos')
+    .update({ 
+      games_a: null, 
+      games_b: null,
+      estado: 'pendiente',
+      updated_at: new Date().toISOString()
+    })
+    .eq('torneo_id', TORNEO_ID)
+    .is('copa_id', null)
+    .select('id', { count: 'exact', head: false });
+
+  if (errorGrupos) {
+    console.error(errorGrupos);
+    logMsg('❌ Error reseteando partidos de grupos (ver consola)');
+    return;
+  }
+
+  logMsg(`✅ Partidos de grupos reseteados: ${countGrupos || 0}`);
+
+  // Reset de partidos de COPAS
+  const { error: errorCopas, count: countCopas } = await supabase
+    .from('partidos')
+    .update({ 
+      games_a: null, 
+      games_b: null,
+      estado: 'pendiente',
+      updated_at: new Date().toISOString()
+    })
+    .eq('torneo_id', TORNEO_ID)
+    .not('copa_id', 'is', null)
+    .select('id', { count: 'exact', head: false });
+
+  if (errorCopas) {
+    console.error(errorCopas);
+    logMsg('❌ Error reseteando partidos de copas (ver consola)');
+    return;
+  }
+
+  logMsg(`✅ Partidos de copas reseteados: ${countCopas || 0}`);
+
+  // Limpiar posiciones manuales (opcional pero recomendado)
+  const { error: errorPos, count: countPos } = await supabase
+    .from('posiciones_manual')
+    .delete()
+    .eq('torneo_id', TORNEO_ID)
+    .select('id', { count: 'exact', head: false });
+
+  if (errorPos) {
+    console.error(errorPos);
+    logMsg('⚠️ Error limpiando posiciones manuales (ver consola)');
+  } else {
+    logMsg(`✅ Posiciones manuales limpiadas: ${countPos || 0}`);
+  }
+
+  logMsg('');
+  logMsg('🎯 Sistema listo para el torneo');
+  logMsg('💡 Todos los partidos están en estado pendiente');
+  
+  // Refrescar vistas si existen
+  if (window.refreshPartidos) {
+    setTimeout(() => window.refreshPartidos(), 500);
+  }
+}
+
+// Conectar botón de reset resultados
+const btnResetResultados = document.getElementById('reset-resultados');
+if (btnResetResultados) {
+  btnResetResultados.onclick = resetearResultados;
+}

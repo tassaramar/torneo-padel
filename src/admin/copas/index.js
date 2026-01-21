@@ -10,12 +10,14 @@ export function initCopas() {
   const btnAutoAsignar = document.getElementById('auto-asignar-copas');
   const btnGen = document.getElementById('gen-copas');
   const btnFinales = document.getElementById('gen-finales');
+  const btnCrucesDirectos = document.getElementById('gen-cruces-directos-2x5');
 
   if (btnRefresh) btnRefresh.onclick = () => cargarCopasAdmin();
   if (btnReset) btnReset.onclick = () => resetCopasDelTorneo();
   if (btnAutoAsignar) btnAutoAsignar.onclick = () => aplicarAsignacionesAutomaticas();
   if (btnGen) btnGen.onclick = () => generarCopasYSemis();
   if (btnFinales) btnFinales.onclick = () => generarFinalesYTercerPuesto();
+  if (btnCrucesDirectos) btnCrucesDirectos.onclick = () => generarCrucesDirectos2x5();
 
   cargarCopasAdmin();
 }
@@ -1200,5 +1202,132 @@ export async function generarFinalesYTercerPuesto() {
   }
 
   logMsg(`🏁 Listo. Generados: ${totalCreados} partidos.`);
+  await cargarCopasAdmin();
+}
+
+/* =========================
+   CRUCES DIRECTOS 2x5 (TORNEO ESPECÍFICO)
+========================= */
+
+async function obtenerPosicionesFinales(grupoId, grupoNombre) {
+  // Primero intentar orden manual
+  const { data: manual } = await supabase
+    .from('posiciones_manual')
+    .select('pareja_id, orden_manual, parejas(nombre)')
+    .eq('torneo_id', TORNEO_ID)
+    .eq('grupo_id', grupoId)
+    .not('orden_manual', 'is', null)
+    .order('orden_manual');
+    
+  if (manual && manual.length >= 5) {
+    logMsg(`✅ ${grupoNombre}: usando orden manual (${manual.length} parejas)`);
+    return manual.map(m => ({
+      pareja_id: m.pareja_id,
+      nombre: m.parejas?.nombre || '?'
+    }));
+  }
+  
+  // Si no hay manual, calcular automático
+  const calc = await calcularTablaGrupoDB(grupoId);
+  
+  if (!calc.ok || calc.rows.length < 5) {
+    logMsg(`❌ ${grupoNombre}: ${calc.msg || 'no se pudo calcular'}`);
+    return null;
+  }
+  
+  logMsg(`✅ ${grupoNombre}: usando orden automático (${calc.rows.length} parejas)`);
+  return calc.rows.map(r => ({
+    pareja_id: r.pareja_id,
+    nombre: r.nombre
+  }));
+}
+
+export async function generarCrucesDirectos2x5() {
+  logMsg('🎯 Generar Cruces Directos (2x5): validando…');
+  
+  // 1. Detectar formato
+  const formato = await detectarFormatoTorneo();
+  
+  if (formato.numGrupos !== 2 || formato.parejasPorGrupo !== 5) {
+    logMsg(`❌ Esta función es solo para 2 grupos × 5 parejas`);
+    logMsg(`ℹ️ Formato actual: ${formato.numGrupos} grupos × ${formato.parejasPorGrupo} parejas`);
+    return;
+  }
+  
+  // 2. Validar que existan 5 copas
+  const { data: copas } = await supabase
+    .from('copas')
+    .select('id, nombre, orden')
+    .eq('torneo_id', TORNEO_ID)
+    .order('orden');
+    
+  if (!copas || copas.length !== 5) {
+    logMsg(`❌ Necesitás 5 copas creadas (hay ${copas?.length || 0})`);
+    logMsg(`💡 Ejecutá el SQL en Supabase para crear las copas primero`);
+    return;
+  }
+  
+  // 3. Obtener los 2 grupos
+  const { data: grupos } = await supabase
+    .from('grupos')
+    .select('id, nombre')
+    .eq('torneo_id', TORNEO_ID)
+    .order('nombre');
+    
+  if (!grupos || grupos.length !== 2) {
+    logMsg(`❌ Error: se esperaban 2 grupos, hay ${grupos?.length || 0}`);
+    return;
+  }
+  
+  const grupoA = grupos[0];
+  const grupoB = grupos[1];
+  
+  // 4. Obtener posiciones finales de cada grupo
+  const posicionesA = await obtenerPosicionesFinales(grupoA.id, grupoA.nombre);
+  const posicionesB = await obtenerPosicionesFinales(grupoB.id, grupoB.nombre);
+  
+  if (!posicionesA || !posicionesB) {
+    logMsg(`❌ Error obteniendo posiciones finales`);
+    return;
+  }
+  
+  if (posicionesA.length < 5 || posicionesB.length < 5) {
+    logMsg(`❌ Cada grupo debe tener 5 parejas con posiciones definidas`);
+    logMsg(`   Grupo ${grupoA.nombre}: ${posicionesA.length} parejas`);
+    logMsg(`   Grupo ${grupoB.nombre}: ${posicionesB.length} parejas`);
+    return;
+  }
+  
+  // 5. Generar los 5 partidos
+  const inserts = [];
+  
+  for (let i = 0; i < 5; i++) {
+    const copa = copas[i];
+    const parejaA = posicionesA[i]; // 1°, 2°, 3°, 4°, 5°
+    const parejaB = posicionesB[i];
+    
+    inserts.push({
+      torneo_id: TORNEO_ID,
+      grupo_id: null,
+      copa_id: copa.id,
+      pareja_a_id: parejaA.pareja_id,
+      pareja_b_id: parejaB.pareja_id,
+      ronda_copa: null,
+      orden_copa: i + 1
+    });
+    
+    logMsg(`📋 ${copa.nombre}: ${parejaA.nombre} vs ${parejaB.nombre}`);
+  }
+  
+  // 6. Insertar partidos
+  const { error } = await supabase.from('partidos').insert(inserts);
+  
+  if (error) {
+    console.error(error);
+    logMsg('❌ Error creando partidos (ver consola)');
+    return;
+  }
+  
+  logMsg(`✅ Cruces directos creados: ${inserts.length} partidos`);
   await cargarCopasAdmin();
 }
