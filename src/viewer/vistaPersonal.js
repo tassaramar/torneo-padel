@@ -521,7 +521,7 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
         </div>
         <div class="personal-actions">
           <button class="btn-secondary btn-sm" id="btn-change-pareja" type="button">
-            <span style="font-size: 12px;">🔄</span> Cambiar
+            <span style="font-size: 12px;">🔄</span> Elegir otra pareja
           </button>
         </div>
       </div>

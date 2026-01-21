@@ -35,7 +35,7 @@ export function iniciarIdentificacion(parejas, onComplete, containerId = 'app', 
 }
 
 /**
- * Resetea la identificación (para "Cambiar de pareja")
+ * Resetea la identificación (para "Elegir otra pareja")
  */
 export function resetearIdentificacion() {
   clearIdentidad();
