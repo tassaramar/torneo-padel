@@ -30,7 +30,7 @@ function startPolling() {
   // Iniciar polling
   pollingInterval = setInterval(() => {
     console.log('[Polling] Auto-refresh...');
-    init();
+    init(false); // false = no mostrar skeleton en refresh automático
   }, POLLING_INTERVAL_MS);
   
   // Pausar polling cuando tab no está visible (ahorro de recursos)
@@ -118,14 +118,14 @@ function mostrarSkeletonLoading() {
   `;
 }
 
-async function init() {
+async function init(mostrarSkeleton = true) {
   try {
     const identidad = getIdentidad();
     
-    // Mostrar skeleton solo si hay identidad (evitar mostrarlo en pantalla de identificación)
-    if (identidad) {
+    // Mostrar skeleton solo en carga inicial, no en auto-refresh
+    if (identidad && mostrarSkeleton) {
       mostrarSkeletonLoading();
-    } else {
+    } else if (!identidad) {
       setStatus('Cargando…');
     }
     

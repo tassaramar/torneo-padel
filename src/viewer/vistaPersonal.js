@@ -52,7 +52,7 @@ export async function cargarVistaPersonalizada(supabase, torneoId, identidad, on
     const { data: todosPartidosGrupo } = await supabase
       .from('partidos')
       .select(`
-        id, games_a, games_b, ronda,
+        id, games_a, games_b, ronda, estado,
         grupo_id,
         grupos ( nombre ),
         pareja_a:parejas!partidos_pareja_a_id_fkey ( nombre ),
@@ -764,10 +764,102 @@ function renderPartidosConfirmar(partidos, identidad) {
 }
 
 /**
+ * Calcula la ronda más baja que aún debe mostrarse
+ * Una ronda "pasó" si:
+ * - Ya jugué partidos en rondas posteriores, O
+ * - Al menos 1 partido del grupo en esa ronda ya tiene resultado
+ */
+function calcularRondaMinimaAMostrar(misPartidosUsuario, todosPartidosGrupo) {
+  let rondaMinimaPersonal = 1;
+  let rondaMinimaGrupo = 1;
+  
+  // Criterio personal: encontrar la ronda más baja con partido pendiente
+  // Si tengo partidos jugados en rondas posteriores, las anteriores "pasaron"
+  if (misPartidosUsuario && misPartidosUsuario.length > 0) {
+    const partidosJugados = misPartidosUsuario.filter(p => 
+      (p.estado === 'confirmado' || p.estado === 'a_confirmar') &&
+      p.games_a !== null && p.games_b !== null &&
+      p.ronda
+    );
+    
+    const partidosPendientes = misPartidosUsuario.filter(p =>
+      p.estado === 'pendiente' &&
+      p.ronda
+    );
+    
+    if (partidosJugados.length > 0 && partidosPendientes.length > 0) {
+      // Encontrar la ronda mínima pendiente
+      const rondasPendientes = partidosPendientes.map(p => p.ronda);
+      rondaMinimaPersonal = Math.min(...rondasPendientes);
+    }
+  }
+  
+  // Criterio del grupo: por cada ronda, ver si al menos 1 partido ya se jugó
+  if (todosPartidosGrupo && todosPartidosGrupo.length > 0) {
+    // Agrupar partidos del grupo por ronda
+    const partidosPorRonda = {};
+    todosPartidosGrupo.forEach(p => {
+      if (!p.ronda) return;
+      if (!partidosPorRonda[p.ronda]) {
+        partidosPorRonda[p.ronda] = [];
+      }
+      partidosPorRonda[p.ronda].push(p);
+    });
+    
+    // Encontrar la primera ronda donde NINGÚN partido se jugó
+    const rondas = Object.keys(partidosPorRonda).map(Number).sort((a, b) => a - b);
+    
+    for (const ronda of rondas) {
+      const partidos = partidosPorRonda[ronda];
+      const algunoJugado = partidos.some(p => 
+        (p.estado === 'confirmado' || p.estado === 'a_confirmar') &&
+        p.games_a !== null && p.games_b !== null
+      );
+      
+      // Si ningún partido se jugó en esta ronda, esta es la mínima del grupo
+      if (!algunoJugado) {
+        rondaMinimaGrupo = ronda;
+        break;
+      }
+    }
+    
+    // Si todas las rondas tienen al menos 1 partido jugado, 
+    // la mínima es la última ronda + 1 (no mostrar fechas libres pasadas)
+    if (rondaMinimaGrupo === 1 && rondas.length > 0) {
+      const todasTienenJugados = rondas.every(ronda => {
+        const partidos = partidosPorRonda[ronda];
+        return partidos.some(p => 
+          (p.estado === 'confirmado' || p.estado === 'a_confirmar') &&
+          p.games_a !== null && p.games_b !== null
+        );
+      });
+      
+      if (todasTienenJugados) {
+        rondaMinimaGrupo = Math.max(...rondas) + 1;
+      }
+    }
+  }
+  
+  // La ronda mínima a mostrar es la menor entre ambos criterios
+  const rondaMinima = Math.min(rondaMinimaPersonal, rondaMinimaGrupo);
+  
+  console.log('Ronda mínima a mostrar:', {
+    personal: rondaMinimaPersonal,
+    grupo: rondaMinimaGrupo,
+    final: rondaMinima
+  });
+  
+  return rondaMinima;
+}
+
+/**
  * Agrupa partidos por ronda usando la ronda de la BD
  * Detecta fechas libres comparando rondas con partidos vs total de rondas
  */
 function agruparPartidosEnRondas(misPartidosPendientes, todosPartidosGrupo, todosPartidosUsuario, identidad) {
+  // Calcular la ronda mínima a mostrar (fechas libres anteriores no se muestran)
+  const rondaMinima = calcularRondaMinimaAMostrar(todosPartidosUsuario, todosPartidosGrupo);
+  
   // Detectar fechas libres usando los partidos REALES (no recalcular con Circle Method)
   // porque el orden puede no coincidir
   let fechasLibresPorRonda = {};
@@ -821,9 +913,9 @@ function agruparPartidosEnRondas(misPartidosPendientes, todosPartidosGrupo, todo
     });
   }
   
-  // Agregar TODAS las rondas con fecha libre que estén entre la primera y última ronda pendiente
+  // Agregar solo las fechas libres >= rondaMinima (las anteriores ya pasaron)
   if (ultimaRondaPendiente > 0) {
-    for (let ronda = 1; ronda <= ultimaRondaPendiente; ronda++) {
+    for (let ronda = rondaMinima; ronda <= ultimaRondaPendiente; ronda++) {
       if (fechasLibresPorRonda[ronda] && !rondasMap[ronda]) {
         rondasMap[ronda] = {
           numeroRonda: ronda,
