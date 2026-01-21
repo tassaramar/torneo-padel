@@ -503,6 +503,10 @@ async function calcularTablaGrupo(supabase, torneoId, identidad, parejasDelGrupo
  * Renderiza la vista personalizada completa
  */
 function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todosPartidosGrupo, onChangePareja, onVerTodos) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'vistaPersonal.js:505',message:'renderVistaPersonal iniciado',data:{windowAppExiste:typeof window.app !== 'undefined',cargarExiste:typeof window.app?.cargarResultado === 'function'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'TIMING'})}).catch(()=>{});
+  // #endregion
+  
   const contentEl = document.getElementById('viewer-content');
   if (!contentEl) return;
 

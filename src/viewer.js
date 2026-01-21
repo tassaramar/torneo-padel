@@ -22,6 +22,10 @@ const statusEl = document.getElementById('viewer-status');
 const tabsMainEl = document.getElementById('tabs-main');
 const contentEl = document.getElementById('viewer-content');
 
+// #region agent log
+fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:26',message:'ANTES de definir window.app',data:{windowAppExiste:typeof window.app !== 'undefined'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'TIMING'})}).catch(()=>{});
+// #endregion
+
 // Exponer funciones globales INMEDIATAMENTE para onclick en HTML
 // IMPORTANTE: Debe estar antes de cualquier renderizado
 window.app = {
@@ -103,6 +107,10 @@ window.app = {
     await this.cargarResultado(partidoId);
   }
 };
+
+// #region agent log
+fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:120',message:'DESPUES de definir window.app',data:{windowAppExiste:typeof window.app !== 'undefined',cargarExiste:typeof window.app?.cargarResultado === 'function'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'TIMING'})}).catch(()=>{});
+// #endregion
 
 // Polling automático
 let pollingInterval = null;
@@ -853,6 +861,10 @@ async function checkIdentidadYCargar() {
 }
 
 // window.app ya está definido al inicio del archivo (después de las constantes)
+
+// #region agent log
+fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:866',message:'ANTES de checkIdentidadYCargar',data:{windowAppExiste:typeof window.app !== 'undefined',cargarExiste:typeof window.app?.cargarResultado === 'function'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'TIMING'})}).catch(()=>{});
+// #endregion
 
 // Iniciar la app con check de identidad
 checkIdentidadYCargar();
