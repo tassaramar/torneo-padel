@@ -388,6 +388,21 @@ async function calcularTablaGrupo(supabase, torneoId, identidad, parejasDelGrupo
       });
     }
 
+    // Calcular posición automática (sin overrides) para cada pareja
+    const tablaAuto = Object.values(stats).sort((a, b) => {
+      if (b.puntos !== a.puntos) return b.puntos - a.puntos;
+      const difA = a.gamesAFavor - a.gamesEnContra;
+      const difB = b.gamesAFavor - b.gamesEnContra;
+      if (difB !== difA) return difB - difA;
+      return b.gamesAFavor - a.gamesAFavor;
+    });
+
+    // Mapear posición automática (índice + 1)
+    const autoPosMap = {};
+    tablaAuto.forEach((s, idx) => {
+      autoPosMap[s.parejaId] = idx + 1;
+    });
+
     // Ordenar: primero por overrides, luego por criterio automático
     let tabla = Object.values(stats);
 
@@ -409,6 +424,14 @@ async function calcularTablaGrupo(supabase, torneoId, identidad, parejasDelGrupo
 
     // Tabla final: overrides primero, luego automáticos
     tabla = [...conOverride, ...sinOverride];
+
+    // Agregar posición automática y delta a cada elemento
+    tabla.forEach((s, idx) => {
+      s.posicionActual = idx + 1;
+      s.posicionAuto = autoPosMap[s.parejaId];
+      s.delta = s.posicionAuto - s.posicionActual;
+      s.tieneOverride = overridesMap[s.parejaId] !== undefined;
+    });
 
     return tabla;
 
@@ -534,10 +557,18 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
                       pareja.empatado ? 'empatado' : ''
                     ].filter(Boolean).join(' ');
                     
+                    // Indicador de cambio de posición (si hay override)
+                    let indicadorPosicion = '';
+                    if (pareja.delta !== 0 && pareja.tieneOverride) {
+                      const txt = pareja.delta > 0 ? `+${pareja.delta}` : `${pareja.delta}`;
+                      const color = pareja.delta > 0 ? '#1a7f37' : '#d1242f'; // Verde si bajó, rojo si subió
+                      indicadorPosicion = ` <sup style="font-size:11px; color:${color}; font-weight:700; margin-left:4px;">${txt}</sup>`;
+                    }
+                    
                     return `
                       <tr class="${clases}">
                         <td class="pos-col">${idx + 1}</td>
-                        <td class="nombre-col">${escapeHtml(pareja.nombre)}</td>
+                        <td class="nombre-col">${escapeHtml(pareja.nombre)}${indicadorPosicion}</td>
                         <td class="stat-col">${pareja.jugados}</td>
                         <td class="stat-col">${pareja.ganados}</td>
                         <td class="stat-col">${pareja.perdidos}</td>
