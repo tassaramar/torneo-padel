@@ -21,6 +21,9 @@ const statusEl = document.getElementById('viewer-status');
 let pollingInterval = null;
 const POLLING_INTERVAL_MS = 30000; // 30 segundos
 
+// Tracking de partidos para detectar cambios
+let partidosAnteriores = null;
+
 function startPolling() {
   stopPolling();
   
@@ -93,11 +96,38 @@ function agregarGrupoAParejas(parejas, grupos) {
   });
 }
 
+/**
+ * Muestra skeleton loading mientras carga
+ */
+function mostrarSkeletonLoading() {
+  const contentEl = document.getElementById('viewer-content');
+  if (!contentEl) return;
+  
+  contentEl.innerHTML = `
+    <div class="vista-personal">
+      <div class="skeleton skeleton-header"></div>
+      <div class="skeleton-dashboard">
+        <div class="skeleton skeleton-stat-card"></div>
+        <div class="skeleton skeleton-stat-card"></div>
+        <div class="skeleton skeleton-stat-card"></div>
+      </div>
+      <div class="skeleton skeleton-partido"></div>
+      <div class="skeleton skeleton-partido"></div>
+      <div class="skeleton skeleton-partido"></div>
+    </div>
+  `;
+}
+
 async function init() {
   try {
-    setStatus('Cargando…');
-    
     const identidad = getIdentidad();
+    
+    // Mostrar skeleton solo si hay identidad (evitar mostrarlo en pantalla de identificación)
+    if (identidad) {
+      mostrarSkeletonLoading();
+    } else {
+      setStatus('Cargando…');
+    }
     
     if (!identidad) {
       // No está identificado, cargar parejas y mostrar flujo de identificación
@@ -146,13 +176,23 @@ async function init() {
     }
     
     // Usuario identificado, cargar vista personalizada
-    await cargarVistaPersonalizada(
+    const resultado = await cargarVistaPersonalizada(
       supabase,
       TORNEO_ID,
       identidad,
       cambiarDePareja,
       verVistaGeneral
     );
+    
+    // Detectar y destacar cambios después del polling
+    if (partidosAnteriores && resultado.ok) {
+      detectarYDestacarCambios(partidosAnteriores, resultado.partidos);
+    }
+    
+    // Guardar estado actual para próxima comparación
+    if (resultado.ok) {
+      partidosAnteriores = resultado.partidos;
+    }
     
     setStatus(`Actualizado ${nowStr()}`);
   } catch (e) {
@@ -192,6 +232,50 @@ function animarPartidoSalida(partidoId) {
       resolve();
     }, 600);
   });
+}
+
+/**
+ * Detecta cambios entre dos estados de partidos y destaca visualmente
+ */
+function detectarYDestacarCambios(partidosAnteriores, partidosNuevos) {
+  // Crear mapas de partidos por ID para comparación fácil
+  const mapaAnterior = new Map();
+  
+  // Aplanar categorías anteriores
+  ['enRevision', 'porConfirmar', 'porCargar', 'confirmados'].forEach(cat => {
+    (partidosAnteriores[cat] || []).forEach(p => {
+      mapaAnterior.set(p.id, { estado: p.estado, updated_at: p.updated_at });
+    });
+  });
+  
+  const partidosCambiados = [];
+  
+  // Detectar cambios en nuevos partidos
+  ['enRevision', 'porConfirmar', 'porCargar', 'confirmados'].forEach(cat => {
+    (partidosNuevos[cat] || []).forEach(p => {
+      const anterior = mapaAnterior.get(p.id);
+      
+      // Es nuevo o cambió de estado/updated_at
+      if (!anterior || anterior.estado !== p.estado || anterior.updated_at !== p.updated_at) {
+        partidosCambiados.push(p.id);
+      }
+    });
+  });
+  
+  // Aplicar animación de destaque a partidos cambiados
+  setTimeout(() => {
+    partidosCambiados.forEach(partidoId => {
+      const tarjeta = document.querySelector(`[data-partido-id="${partidoId}"]`);
+      if (tarjeta) {
+        tarjeta.classList.add('partido-actualizado');
+        
+        // Remover clase después de la animación
+        setTimeout(() => {
+          tarjeta.classList.remove('partido-actualizado');
+        }, 2000);
+      }
+    });
+  }, 100);
 }
 
 /**

@@ -371,6 +371,7 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
           </div>
         </div>
         
+        <div id="error-validation" class="error-validation"></div>
         <div id="mensaje-preview" class="mensaje-preview"></div>
 
         ${gamesAPrevia !== null ? `
@@ -443,22 +444,37 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   document.getElementById('input-mis-games').addEventListener('input', actualizarPreview);
   document.getElementById('input-rival-games').addEventListener('input', actualizarPreview);
   
+  const mostrarError = (mensaje) => {
+    const errorDiv = document.getElementById('error-validation');
+    errorDiv.textContent = mensaje;
+    errorDiv.style.display = 'block';
+    
+    // Animar entrada
+    setTimeout(() => errorDiv.classList.add('show'), 10);
+    
+    // Auto-ocultar después de 3 segundos
+    setTimeout(() => {
+      errorDiv.classList.remove('show');
+      setTimeout(() => errorDiv.style.display = 'none', 300);
+    }, 3000);
+  };
+
   document.getElementById('modal-submit').addEventListener('click', () => {
     const misGames = parseInt(document.getElementById('input-mis-games').value);
     const rivalGames = parseInt(document.getElementById('input-rival-games').value);
 
     if (isNaN(misGames) || isNaN(rivalGames)) {
-      alert('Por favor ingresá ambos resultados.');
+      mostrarError('Por favor ingresá ambos resultados.');
       return;
     }
 
     if (misGames < 0 || rivalGames < 0) {
-      alert('Los resultados no pueden ser negativos.');
+      mostrarError('Los resultados no pueden ser negativos.');
       return;
     }
 
     if (misGames === rivalGames) {
-      alert('No se puede empatar en pádel. Revisá el resultado.');
+      mostrarError('No se puede empatar en pádel. Revisá el resultado.');
       return;
     }
 

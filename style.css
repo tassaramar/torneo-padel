@@ -1712,12 +1712,21 @@ tbody td:first-child{
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(15, 23, 42, 0.7);
+  background: rgba(15, 23, 42, 0);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
   padding: 20px;
+  opacity: 0;
+  animation: modalFadeIn 0.3s ease forwards;
+}
+
+@keyframes modalFadeIn {
+  to {
+    opacity: 1;
+    background: rgba(15, 23, 42, 0.7);
+  }
 }
 
 .modal-content {
@@ -1729,6 +1738,16 @@ tbody td:first-child{
   max-width: 480px;
   max-height: 90vh;
   overflow: auto;
+  transform: translateY(20px) scale(0.95);
+  opacity: 0;
+  animation: modalSlideIn 0.3s ease forwards 0.1s;
+}
+
+@keyframes modalSlideIn {
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
 }
 
 .modal-header {
@@ -1839,6 +1858,26 @@ tbody td:first-child{
 }
 
 /* ===== Preview de resultado en modal ===== */
+.error-validation {
+  display: none;
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: #FEE2E2;
+  border: 1px solid #EF4444;
+  border-radius: 10px;
+  color: #B91C1C;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.3s, transform 0.3s;
+}
+
+.error-validation.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .mensaje-preview {
   margin-top: 16px;
   min-height: 40px;
@@ -2394,6 +2433,33 @@ tbody td:first-child{
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* Animación para partidos actualizados por polling */
+.partido-actualizado {
+  animation: partidoActualizado 2s ease;
+}
+
+@keyframes partidoActualizado {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: var(--shadow);
+  }
+  5% {
+    transform: scale(1.02);
+  }
+  10% {
+    transform: scale(1);
+  }
+  0%, 30% {
+    box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.4);
+  }
+  15% {
+    box-shadow: 0 0 0 8px rgba(20, 184, 166, 0.4);
+  }
+  30%, 100% {
+    box-shadow: 0 0 0 0 rgba(20, 184, 166, 0);
+  }
+}
+
 /* ===== Toast de Error ===== */
 .toast-error {
   position: fixed;
@@ -2415,4 +2481,50 @@ tbody td:first-child{
 
 .toast-error.show {
   top: 24px;
+}
+
+/* ===== Skeleton Loading ===== */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--border) 0%,
+    #f0f0f0 50%,
+    var(--border) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton-header {
+  height: 80px;
+  margin-bottom: 20px;
+  border-radius: 14px;
+}
+
+.skeleton-dashboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.skeleton-stat-card {
+  height: 90px;
+  border-radius: 12px;
+}
+
+.skeleton-partido {
+  height: 120px;
+  margin-bottom: 14px;
+  border-radius: 14px;
 }
