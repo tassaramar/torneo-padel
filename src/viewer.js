@@ -3,7 +3,7 @@ import { agruparEnRondas } from './carga/partidosGrupos.js';
 import { obtenerFrasesUnicas } from './utils/frasesFechaLibre.js';
 import { getIdentidad, clearIdentidad } from './identificacion/identidad.js';
 import { iniciarIdentificacion } from './identificacion/ui.js';
-import { cargarVistaPersonalizada, setHandlers } from './viewer/vistaPersonal.js';
+import { cargarVistaPersonalizada } from './viewer/vistaPersonal.js';
 import { 
   cargarResultado, 
   aceptarOtroResultado,
@@ -17,82 +17,10 @@ const supabase = createClient(
 
 const TORNEO_ID = 'ad58a855-fa74-4c2e-825e-32c20f972136';
 
-// Inicializar handlers tan pronto como sea posible
-// Esto se ejecuta sincrónicamente al cargar el módulo
-
 const btnRefresh = document.getElementById('viewer-refresh');
 const statusEl = document.getElementById('viewer-status');
 const tabsMainEl = document.getElementById('tabs-main');
 const contentEl = document.getElementById('viewer-content');
-
-// Definir handlers que se pasarán a vistaPersonal
-const handlers = {
-  async cargarResultado(partidoId) {
-    const identidad = getIdentidad();
-    
-    if (!identidad) {
-      alert('Error: No se encontró tu identificación. Por favor, recargá la página.');
-      return;
-    }
-
-    // Buscar partido
-    const { data: partido, error: errorPartido } = await supabase
-      .from('partidos')
-      .select(`
-        id, games_a, games_b, estado,
-        pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
-        pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
-      `)
-      .eq('id', partidoId)
-      .single();
-
-    if (!partido) {
-      alert('Error: No se pudo cargar el partido. ' + (errorPartido?.message || ''));
-      return;
-    }
-
-    mostrarModalCargarResultado(partido, identidad, async (gamesA, gamesB) => {
-      const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
-      
-      if (resultado.ok) {
-        alert(resultado.mensaje);
-        await init('personal');
-      } else {
-        alert('Error: ' + resultado.mensaje);
-      }
-    });
-  },
-
-  async confirmarResultado(partidoId, gamesA, gamesB) {
-    const identidad = getIdentidad();
-    if (!identidad) return;
-
-    const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
-    
-    if (resultado.ok) {
-      alert(resultado.mensaje);
-      await init('personal');
-    } else {
-      alert('Error: ' + resultado.mensaje);
-    }
-  },
-
-  async aceptarOtroResultado(partidoId) {
-    const identidad = getIdentidad();
-    if (!identidad) return;
-
-    if (!confirm('¿Estás seguro de aceptar el resultado de la otra pareja?')) return;
-
-    const resultado = await aceptarOtroResultado(supabase, partidoId, identidad);
-    
-    if (resultado.ok) {
-      alert(resultado.mensaje);
-      await init('personal');
-    } else {
-      alert('Error: ' + resultado.mensaje);
-    }
-  }
-};
 
 // Polling automático
 let pollingInterval = null;
@@ -773,9 +701,6 @@ function agregarGrupoAParejas(parejas, grupos) {
 }
 
 async function checkIdentidadYCargar() {
-  // Pasar los handlers a vistaPersonal ANTES de cualquier renderizado
-  setHandlers(handlers);
-  
   // Verificar si se solicitó vista completa
   const mostrarVistaCompleta = sessionStorage.getItem('mostrarVistaCompleta');
   if (mostrarVistaCompleta) {
@@ -845,9 +770,76 @@ async function checkIdentidadYCargar() {
   }
 }
 
-// #region agent log
-fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:866',message:'ANTES de checkIdentidadYCargar',data:{windowAppExiste:typeof window.app !== 'undefined',cargarExiste:typeof window.app?.cargarResultado === 'function'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'TIMING'})}).catch(()=>{});
-// #endregion
+// Exponer funciones globales para onclick en HTML
+window.app = {
+  async cargarResultado(partidoId) {
+    const identidad = getIdentidad();
+    if (!identidad) return;
+
+    // Buscar partido en cache o fetche ar
+    const { data: partido } = await supabase
+      .from('partidos')
+      .select(`
+        id, games_a, games_b, estado,
+        pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
+        pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
+      `)
+      .eq('id', partidoId)
+      .single();
+
+    if (!partido) return;
+
+    mostrarModalCargarResultado(partido, identidad, async (gamesA, gamesB) => {
+      const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
+      
+      if (resultado.ok) {
+        alert(resultado.mensaje);
+        await init('personal'); // Recargar vista personalizada
+      } else {
+        alert('Error: ' + resultado.mensaje);
+      }
+    });
+  },
+
+  async confirmarResultado(partidoId, gamesA, gamesB) {
+    const identidad = getIdentidad();
+    if (!identidad) return;
+
+    const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
+    
+    if (resultado.ok) {
+      alert(resultado.mensaje);
+      await init('personal');
+    } else {
+      alert('Error: ' + resultado.mensaje);
+    }
+  },
+
+  async cargarResultadoDiferente(partidoId) {
+    // Mismo que cargarResultado pero con mensaje diferente
+    await this.cargarResultado(partidoId);
+  },
+
+  async aceptarOtroResultado(partidoId) {
+    const identidad = getIdentidad();
+    if (!identidad) return;
+
+    if (!confirm('¿Estás seguro de aceptar el resultado de la otra pareja?')) return;
+
+    const resultado = await aceptarOtroResultado(supabase, partidoId, identidad);
+    
+    if (resultado.ok) {
+      alert(resultado.mensaje);
+      await init('personal');
+    } else {
+      alert('Error: ' + resultado.mensaje);
+    }
+  },
+
+  async recargarResultado(partidoId) {
+    await this.cargarResultado(partidoId);
+  }
+};
 
 // Iniciar la app con check de identidad
 checkIdentidadYCargar();

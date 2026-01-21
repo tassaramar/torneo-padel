@@ -6,17 +6,6 @@
 import { getMensajeResultado } from '../utils/mensajesResultado.js';
 import { obtenerFrasesUnicas } from '../utils/frasesFechaLibre.js';
 
-// Almacenar referencias a las funciones que se pasarán desde viewer.js
-let handlerCargarResultado = null;
-let handlerConfirmarResultado = null;
-let handlerAceptarOtroResultado = null;
-
-export function setHandlers(handlers) {
-  handlerCargarResultado = handlers.cargarResultado;
-  handlerConfirmarResultado = handlers.confirmarResultado;
-  handlerAceptarOtroResultado = handlers.aceptarOtroResultado;
-}
-
 export async function cargarVistaPersonalizada(supabase, torneoId, identidad, onChangePareja, onVerTodos) {
   try {
     // Fetch grupos del torneo
@@ -514,10 +503,6 @@ async function calcularTablaGrupo(supabase, torneoId, identidad, parejasDelGrupo
  * Renderiza la vista personalizada completa
  */
 function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todosPartidosGrupo, onChangePareja, onVerTodos) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'vistaPersonal.js:505',message:'renderVistaPersonal iniciado',data:{windowAppExiste:typeof window.app !== 'undefined',cargarExiste:typeof window.app?.cargarResultado === 'function'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'TIMING'})}).catch(()=>{});
-  // #endregion
-  
   const contentEl = document.getElementById('viewer-content');
   if (!contentEl) return;
 
@@ -680,9 +665,6 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
   const todosPartidos = [...partidos.enRevision, ...partidos.porConfirmar, ...partidos.porCargar, ...partidos.confirmados];
   renderPartidosCargar(partidos.porCargar, renderVistaPersonal._todosPartidosGrupo, todosPartidos, identidad);
   renderPartidosConfirmados(partidos.confirmados, identidad);
-  
-  // Agregar event delegation para todos los botones de acción
-  agregarEventListenersPartidos();
 }
 
 /**
@@ -729,10 +711,10 @@ function renderPartidosRevision(partidos, identidad) {
         </div>
         
         <div class="partido-actions">
-          <button class="btn-primary" data-action="aceptar-resultado" data-partido-id="${p.id}">
+          <button class="btn-primary" onclick="app.aceptarOtroResultado('${p.id}')">
             ✅ Aceptar resultado de ${escapeHtml(oponente)}
           </button>
-          <button class="btn-secondary" data-action="recargar-resultado" data-partido-id="${p.id}">
+          <button class="btn-secondary" onclick="app.recargarResultado('${p.id}')">
             🔄 Volver a cargar mi resultado
           </button>
         </div>
@@ -769,10 +751,10 @@ function renderPartidosConfirmar(partidos, identidad) {
         </div>
         
         <div class="partido-actions">
-          <button class="btn-primary" data-action="confirmar-resultado" data-partido-id="${p.id}" data-games-a="${p.games_a}" data-games-b="${p.games_b}">
+          <button class="btn-primary" onclick="app.confirmarResultado('${p.id}', ${p.games_a}, ${p.games_b})">
             ✅ Confirmar este resultado
           </button>
-          <button class="btn-secondary" data-action="cargar-diferente" data-partido-id="${p.id}">
+          <button class="btn-secondary" onclick="app.cargarResultadoDiferente('${p.id}')">
             ✏️ Cargar resultado diferente
           </button>
         </div>
@@ -913,7 +895,7 @@ function renderPartidosCargar(partidosPendientes, todosPartidosGrupo, todosParti
           ` : ''}
           
           <div class="partido-actions">
-            <button class="btn-primary" data-action="cargar-resultado" data-partido-id="${p.id}">
+            <button class="btn-primary" onclick="app.cargarResultado('${p.id}')">
               ${esperandoConfirmacion ? '✏️ Editar resultado' : '📝 Cargar resultado'}
             </button>
           </div>
@@ -968,7 +950,7 @@ function renderPartidosConfirmados(partidos, identidad) {
         </div>
         ${esperandoConfirmacion ? `
           <div class="partido-actions" style="margin-top: 8px;">
-            <button class="btn-secondary btn-sm" data-action="cargar-resultado" data-partido-id="${p.id}">
+            <button class="btn-secondary btn-sm" onclick="app.cargarResultado('${p.id}')">
               ✏️ Editar resultado
             </button>
           </div>
@@ -1037,58 +1019,4 @@ function agregarBotonVerTodos(onVerTodos) {
   btnVerTodos.addEventListener('click', onVerTodos);
   
   navContainer.appendChild(btnVerTodos);
-}
-
-/**
- * Agrega event listeners usando event delegation para todos los botones de acción
- */
-function agregarEventListenersPartidos() {
-  const contentEl = document.getElementById('viewer-content');
-  if (!contentEl) return;
-  
-  // Usar event delegation: un solo listener en el contenedor padre
-  contentEl.addEventListener('click', async (e) => {
-    const button = e.target.closest('[data-action]');
-    if (!button) return;
-    
-    const action = button.dataset.action;
-    const partidoId = button.dataset.partidoId;
-    
-    // Prevenir múltiples clicks
-    if (button.disabled) return;
-    
-    try {
-      // Verificar que los handlers estén disponibles
-      if (!handlerCargarResultado || !handlerConfirmarResultado || !handlerAceptarOtroResultado) {
-        console.error('Los handlers no están inicializados');
-        alert('Error: El sistema no está completamente cargado. Por favor, recargá la página.');
-        return;
-      }
-      
-      switch (action) {
-        case 'cargar-resultado':
-          await handlerCargarResultado(partidoId);
-          break;
-        case 'confirmar-resultado':
-          const gamesA = parseInt(button.dataset.gamesA);
-          const gamesB = parseInt(button.dataset.gamesB);
-          await handlerConfirmarResultado(partidoId, gamesA, gamesB);
-          break;
-        case 'cargar-diferente':
-          await handlerCargarResultado(partidoId);
-          break;
-        case 'aceptar-resultado':
-          await handlerAceptarOtroResultado(partidoId);
-          break;
-        case 'recargar-resultado':
-          await handlerCargarResultado(partidoId);
-          break;
-        default:
-          console.warn('Acción desconocida:', action);
-      }
-    } catch (error) {
-      console.error('Error ejecutando acción:', error);
-      alert('Error: ' + error.message);
-    }
-  });
 }
