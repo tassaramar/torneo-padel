@@ -292,6 +292,48 @@ function categorizarPartidos(partidos, identidad) {
 }
 
 /**
+ * Detecta empates reales y asigna colores diferentes a cada grupo
+ */
+function detectarEmpatesReales(rows) {
+  const buckets = new Map();
+  for (const r of rows) {
+    const key = `${r.puntos}|${(r.gamesAFavor - r.gamesEnContra)}|${r.gamesAFavor}`;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(r);
+  }
+
+  // Colores para diferentes grupos de empate
+  const colors = [
+    { bg: '#fff3cd', border: '#d39e00' }, // Amarillo
+    { bg: '#e3f2fd', border: '#1976d2' }, // Azul
+    { bg: '#e8f5e9', border: '#43a047' }, // Verde
+    { bg: '#fce4ec', border: '#c2185b' }, // Rosa
+    { bg: '#f3e5f5', border: '#7b1fa2' }, // Púrpura
+    { bg: '#fff8e1', border: '#f57c00' }, // Naranja claro
+  ];
+
+  const tieGroups = [];
+  let colorIndex = 0;
+
+  for (const arr of buckets.values()) {
+    if (arr.length >= 2) {
+      const color = colors[colorIndex % colors.length];
+      
+      const group = {
+        parejaIds: arr.map(x => x.parejaId),
+        color: color,
+        size: arr.length
+      };
+      
+      tieGroups.push(group);
+      colorIndex++;
+    }
+  }
+
+  return { tieGroups };
+}
+
+/**
  * Calcula la tabla de posiciones del grupo
  */
 async function calcularTablaGrupo(supabase, torneoId, identidad, parejasDelGrupo) {
@@ -403,6 +445,19 @@ async function calcularTablaGrupo(supabase, torneoId, identidad, parejasDelGrupo
       autoPosMap[s.parejaId] = idx + 1;
     });
 
+    // Detectar empates reales con colores
+    const { tieGroups } = detectarEmpatesReales(Object.values(stats));
+
+    // Crear mapa de color por pareja
+    const tieColorMap = {};
+    if (tieGroups) {
+      tieGroups.forEach(group => {
+        group.parejaIds.forEach(parejaId => {
+          tieColorMap[parejaId] = group.color;
+        });
+      });
+    }
+
     // Ordenar: primero por overrides, luego por criterio automático
     let tabla = Object.values(stats);
 
@@ -431,6 +486,7 @@ async function calcularTablaGrupo(supabase, torneoId, identidad, parejasDelGrupo
       s.posicionAuto = autoPosMap[s.parejaId];
       s.delta = s.posicionAuto - s.posicionActual;
       s.tieneOverride = overridesMap[s.parejaId] !== undefined;
+      s.colorEmpate = tieColorMap[s.parejaId] || null;
     });
 
     return tabla;
@@ -564,9 +620,15 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
                       const color = pareja.delta > 0 ? '#1a7f37' : '#d1242f'; // Verde si bajó, rojo si subió
                       indicadorPosicion = ` <sup style="font-size:11px; color:${color}; font-weight:700; margin-left:4px;">${txt}</sup>`;
                     }
+
+                    // Estilo de empate (si aplica)
+                    let styleEmpate = '';
+                    if (pareja.colorEmpate) {
+                      styleEmpate = `background: ${pareja.colorEmpate.bg}; border-left: 4px solid ${pareja.colorEmpate.border};`;
+                    }
                     
                     return `
-                      <tr class="${clases}">
+                      <tr class="${clases}" style="${styleEmpate}">
                         <td class="pos-col">${idx + 1}</td>
                         <td class="nombre-col">${escapeHtml(pareja.nombre)}${indicadorPosicion}</td>
                         <td class="stat-col">${pareja.jugados}</td>

@@ -141,7 +141,46 @@ async function fetchAll() {
    Desempate: P -> DG -> GF
 ========================= */
 
-function computeTablaGrupo(partidos) {
+function detectarEmpatesReales(rows) {
+  const buckets = new Map();
+  for (const r of rows) {
+    const key = `${r.P}|${r.DG}|${r.GF}`;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(r);
+  }
+
+  // Colores para diferentes grupos de empate
+  const colors = [
+    { bg: '#fff3cd', border: '#d39e00' }, // Amarillo
+    { bg: '#e3f2fd', border: '#1976d2' }, // Azul
+    { bg: '#e8f5e9', border: '#43a047' }, // Verde
+    { bg: '#fce4ec', border: '#c2185b' }, // Rosa
+    { bg: '#f3e5f5', border: '#7b1fa2' }, // Púrpura
+    { bg: '#fff8e1', border: '#f57c00' }, // Naranja claro
+  ];
+
+  const tieGroups = [];
+  let colorIndex = 0;
+
+  for (const arr of buckets.values()) {
+    if (arr.length >= 2) {
+      const color = colors[colorIndex % colors.length];
+      
+      const group = {
+        parejaIds: arr.map(x => x.pareja_id),
+        color: color,
+        size: arr.length
+      };
+      
+      tieGroups.push(group);
+      colorIndex++;
+    }
+  }
+
+  return { tieGroups };
+}
+
+async function computeTablaGrupoConOverrides(grupoId, partidos) {
   const map = {};
 
   function initPareja(p) {
@@ -188,12 +227,77 @@ function computeTablaGrupo(partidos) {
     }
   }
 
-  return Object.values(map).sort((x, y) => {
+  const rowsBase = Object.values(map);
+
+  // Calcular tabla ordenada automáticamente
+  const tablaAuto = [...rowsBase].sort((x, y) => {
     if (y.P !== x.P) return y.P - x.P;
     if (y.DG !== x.DG) return y.DG - x.DG;
     if (y.GF !== x.GF) return y.GF - x.GF;
     return String(x.nombre).localeCompare(String(y.nombre));
   });
+
+  // Crear mapa de posición automática
+  const autoPosMap = {};
+  tablaAuto.forEach((r, idx) => {
+    autoPosMap[r.pareja_id] = idx + 1;
+  });
+
+  // Detectar empates
+  const { tieGroups } = detectarEmpatesReales(rowsBase);
+
+  // Crear mapa de color por pareja
+  const tieColorMap = {};
+  if (tieGroups) {
+    tieGroups.forEach(group => {
+      group.parejaIds.forEach(parejaId => {
+        tieColorMap[parejaId] = group.color;
+      });
+    });
+  }
+
+  // Obtener overrides manuales
+  const { data: overrides } = await supabase
+    .from('posiciones_manual')
+    .select('pareja_id, orden_manual')
+    .eq('torneo_id', TORNEO_ID)
+    .eq('grupo_id', grupoId);
+
+  const overridesMap = {};
+  if (overrides && overrides.length > 0) {
+    overrides.forEach(ov => {
+      overridesMap[ov.pareja_id] = ov.orden_manual;
+    });
+  }
+
+  // Separar con y sin override
+  const conOverride = rowsBase.filter(s => overridesMap[s.pareja_id] !== undefined);
+  const sinOverride = rowsBase.filter(s => overridesMap[s.pareja_id] === undefined);
+
+  // Ordenar con override por orden_manual
+  conOverride.sort((a, b) => overridesMap[a.pareja_id] - overridesMap[b.pareja_id]);
+
+  // Ordenar sin override por criterio automático
+  sinOverride.sort((a, b) => {
+    if (b.P !== a.P) return b.P - a.P;
+    if (b.DG !== a.DG) return b.DG - a.DG;
+    if (b.GF !== a.GF) return b.GF - a.GF;
+    return String(a.nombre).localeCompare(String(b.nombre));
+  });
+
+  // Tabla final
+  const tabla = [...conOverride, ...sinOverride];
+
+  // Agregar metadata
+  tabla.forEach((s, idx) => {
+    s.posicionActual = idx + 1;
+    s.posicionAuto = autoPosMap[s.pareja_id];
+    s.delta = s.posicionAuto - s.posicionActual;
+    s.tieneOverride = overridesMap[s.pareja_id] !== undefined;
+    s.colorEmpate = tieColorMap[s.pareja_id] || null;
+  });
+
+  return tabla;
 }
 
 /* =========================
@@ -214,14 +318,14 @@ function renderMainTabs() {
       { id: 'copas', label: 'Último Saque' }
     ],
     mainTab,
-    (id) => {
+    async (id) => {
       mainTab = id;
-      render();
+      await render();
     }
   );
 }
 
-function render() {
+async function render() {
   renderMainTabs();
 
   if (!cache) {
@@ -229,7 +333,7 @@ function render() {
     return;
   }
 
-  if (mainTab === 'grupos') renderGrupos();
+  if (mainTab === 'grupos') await renderGrupos();
   else renderCopas();
 }
 
@@ -336,7 +440,7 @@ function renderPartidosConRondas(partidos) {
   return html;
 }
 
-function renderGrupos() {
+async function renderGrupos() {
   const { grupos, partidosGrupo } = cache;
 
   if (!grupos.length) {
@@ -353,9 +457,9 @@ function renderGrupos() {
     subtabs,
     grupos.map(g => ({ id: g.id, label: g.nombre })),
     activeGrupoId,
-    (id) => {
+    async (id) => {
       activeGrupoId = id;
-      render();
+      await render();
     }
   );
 
@@ -374,7 +478,7 @@ function renderGrupos() {
   const jugados = partidosDelGrupo.filter(p => p.games_a !== null && p.games_b !== null).length;
   const total = partidosDelGrupo.length;
 
-  const tabla = computeTablaGrupo(partidosDelGrupo);
+  const tabla = await computeTablaGrupoConOverrides(activeGrupoId, partidosDelGrupo);
 
   const wrap = document.createElement('div');
   wrap.innerHTML = `
@@ -396,14 +500,32 @@ function renderGrupos() {
             </tr>
           </thead>
           <tbody>
-            ${tabla.map((r, idx) => `
-              <tr class="${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">
-                <td>${r.nombre}</td>
-                <td>${r.PJ}</td><td>${r.PG}</td><td>${r.PP}</td>
-                <td>${r.GF}</td><td>${r.GC}</td><td>${r.DG}</td>
-                <td><strong>${r.P}</strong></td>
-              </tr>
-            `).join('')}
+            ${tabla.map((r, idx) => {
+              // Indicador de cambio de posición (si hay override)
+              let indicadorPosicion = '';
+              if (r.delta !== 0 && r.tieneOverride) {
+                const txt = r.delta > 0 ? `+${r.delta}` : `${r.delta}`;
+                const color = r.delta > 0 ? '#1a7f37' : '#d1242f';
+                indicadorPosicion = ` <sup style="font-size:11px; color:${color}; font-weight:700; margin-left:4px;">${txt}</sup>`;
+              }
+
+              // Estilo de empate (si aplica)
+              let styleEmpate = '';
+              if (r.colorEmpate) {
+                styleEmpate = `background: ${r.colorEmpate.bg}; border-left: 4px solid ${r.colorEmpate.border};`;
+              }
+
+              const rankClass = idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : '';
+              
+              return `
+                <tr class="${rankClass}" style="${styleEmpate}">
+                  <td>${r.nombre}${indicadorPosicion}</td>
+                  <td>${r.PJ}</td><td>${r.PG}</td><td>${r.PP}</td>
+                  <td>${r.GF}</td><td>${r.GC}</td><td>${r.DG}</td>
+                  <td><strong>${r.P}</strong></td>
+                </tr>
+              `;
+            }).join('')}
           </tbody>
         </table>
       </div>
@@ -551,9 +673,9 @@ function renderCopas() {
     subtabs,
     copas.map(c => ({ id: c.id, label: c.nombre })),
     activeCopaId,
-    (id) => {
+    async (id) => {
       activeCopaId = id;
-      render();
+      await render();
     }
   );
 
@@ -610,7 +732,7 @@ async function init() {
     
     cache = await fetchAll();
     setStatus(`Actualizado ${nowStr()}`);
-    render();
+    await render();
     
     // Agregar botón para ir a vista personal
     agregarBotonVistaPersonal();
