@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Swing Padel: Segundo Saque - Fixture</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<body>
+  <!-- NAV -->
+  <div class="topnav">
+    <a class="topnav-link" href="/">👤 Mis Partidos</a>
+    <a class="topnav-link" href="/general">👀 Todos los Resultados</a>
+    <a class="topnav-link" href="/fixture">📋 Fixture</a>
+    <a class="topnav-link" href="/admin">🛠 Admin</a>
+  </div>
+
+  <div class="fixture-container">
+    <!-- Header -->
+    <div class="fixture-header">
+      <h1 class="fixture-title">Fixture Completo</h1>
+      <div class="fixture-subtitle">Swing Padel: Segundo Saque</div>
+      <div id="fixture-status" class="fixture-status"></div>
+    </div>
+
+    <!-- Leyenda (solo desktop) -->
+    <div class="fixture-legend fixture-legend-desktop">
+      <span class="legend-item">
+        <span class="legend-badge badge-jugado">✅</span> Jugado
+      </span>
+      <span class="legend-item">
+        <span class="legend-badge badge-pendiente">⏳</span> Pendiente
+      </span>
+      <span class="legend-item">
+        <span class="legend-badge badge-fecha-libre">☕</span> Fecha libre
+      </span>
+    </div>
+
+    <!-- Grid de fixture -->
+    <div id="fixture-grid" class="fixture-grid">
+      <!-- Se inyecta dinámicamente -->
+    </div>
+  </div>
+
+  <script type="module" src="/src/fixture.js"></script>
+  
+  <script>
+    // Marcar link activo en nav
+    (function () {
+      const path = (location.pathname.endsWith('/') ? location.pathname : location.pathname + '/');
+      document.querySelectorAll('.topnav-link').forEach(a => {
+        const href = a.getAttribute('href');
+        const norm = (href.endsWith('/') ? href : href + '/');
+        if (norm === path) a.classList.add('is-active');
+      });
+    })();
+  </script>
+</body>
+</html>
