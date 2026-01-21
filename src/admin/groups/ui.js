@@ -134,6 +134,16 @@ function updateTablaBody(groupId) {
 
   const editable = isEditable(groupId);
 
+  // Crear mapa de pareja_id a color de empate
+  const tieColorMap = {};
+  if (g.tieGroups) {
+    g.tieGroups.forEach(group => {
+      group.parejaIds.forEach(parejaId => {
+        tieColorMap[parejaId] = group.color;
+      });
+    });
+  }
+
   g.rows.forEach((r, idx) => {
     const posActual = idx + 1;
     const posAuto = g.autoPosMap[r.pareja_id] ?? posActual;
@@ -148,9 +158,11 @@ function updateTablaBody(groupId) {
 
     const tr = document.createElement('tr');
 
-    if (g.tieSet && g.tieSet.has(r.pareja_id)) {
-      tr.style.background = '#fff3cd';
-      tr.style.borderLeft = '4px solid #d39e00';
+    // Aplicar color específico de empate si existe
+    if (tieColorMap[r.pareja_id]) {
+      const tieColor = tieColorMap[r.pareja_id];
+      tr.style.background = tieColor.bg;
+      tr.style.borderLeft = `4px solid ${tieColor.border}`;
     }
 
     tr.innerHTML = `

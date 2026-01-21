@@ -83,13 +83,35 @@ export function detectarEmpatesReales(rows) {
     buckets.get(key).push(r);
   }
 
+  // Colores para diferentes grupos de empate
+  const colors = [
+    { bg: '#fff3cd', border: '#d39e00' }, // Amarillo
+    { bg: '#e3f2fd', border: '#1976d2' }, // Azul
+    { bg: '#e8f5e9', border: '#43a047' }, // Verde
+    { bg: '#fce4ec', border: '#c2185b' }, // Rosa
+    { bg: '#f3e5f5', border: '#7b1fa2' }, // Púrpura
+    { bg: '#fff8e1', border: '#f57c00' }, // Naranja claro
+  ];
+
+  const tieGroups = [];
   const tieSet = new Set();
   const sizes = [];
+  let colorIndex = 0;
 
   for (const arr of buckets.values()) {
     if (arr.length >= 2) {
       sizes.push(arr.length);
+      const color = colors[colorIndex % colors.length];
+      
+      const group = {
+        parejaIds: arr.map(x => x.pareja_id),
+        color: color,
+        size: arr.length
+      };
+      
+      tieGroups.push(group);
       arr.forEach(x => tieSet.add(x.pareja_id));
+      colorIndex++;
     }
   }
 
@@ -99,5 +121,5 @@ export function detectarEmpatesReales(rows) {
     tieLabel = `Empate real: ${sizes.join(' + ')}`;
   }
 
-  return { tieSet, tieLabel };
+  return { tieSet, tieLabel, tieGroups };
 }

@@ -221,7 +221,7 @@ export async function cargarGrupoCierre(grupo) {
   const autoPosMap = {};
   autoOrder.forEach((r, idx) => (autoPosMap[r.pareja_id] = idx + 1));
 
-  const { tieSet, tieLabel } = detectarEmpatesReales(rowsBase);
+  const { tieSet, tieLabel, tieGroups } = detectarEmpatesReales(rowsBase);
 
   const { data: ov, error: errOv } = await supabase
     .from('posiciones_manual')
@@ -249,6 +249,7 @@ export async function cargarGrupoCierre(grupo) {
     autoPosMap,
     tieSet,
     tieLabel,
+    tieGroups,
     hasSavedOverride
   };
 
