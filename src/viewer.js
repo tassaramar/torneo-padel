@@ -22,6 +22,88 @@ const statusEl = document.getElementById('viewer-status');
 const tabsMainEl = document.getElementById('tabs-main');
 const contentEl = document.getElementById('viewer-content');
 
+// Exponer funciones globales INMEDIATAMENTE para onclick en HTML
+// IMPORTANTE: Debe estar antes de cualquier renderizado
+window.app = {
+  async cargarResultado(partidoId) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:25',message:'cargarResultado iniciado DESDE window.app',data:{partidoId:partidoId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX_VERIFICAR'})}).catch(()=>{});
+    // #endregion
+    
+    const identidad = getIdentidad();
+    
+    if (!identidad) {
+      alert('Error: No se encontró tu identificación. Por favor, recargá la página.');
+      return;
+    }
+
+    // Buscar partido
+    const { data: partido, error: errorPartido } = await supabase
+      .from('partidos')
+      .select(`
+        id, games_a, games_b, estado,
+        pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
+        pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
+      `)
+      .eq('id', partidoId)
+      .single();
+
+    if (!partido) {
+      alert('Error: No se pudo cargar el partido. ' + (errorPartido?.message || ''));
+      return;
+    }
+
+    mostrarModalCargarResultado(partido, identidad, async (gamesA, gamesB) => {
+      const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
+      
+      if (resultado.ok) {
+        alert(resultado.mensaje);
+        await init('personal');
+      } else {
+        alert('Error: ' + resultado.mensaje);
+      }
+    });
+  },
+
+  async confirmarResultado(partidoId, gamesA, gamesB) {
+    const identidad = getIdentidad();
+    if (!identidad) return;
+
+    const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
+    
+    if (resultado.ok) {
+      alert(resultado.mensaje);
+      await init('personal');
+    } else {
+      alert('Error: ' + resultado.mensaje);
+    }
+  },
+
+  async cargarResultadoDiferente(partidoId) {
+    await this.cargarResultado(partidoId);
+  },
+
+  async aceptarOtroResultado(partidoId) {
+    const identidad = getIdentidad();
+    if (!identidad) return;
+
+    if (!confirm('¿Estás seguro de aceptar el resultado de la otra pareja?')) return;
+
+    const resultado = await aceptarOtroResultado(supabase, partidoId, identidad);
+    
+    if (resultado.ok) {
+      alert(resultado.mensaje);
+      await init('personal');
+    } else {
+      alert('Error: ' + resultado.mensaje);
+    }
+  },
+
+  async recargarResultado(partidoId) {
+    await this.cargarResultado(partidoId);
+  }
+};
+
 // Polling automático
 let pollingInterval = null;
 const POLLING_INTERVAL_MS = 30000; // 30 segundos
@@ -770,115 +852,7 @@ async function checkIdentidadYCargar() {
   }
 }
 
-// Exponer funciones globales para onclick en HTML
-window.app = {
-  async cargarResultado(partidoId) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:775',message:'cargarResultado iniciado',data:{partidoId:partidoId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A_B'})}).catch(()=>{});
-    // #endregion
-    
-    const identidad = getIdentidad();
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:778',message:'identidad obtenida',data:{identidad:identidad,esNull:identidad===null,esUndefined:identidad===undefined},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
-    
-    if (!identidad) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:782',message:'identidad es null - saliendo',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
-      return;
-    }
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:788',message:'antes de fetch partido',data:{partidoId:partidoId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
-    
-    // Buscar partido en cache o fetche ar
-    const { data: partido, error: errorPartido } = await supabase
-      .from('partidos')
-      .select(`
-        id, games_a, games_b, estado,
-        pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
-        pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
-      `)
-      .eq('id', partidoId)
-      .single();
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:803',message:'fetch partido completado',data:{partido:partido,error:errorPartido,esNull:partido===null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
-
-    if (!partido) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:808',message:'partido es null - saliendo',data:{error:errorPartido},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
-      return;
-    }
-
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:814',message:'antes de mostrarModalCargarResultado',data:{partidoId:partido.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
-
-    mostrarModalCargarResultado(partido, identidad, async (gamesA, gamesB) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:819',message:'onSubmit modal ejecutado',data:{gamesA:gamesA,gamesB:gamesB},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-      // #endregion
-      
-      const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
-      
-      if (resultado.ok) {
-        alert(resultado.mensaje);
-        await init('personal'); // Recargar vista personalizada
-      } else {
-        alert('Error: ' + resultado.mensaje);
-      }
-    });
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:833',message:'mostrarModalCargarResultado llamado',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-    // #endregion
-  },
-
-  async confirmarResultado(partidoId, gamesA, gamesB) {
-    const identidad = getIdentidad();
-    if (!identidad) return;
-
-    const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
-    
-    if (resultado.ok) {
-      alert(resultado.mensaje);
-      await init('personal');
-    } else {
-      alert('Error: ' + resultado.mensaje);
-    }
-  },
-
-  async cargarResultadoDiferente(partidoId) {
-    // Mismo que cargarResultado pero con mensaje diferente
-    await this.cargarResultado(partidoId);
-  },
-
-  async aceptarOtroResultado(partidoId) {
-    const identidad = getIdentidad();
-    if (!identidad) return;
-
-    if (!confirm('¿Estás seguro de aceptar el resultado de la otra pareja?')) return;
-
-    const resultado = await aceptarOtroResultado(supabase, partidoId, identidad);
-    
-    if (resultado.ok) {
-      alert(resultado.mensaje);
-      await init('personal');
-    } else {
-      alert('Error: ' + resultado.mensaje);
-    }
-  },
-
-  async recargarResultado(partidoId) {
-    await this.cargarResultado(partidoId);
-  }
-};
+// window.app ya está definido al inicio del archivo (después de las constantes)
 
 // Iniciar la app con check de identidad
 checkIdentidadYCargar();
