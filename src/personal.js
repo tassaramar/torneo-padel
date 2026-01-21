@@ -2,6 +2,11 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 import { getIdentidad, clearIdentidad } from './identificacion/identidad.js';
 import { iniciarIdentificacion } from './identificacion/ui.js';
 import { cargarVistaPersonalizada } from './viewer/vistaPersonal.js';
+import { 
+  cargarResultado, 
+  aceptarOtroResultado,
+  mostrarModalCargarResultado 
+} from './viewer/cargarResultado.js';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -157,6 +162,76 @@ async function init() {
     if (contentEl) contentEl.innerHTML = '<p>❌ Error cargando viewer.</p>';
   }
 }
+
+// Exponer funciones globales para onclick en HTML
+window.app = {
+  async cargarResultado(partidoId) {
+    const identidad = getIdentidad();
+    if (!identidad) return;
+
+    // Buscar partido
+    const { data: partido } = await supabase
+      .from('partidos')
+      .select(`
+        id, games_a, games_b, estado,
+        pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
+        pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
+      `)
+      .eq('id', partidoId)
+      .single();
+
+    if (!partido) return;
+
+    mostrarModalCargarResultado(partido, identidad, async (gamesA, gamesB) => {
+      const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
+      
+      if (resultado.ok) {
+        alert(resultado.mensaje);
+        await init();
+      } else {
+        alert('Error: ' + resultado.mensaje);
+      }
+    });
+  },
+
+  async confirmarResultado(partidoId, gamesA, gamesB) {
+    const identidad = getIdentidad();
+    if (!identidad) return;
+
+    const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
+    
+    if (resultado.ok) {
+      alert(resultado.mensaje);
+      await init();
+    } else {
+      alert('Error: ' + resultado.mensaje);
+    }
+  },
+
+  async cargarResultadoDiferente(partidoId) {
+    await this.cargarResultado(partidoId);
+  },
+
+  async aceptarOtroResultado(partidoId) {
+    const identidad = getIdentidad();
+    if (!identidad) return;
+
+    if (!confirm('¿Estás seguro de aceptar el resultado de la otra pareja?')) return;
+
+    const resultado = await aceptarOtroResultado(supabase, partidoId, identidad);
+    
+    if (resultado.ok) {
+      alert(resultado.mensaje);
+      await init();
+    } else {
+      alert('Error: ' + resultado.mensaje);
+    }
+  },
+
+  async recargarResultado(partidoId) {
+    await this.cargarResultado(partidoId);
+  }
+};
 
 // Inicializar al cargar la página
 checkIdentidadYCargar();
