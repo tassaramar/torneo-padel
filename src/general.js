@@ -163,7 +163,9 @@ function detectarEmpatesReales(rows) {
   let colorIndex = 0;
 
   for (const arr of buckets.values()) {
-    if (arr.length >= 2) {
+    // Solo marcar empate si tienen partidos jugados
+    const tienenPartidos = arr.some(r => r.PJ > 0);
+    if (arr.length >= 2 && tienenPartidos) {
       const color = colors[colorIndex % colors.length];
       
       const group = {
