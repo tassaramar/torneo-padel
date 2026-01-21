@@ -669,6 +669,9 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
   const todosPartidos = [...partidos.enRevision, ...partidos.porConfirmar, ...partidos.porCargar, ...partidos.confirmados];
   renderPartidosCargar(partidos.porCargar, renderVistaPersonal._todosPartidosGrupo, todosPartidos, identidad);
   renderPartidosConfirmados(partidos.confirmados, identidad);
+  
+  // Agregar event delegation para todos los botones de acción
+  agregarEventListenersPartidos();
 }
 
 /**
@@ -715,10 +718,10 @@ function renderPartidosRevision(partidos, identidad) {
         </div>
         
         <div class="partido-actions">
-          <button class="btn-primary" onclick="app.aceptarOtroResultado('${p.id}')">
+          <button class="btn-primary" data-action="aceptar-resultado" data-partido-id="${p.id}">
             ✅ Aceptar resultado de ${escapeHtml(oponente)}
           </button>
-          <button class="btn-secondary" onclick="app.recargarResultado('${p.id}')">
+          <button class="btn-secondary" data-action="recargar-resultado" data-partido-id="${p.id}">
             🔄 Volver a cargar mi resultado
           </button>
         </div>
@@ -755,10 +758,10 @@ function renderPartidosConfirmar(partidos, identidad) {
         </div>
         
         <div class="partido-actions">
-          <button class="btn-primary" onclick="app.confirmarResultado('${p.id}', ${p.games_a}, ${p.games_b})">
+          <button class="btn-primary" data-action="confirmar-resultado" data-partido-id="${p.id}" data-games-a="${p.games_a}" data-games-b="${p.games_b}">
             ✅ Confirmar este resultado
           </button>
-          <button class="btn-secondary" onclick="app.cargarResultadoDiferente('${p.id}')">
+          <button class="btn-secondary" data-action="cargar-diferente" data-partido-id="${p.id}">
             ✏️ Cargar resultado diferente
           </button>
         </div>
@@ -899,7 +902,7 @@ function renderPartidosCargar(partidosPendientes, todosPartidosGrupo, todosParti
           ` : ''}
           
           <div class="partido-actions">
-            <button class="btn-primary" onclick="fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'vistaPersonal.js:898',message:'boton cargar click',data:{partidoId:'${p.id}',appDefined:typeof window.app!=='undefined',cargarDefined:typeof window.app?.cargarResultado==='function'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A_B'})}).catch(()=>{}); app.cargarResultado('${p.id}')">
+            <button class="btn-primary" data-action="cargar-resultado" data-partido-id="${p.id}">
               ${esperandoConfirmacion ? '✏️ Editar resultado' : '📝 Cargar resultado'}
             </button>
           </div>
@@ -954,7 +957,7 @@ function renderPartidosConfirmados(partidos, identidad) {
         </div>
         ${esperandoConfirmacion ? `
           <div class="partido-actions" style="margin-top: 8px;">
-            <button class="btn-secondary btn-sm" onclick="app.cargarResultado('${p.id}')">
+            <button class="btn-secondary btn-sm" data-action="cargar-resultado" data-partido-id="${p.id}">
               ✏️ Editar resultado
             </button>
           </div>
@@ -1023,4 +1026,65 @@ function agregarBotonVerTodos(onVerTodos) {
   btnVerTodos.addEventListener('click', onVerTodos);
   
   navContainer.appendChild(btnVerTodos);
+}
+
+/**
+ * Agrega event listeners usando event delegation para todos los botones de acción
+ */
+function agregarEventListenersPartidos() {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'vistaPersonal.js:1030',message:'agregarEventListenersPartidos ejecutado',data:{windowAppExiste:typeof window.app !== 'undefined'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX'})}).catch(()=>{});
+  // #endregion
+  
+  const contentEl = document.getElementById('viewer-content');
+  if (!contentEl) return;
+  
+  // Usar event delegation: un solo listener en el contenedor padre
+  contentEl.addEventListener('click', async (e) => {
+    const button = e.target.closest('[data-action]');
+    if (!button) return;
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'vistaPersonal.js:1043',message:'Click en botón detectado',data:{action:button.dataset.action,partidoId:button.dataset.partidoId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX'})}).catch(()=>{});
+    // #endregion
+    
+    const action = button.dataset.action;
+    const partidoId = button.dataset.partidoId;
+    
+    // Prevenir múltiples clicks
+    if (button.disabled) return;
+    
+    try {
+      // Importar funciones necesarias desde window.app
+      if (!window.appHandlers) {
+        console.error('window.appHandlers no está definido');
+        return;
+      }
+      
+      switch (action) {
+        case 'cargar-resultado':
+          await window.appHandlers.cargarResultado(partidoId);
+          break;
+        case 'confirmar-resultado':
+          const gamesA = parseInt(button.dataset.gamesA);
+          const gamesB = parseInt(button.dataset.gamesB);
+          await window.appHandlers.confirmarResultado(partidoId, gamesA, gamesB);
+          break;
+        case 'cargar-diferente':
+          await window.appHandlers.cargarResultado(partidoId);
+          break;
+        case 'aceptar-resultado':
+          await window.appHandlers.aceptarOtroResultado(partidoId);
+          break;
+        case 'recargar-resultado':
+          await window.appHandlers.cargarResultado(partidoId);
+          break;
+        default:
+          console.warn('Acción desconocida:', action);
+      }
+    } catch (error) {
+      console.error('Error ejecutando acción:', error);
+      alert('Error: ' + error.message);
+    }
+  });
 }

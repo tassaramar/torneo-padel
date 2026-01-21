@@ -22,16 +22,12 @@ const statusEl = document.getElementById('viewer-status');
 const tabsMainEl = document.getElementById('tabs-main');
 const contentEl = document.getElementById('viewer-content');
 
-// #region agent log
-fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:26',message:'ANTES de definir window.app',data:{windowAppExiste:typeof window.app !== 'undefined'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'TIMING'})}).catch(()=>{});
-// #endregion
-
-// Exponer funciones globales INMEDIATAMENTE para onclick en HTML
-// IMPORTANTE: Debe estar antes de cualquier renderizado
-window.app = {
+// Exponer handlers globalmente para event listeners (NO para onclick inline)
+// Esto funciona correctamente con módulos ES6
+window.appHandlers = {
   async cargarResultado(partidoId) {
     // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:25',message:'cargarResultado iniciado DESDE window.app',data:{partidoId:partidoId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX_VERIFICAR'})}).catch(()=>{});
+    fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:27',message:'cargarResultado ejecutado',data:{partidoId:partidoId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX'})}).catch(()=>{});
     // #endregion
     
     const identidad = getIdentidad();
@@ -83,10 +79,6 @@ window.app = {
     }
   },
 
-  async cargarResultadoDiferente(partidoId) {
-    await this.cargarResultado(partidoId);
-  },
-
   async aceptarOtroResultado(partidoId) {
     const identidad = getIdentidad();
     if (!identidad) return;
@@ -101,16 +93,8 @@ window.app = {
     } else {
       alert('Error: ' + resultado.mensaje);
     }
-  },
-
-  async recargarResultado(partidoId) {
-    await this.cargarResultado(partidoId);
   }
 };
-
-// #region agent log
-fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:120',message:'DESPUES de definir window.app',data:{windowAppExiste:typeof window.app !== 'undefined',cargarExiste:typeof window.app?.cargarResultado === 'function'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'TIMING'})}).catch(()=>{});
-// #endregion
 
 // Polling automático
 let pollingInterval = null;
@@ -859,8 +843,6 @@ async function checkIdentidadYCargar() {
     }, 'identificacion-container', supabase); // Pasar supabase para tracking
   }
 }
-
-// window.app ya está definido al inicio del archivo (después de las constantes)
 
 // #region agent log
 fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:866',message:'ANTES de checkIdentidadYCargar',data:{windowAppExiste:typeof window.app !== 'undefined',cargarExiste:typeof window.app?.cargarResultado === 'function'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'TIMING'})}).catch(()=>{});
