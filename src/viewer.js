@@ -3,7 +3,7 @@ import { agruparEnRondas } from './carga/partidosGrupos.js';
 import { obtenerFrasesUnicas } from './utils/frasesFechaLibre.js';
 import { getIdentidad, clearIdentidad } from './identificacion/identidad.js';
 import { iniciarIdentificacion } from './identificacion/ui.js';
-import { cargarVistaPersonalizada } from './viewer/vistaPersonal.js';
+import { cargarVistaPersonalizada, setHandlers } from './viewer/vistaPersonal.js';
 import { 
   cargarResultado, 
   aceptarOtroResultado,
@@ -17,19 +17,17 @@ const supabase = createClient(
 
 const TORNEO_ID = 'ad58a855-fa74-4c2e-825e-32c20f972136';
 
+// Inicializar handlers tan pronto como sea posible
+// Esto se ejecuta sincrónicamente al cargar el módulo
+
 const btnRefresh = document.getElementById('viewer-refresh');
 const statusEl = document.getElementById('viewer-status');
 const tabsMainEl = document.getElementById('tabs-main');
 const contentEl = document.getElementById('viewer-content');
 
-// Exponer handlers globalmente para event listeners (NO para onclick inline)
-// Esto funciona correctamente con módulos ES6
-window.appHandlers = {
+// Definir handlers que se pasarán a vistaPersonal
+const handlers = {
   async cargarResultado(partidoId) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:27',message:'cargarResultado ejecutado',data:{partidoId:partidoId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX'})}).catch(()=>{});
-    // #endregion
-    
     const identidad = getIdentidad();
     
     if (!identidad) {
@@ -775,6 +773,9 @@ function agregarGrupoAParejas(parejas, grupos) {
 }
 
 async function checkIdentidadYCargar() {
+  // Pasar los handlers a vistaPersonal ANTES de cualquier renderizado
+  setHandlers(handlers);
+  
   // Verificar si se solicitó vista completa
   const mostrarVistaCompleta = sessionStorage.getItem('mostrarVistaCompleta');
   if (mostrarVistaCompleta) {

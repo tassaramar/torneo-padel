@@ -6,6 +6,17 @@
 import { getMensajeResultado } from '../utils/mensajesResultado.js';
 import { obtenerFrasesUnicas } from '../utils/frasesFechaLibre.js';
 
+// Almacenar referencias a las funciones que se pasarán desde viewer.js
+let handlerCargarResultado = null;
+let handlerConfirmarResultado = null;
+let handlerAceptarOtroResultado = null;
+
+export function setHandlers(handlers) {
+  handlerCargarResultado = handlers.cargarResultado;
+  handlerConfirmarResultado = handlers.confirmarResultado;
+  handlerAceptarOtroResultado = handlers.aceptarOtroResultado;
+}
+
 export async function cargarVistaPersonalizada(supabase, torneoId, identidad, onChangePareja, onVerTodos) {
   try {
     // Fetch grupos del torneo
@@ -1032,10 +1043,6 @@ function agregarBotonVerTodos(onVerTodos) {
  * Agrega event listeners usando event delegation para todos los botones de acción
  */
 function agregarEventListenersPartidos() {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'vistaPersonal.js:1030',message:'agregarEventListenersPartidos ejecutado',data:{windowAppExiste:typeof window.app !== 'undefined'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX'})}).catch(()=>{});
-  // #endregion
-  
   const contentEl = document.getElementById('viewer-content');
   if (!contentEl) return;
   
@@ -1044,10 +1051,6 @@ function agregarEventListenersPartidos() {
     const button = e.target.closest('[data-action]');
     if (!button) return;
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'vistaPersonal.js:1043',message:'Click en botón detectado',data:{action:button.dataset.action,partidoId:button.dataset.partidoId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX'})}).catch(()=>{});
-    // #endregion
-    
     const action = button.dataset.action;
     const partidoId = button.dataset.partidoId;
     
@@ -1055,29 +1058,30 @@ function agregarEventListenersPartidos() {
     if (button.disabled) return;
     
     try {
-      // Importar funciones necesarias desde window.app
-      if (!window.appHandlers) {
-        console.error('window.appHandlers no está definido');
+      // Verificar que los handlers estén disponibles
+      if (!handlerCargarResultado || !handlerConfirmarResultado || !handlerAceptarOtroResultado) {
+        console.error('Los handlers no están inicializados');
+        alert('Error: El sistema no está completamente cargado. Por favor, recargá la página.');
         return;
       }
       
       switch (action) {
         case 'cargar-resultado':
-          await window.appHandlers.cargarResultado(partidoId);
+          await handlerCargarResultado(partidoId);
           break;
         case 'confirmar-resultado':
           const gamesA = parseInt(button.dataset.gamesA);
           const gamesB = parseInt(button.dataset.gamesB);
-          await window.appHandlers.confirmarResultado(partidoId, gamesA, gamesB);
+          await handlerConfirmarResultado(partidoId, gamesA, gamesB);
           break;
         case 'cargar-diferente':
-          await window.appHandlers.cargarResultado(partidoId);
+          await handlerCargarResultado(partidoId);
           break;
         case 'aceptar-resultado':
-          await window.appHandlers.aceptarOtroResultado(partidoId);
+          await handlerAceptarOtroResultado(partidoId);
           break;
         case 'recargar-resultado':
-          await window.appHandlers.cargarResultado(partidoId);
+          await handlerCargarResultado(partidoId);
           break;
         default:
           console.warn('Acción desconocida:', action);
