@@ -2393,3 +2393,26 @@ tbody td:first-child{
   animation: fadeIn 0.3s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
+
+/* ===== Toast de Error ===== */
+.toast-error {
+  position: fixed;
+  top: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #EF4444;
+  color: white;
+  padding: 14px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 14px;
+  z-index: 10000;
+  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);
+  transition: top 0.3s ease;
+  max-width: 90%;
+  text-align: center;
+}
+
+.toast-error.show {
+  top: 24px;
+}

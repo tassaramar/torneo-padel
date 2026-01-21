@@ -194,6 +194,29 @@ function animarPartidoSalida(partidoId) {
   });
 }
 
+/**
+ * Muestra un toast de error temporal
+ * @param {string} mensaje - Mensaje de error a mostrar
+ */
+function mostrarToastError(mensaje) {
+  // Crear toast
+  const toast = document.createElement('div');
+  toast.className = 'toast-error';
+  toast.textContent = mensaje;
+  
+  // Agregar al body
+  document.body.appendChild(toast);
+  
+  // Animar entrada
+  setTimeout(() => toast.classList.add('show'), 10);
+  
+  // Remover después de 4 segundos
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
 // Exponer funciones globales para onclick en HTML
 window.app = {
   async cargarResultado(partidoId) {
@@ -220,10 +243,10 @@ window.app = {
       const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
       
       if (resultado.ok) {
-        alert(resultado.mensaje);
+        // Animación ya mostró el éxito, solo recargar
         await init();
       } else {
-        alert('Error: ' + resultado.mensaje);
+        mostrarToastError(resultado.mensaje);
       }
     });
   },
@@ -238,10 +261,10 @@ window.app = {
     const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
     
     if (resultado.ok) {
-      alert(resultado.mensaje);
+      // Animación ya mostró el éxito, solo recargar
       await init();
     } else {
-      alert('Error: ' + resultado.mensaje);
+      mostrarToastError(resultado.mensaje);
     }
   },
 
@@ -261,10 +284,10 @@ window.app = {
     const resultado = await aceptarOtroResultado(supabase, partidoId, identidad);
     
     if (resultado.ok) {
-      alert(resultado.mensaje);
+      // Animación ya mostró el éxito, solo recargar
       await init();
     } else {
-      alert('Error: ' + resultado.mensaje);
+      mostrarToastError(resultado.mensaje);
     }
   },
 
