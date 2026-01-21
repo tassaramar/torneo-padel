@@ -142,16 +142,27 @@ async function calcularEstadisticas(partidos, identidad, supabase, torneoId) {
  */
 async function calcularPosicionEnTabla(supabase, torneoId, identidad) {
   try {
+    // Obtener grupo ID
+    const { data: grupos } = await supabase
+      .from('grupos')
+      .select('id, nombre')
+      .eq('torneo_id', torneoId)
+      .eq('nombre', identidad.grupo)
+      .single();
+
+    if (!grupos) return null;
+
+    const grupoId = grupos.id;
+
     // Obtener todos los partidos del grupo
     const { data: todosPartidos } = await supabase
       .from('partidos')
       .select(`
         id, games_a, games_b, estado,
-        pareja_a_id, pareja_b_id,
-        grupos ( id, nombre )
+        pareja_a_id, pareja_b_id
       `)
       .eq('torneo_id', torneoId)
-      .eq('grupos.nombre', identidad.grupo);
+      .eq('grupo_id', grupoId);
 
     if (!todosPartidos) return null;
 
@@ -193,18 +204,49 @@ async function calcularPosicionEnTabla(supabase, torneoId, identidad) {
       }
     });
 
-    // Ordenar por puntos, luego por diferencia de games, luego por games a favor
-    const ranking = Object.entries(puntosPorPareja)
-      .sort((a, b) => {
-        if (b[1].puntos !== a[1].puntos) return b[1].puntos - a[1].puntos;
-        const difA = a[1].gamesAFavor - a[1].gamesEnContra;
-        const difB = b[1].gamesAFavor - b[1].gamesEnContra;
-        if (difB !== difA) return difB - difA;
-        return b[1].gamesAFavor - a[1].gamesAFavor;
+    // Obtener overrides manuales (orden final guardado por admin)
+    const { data: overrides } = await supabase
+      .from('posiciones_manual')
+      .select('pareja_id, orden_manual')
+      .eq('torneo_id', torneoId)
+      .eq('grupo_id', grupoId);
+
+    const overridesMap = {};
+    if (overrides && overrides.length > 0) {
+      overrides.forEach(ov => {
+        overridesMap[ov.pareja_id] = ov.orden_manual;
       });
+    }
+
+    // Crear ranking: primero por overrides, luego automático
+    const conOverride = [];
+    const sinOverride = [];
+
+    Object.entries(puntosPorPareja).forEach(([id, stats]) => {
+      if (overridesMap[id] !== undefined) {
+        conOverride.push({ id, stats, override: overridesMap[id] });
+      } else {
+        sinOverride.push({ id, stats });
+      }
+    });
+
+    // Ordenar con override por orden_manual
+    conOverride.sort((a, b) => a.override - b.override);
+
+    // Ordenar sin override por criterio automático
+    sinOverride.sort((a, b) => {
+      if (b.stats.puntos !== a.stats.puntos) return b.stats.puntos - a.stats.puntos;
+      const difA = a.stats.gamesAFavor - a.stats.gamesEnContra;
+      const difB = b.stats.gamesAFavor - b.stats.gamesEnContra;
+      if (difB !== difA) return difB - difA;
+      return b.stats.gamesAFavor - a.stats.gamesAFavor;
+    });
+
+    // Ranking final
+    const ranking = [...conOverride, ...sinOverride];
 
     // Encontrar posición de mi pareja
-    const miPosicion = ranking.findIndex(([id]) => id === identidad.parejaId);
+    const miPosicion = ranking.findIndex(entry => entry.id === identidad.parejaId);
 
     return miPosicion >= 0 ? miPosicion + 1 : null;
 
@@ -254,6 +296,18 @@ function categorizarPartidos(partidos, identidad) {
  */
 async function calcularTablaGrupo(supabase, torneoId, identidad, parejasDelGrupo) {
   try {
+    // Obtener grupo ID
+    const { data: grupos } = await supabase
+      .from('grupos')
+      .select('id, nombre')
+      .eq('torneo_id', torneoId)
+      .eq('nombre', identidad.grupo)
+      .single();
+
+    if (!grupos) return [];
+
+    const grupoId = grupos.id;
+
     // Obtener todos los partidos del grupo
     const { data: partidosGrupo } = await supabase
       .from('partidos')
@@ -262,17 +316,13 @@ async function calcularTablaGrupo(supabase, torneoId, identidad, parejasDelGrupo
         pareja_a_id, pareja_b_id,
         grupos ( nombre )
       `)
-      .eq('torneo_id', torneoId);
+      .eq('torneo_id', torneoId)
+      .eq('grupo_id', grupoId);
 
     if (!partidosGrupo) return [];
 
-    // Filtrar partidos del grupo
-    const partidosDelGrupo = partidosGrupo.filter(p => 
-      p.grupos?.nombre === identidad.grupo
-    );
-
     // Filtrar solo partidos contabilizados
-    const partidosValidos = partidosDelGrupo.filter(p => 
+    const partidosValidos = partidosGrupo.filter(p => 
       (p.estado === 'confirmado' || p.estado === 'a_confirmar') &&
       p.games_a !== null && p.games_b !== null
     );
@@ -324,14 +374,41 @@ async function calcularTablaGrupo(supabase, torneoId, identidad, parejasDelGrupo
       }
     });
 
-    // Ordenar por puntos, luego por diferencia de games
-    const tabla = Object.values(stats).sort((a, b) => {
+    // Obtener overrides manuales (orden final guardado por admin)
+    const { data: overrides } = await supabase
+      .from('posiciones_manual')
+      .select('pareja_id, orden_manual')
+      .eq('torneo_id', torneoId)
+      .eq('grupo_id', grupoId);
+
+    const overridesMap = {};
+    if (overrides && overrides.length > 0) {
+      overrides.forEach(ov => {
+        overridesMap[ov.pareja_id] = ov.orden_manual;
+      });
+    }
+
+    // Ordenar: primero por overrides, luego por criterio automático
+    let tabla = Object.values(stats);
+
+    // Separar: con override vs sin override
+    const conOverride = tabla.filter(s => overridesMap[s.parejaId] !== undefined);
+    const sinOverride = tabla.filter(s => overridesMap[s.parejaId] === undefined);
+
+    // Ordenar los que tienen override por su orden_manual
+    conOverride.sort((a, b) => overridesMap[a.parejaId] - overridesMap[b.parejaId]);
+
+    // Ordenar los que NO tienen override por criterio automático
+    sinOverride.sort((a, b) => {
       if (b.puntos !== a.puntos) return b.puntos - a.puntos;
       const difA = a.gamesAFavor - a.gamesEnContra;
       const difB = b.gamesAFavor - b.gamesEnContra;
       if (difB !== difA) return difB - difA;
       return b.gamesAFavor - a.gamesAFavor;
     });
+
+    // Tabla final: overrides primero, luego automáticos
+    tabla = [...conOverride, ...sinOverride];
 
     return tabla;
 
