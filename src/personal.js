@@ -132,7 +132,8 @@ async function init() {
           await init();
           startPolling();
         },
-        'viewer-content'
+        'viewer-content',
+        supabase // Pasar supabase para tracking automático
       );
       
       setStatus('');

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analytics - Swing Padel: Segundo Saque</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<body>
+  <div class="topnav">
+    <a class="topnav-link" href="/carga">📲 Cargar resultados</a>
+    <a class="topnav-link" href="/">👀 Viewer</a>
+    <a class="topnav-link" href="/admin">🛠 Admin</a>
+    <a class="topnav-link" href="/analytics">📊 Analytics</a>
+  </div>
+
+  <div class="container">
+    <div class="analytics-header">
+      <h1>📊 Analytics de Uso</h1>
+      <p class="subtitle">Tracking de actividad por jugador y pareja</p>
+    </div>
+
+    <!-- Filtros y controles -->
+    <div class="analytics-controls">
+      <div class="analytics-period-selector">
+        <label for="periodo-select">Periodo:</label>
+        <select id="periodo-select" class="analytics-select">
+          <option value="7">Últimos 7 días</option>
+          <option value="14">Últimos 14 días</option>
+          <option value="30" selected>Últimos 30 días</option>
+          <option value="90">Últimos 90 días</option>
+        </select>
+      </div>
+      
+      <button id="refresh-analytics" class="btn-secondary" type="button">🔄 Actualizar</button>
+    </div>
+
+    <!-- Tarjetas de métricas principales -->
+    <div id="stats-cards" class="analytics-cards">
+      <!-- Se inyectan dinámicamente desde statsCards.js -->
+    </div>
+
+    <!-- Gráfico temporal -->
+    <div class="analytics-section">
+      <h2>Timeline de Actividad</h2>
+      <div id="timeline-container" class="timeline-container">
+        <!-- Se inyecta desde timeline.js -->
+      </div>
+    </div>
+
+    <!-- Tabla de ranking -->
+    <div class="analytics-section">
+      <h2>Ranking de Actividad por Jugador</h2>
+      
+      <div class="analytics-table-controls">
+        <input 
+          id="ranking-search" 
+          type="search" 
+          class="search-input"
+          placeholder="Buscar jugador o pareja..."
+          autocomplete="off"
+        />
+      </div>
+
+      <div id="ranking-container">
+        <!-- Se inyecta desde rankingTable.js -->
+      </div>
+    </div>
+
+    <!-- Feed de actividad reciente -->
+    <div class="analytics-section">
+      <h2>Actividad Reciente</h2>
+      <div id="activity-feed">
+        <!-- Se inyecta desde activityList.js -->
+      </div>
+    </div>
+
+    <!-- Estado de carga -->
+    <div id="analytics-status" class="analytics-status"></div>
+  </div>
+
+  <script type="module" src="/src/analytics.js"></script>
+  <script>
+    // Marcar link activo en nav
+    (function () {
+      const path = (location.pathname.endsWith('/') ? location.pathname : location.pathname + '/');
+      document.querySelectorAll('.topnav-link').forEach(a => {
+        const href = a.getAttribute('href');
+        const norm = (href.endsWith('/') ? href : href + '/');
+        if (norm === path) a.classList.add('is-active');
+      });
+    })();
+  </script>
+</body>
+</html>

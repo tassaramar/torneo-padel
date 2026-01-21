@@ -68,16 +68,24 @@ export function getIdentidad() {
 }
 
 /**
- * Guarda la identidad en localStorage
+ * Guarda la identidad en localStorage y registra visita automáticamente
  * @param {Object} identidad - Objeto con parejaId, parejaNombre, miNombre, companero, grupo, orden
+ * @param {Object} supabase - Cliente de Supabase (opcional, para tracking)
  */
-export function saveIdentidad(identidad) {
+export function saveIdentidad(identidad, supabase = null) {
   const data = {
     ...identidad,
     validatedAt: new Date().toISOString()
   };
   
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  
+  // Tracking automático de visita (no bloqueante)
+  if (supabase) {
+    import('../tracking/trackingService.js')
+      .then(({ trackVisita }) => trackVisita(supabase, data))
+      .catch(err => console.warn('Error tracking visita:', err));
+  }
 }
 
 /**

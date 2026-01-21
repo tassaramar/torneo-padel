@@ -766,7 +766,7 @@ async function checkIdentidadYCargar() {
       // Cargar el viewer
       await init();
       startPolling(); // Iniciar auto-refresh
-    }, 'identificacion-container');
+    }, 'identificacion-container', supabase); // Pasar supabase para tracking
   }
 }
 

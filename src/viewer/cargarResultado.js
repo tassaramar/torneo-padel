@@ -4,6 +4,7 @@
  */
 
 import { getMensajeResultado } from '../utils/mensajesResultado.js';
+import { trackCargaResultado } from '../tracking/trackingService.js';
 
 /**
  * Carga o actualiza un resultado de partido
@@ -48,6 +49,10 @@ export async function cargarResultado(supabase, partidoId, gamesA, gamesB, ident
 
       if (updateError) throw updateError;
 
+      // Tracking automático de carga de resultado
+      trackCargaResultado(supabase, identidad, partidoId, gamesA, gamesB)
+        .catch(err => console.warn('Error tracking carga:', err));
+
       return {
         ok: true,
         mensaje: '✅ Resultado cargado. Esperando confirmación de la otra pareja.',
@@ -69,6 +74,10 @@ export async function cargarResultado(supabase, partidoId, gamesA, gamesB, ident
 
         if (updateError) throw updateError;
 
+        // Tracking automático de actualización de resultado
+        trackCargaResultado(supabase, identidad, partidoId, gamesA, gamesB)
+          .catch(err => console.warn('Error tracking carga:', err));
+
         return {
           ok: true,
           mensaje: '✅ Resultado actualizado. Esperando confirmación.',
@@ -88,6 +97,10 @@ export async function cargarResultado(supabase, partidoId, gamesA, gamesB, ident
 
           if (updateError) throw updateError;
 
+          // Tracking automático de confirmación de resultado
+          trackCargaResultado(supabase, identidad, partidoId, gamesA, gamesB)
+            .catch(err => console.warn('Error tracking carga:', err));
+
           return {
             ok: true,
             mensaje: '🎉 ¡Resultado confirmado! Ambas parejas coinciden.',
@@ -106,6 +119,10 @@ export async function cargarResultado(supabase, partidoId, gamesA, gamesB, ident
             .eq('id', partidoId);
 
           if (updateError) throw updateError;
+
+          // Tracking automático de carga con conflicto
+          trackCargaResultado(supabase, identidad, partidoId, gamesA, gamesB)
+            .catch(err => console.warn('Error tracking carga:', err));
 
           return {
             ok: true,
@@ -149,6 +166,10 @@ export async function cargarResultado(supabase, partidoId, gamesA, gamesB, ident
 
         if (updateError) throw updateError;
       }
+
+      // Tracking automático de actualización en revisión
+      trackCargaResultado(supabase, identidad, partidoId, gamesA, gamesB)
+        .catch(err => console.warn('Error tracking carga:', err));
 
       return {
         ok: true,

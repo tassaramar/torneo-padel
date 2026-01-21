@@ -14,7 +14,8 @@ let state = {
   jugadores: [],
   selectedJugador: null,
   onComplete: null,
-  containerId: 'app' // Puede ser 'app' (carga) o 'viewer-content' (viewer)
+  containerId: 'app', // Puede ser 'app' (carga) o 'viewer-content' (viewer)
+  supabase: null // Cliente de Supabase para tracking
 };
 
 /**
@@ -22,11 +23,13 @@ let state = {
  * @param {Array} parejas - Array de parejas del torneo
  * @param {Function} onComplete - Callback cuando se completa la identificación
  * @param {String} containerId - ID del contenedor donde renderizar (default: 'app')
+ * @param {Object} supabase - Cliente de Supabase (opcional, para tracking)
  */
-export function iniciarIdentificacion(parejas, onComplete, containerId = 'app') {
+export function iniciarIdentificacion(parejas, onComplete, containerId = 'app', supabase = null) {
   state.jugadores = parseJugadores(parejas);
   state.onComplete = onComplete;
   state.containerId = containerId;
+  state.supabase = supabase; // Guardar para tracking
   
   mostrarPantallaBusqueda();
 }
@@ -191,7 +194,8 @@ function seleccionarCompanero(nombreCompanero, esCorrecto) {
       orden: state.selectedJugador.orden
     };
     
-    saveIdentidad(identidad);
+    // Guardar identidad con tracking automático
+    saveIdentidad(identidad, state.supabase);
     mostrarPantallaExito(identidad);
   } else {
     // ERROR
