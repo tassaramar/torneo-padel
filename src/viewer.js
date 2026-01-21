@@ -440,6 +440,112 @@ function labelRonda(r) {
   return r;
 }
 
+/* =========================
+   RENDER COPA DIRECTA (CRUCES SIMPLES)
+========================= */
+
+function renderCopaDirecta(copa, partidos) {
+  if (partidos.length === 0) {
+    return `<div class="viewer-card"><p>Todavía no hay partidos en esta copa.</p></div>`;
+  }
+  
+  return `
+    <div class="viewer-card">
+      ${partidos.map(p => {
+        const a = p.pareja_a?.nombre ?? '—';
+        const b = p.pareja_b?.nombre ?? '—';
+        const jugado = p.games_a !== null && p.games_b !== null;
+        const res = jugado ? `${p.games_a} - ${p.games_b}` : 'Pendiente';
+        const pending = !jugado;
+        
+        return `
+          <div class="viewer-match ${pending ? 'is-pending' : ''}">
+            <div class="viewer-match-names">${a} <span class="vs">vs</span> ${b}</div>
+            <div class="viewer-match-res">${res}</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+/* =========================
+   RENDER BRACKET TRADICIONAL (SEMIS/FINAL)
+========================= */
+
+function renderBracketTradicional(partidos) {
+  const sf = partidos.filter(p => p.ronda_copa === 'SF').sort((a, b) => (a.orden_copa ?? 99) - (b.orden_copa ?? 99));
+  const fin = partidos.find(p => p.ronda_copa === 'F') || null;
+  const p3 = partidos.find(p => p.ronda_copa === '3P') || null;
+
+  const sf1 = sf[0] || null;
+  const sf2 = sf[1] || null;
+
+  return `
+    <div class="bracket-copa">
+      <div class="bracket-grid">
+        <div class="bracket-col">
+          <div class="bracket-col-title">Semis</div>
+          ${sf1 ? matchCard({
+            title: 'Semi 1',
+            aName: sf1.pareja_a?.nombre,
+            bName: sf1.pareja_b?.nombre,
+            aScore: sf1.games_a,
+            bScore: sf1.games_b
+          }) : `<div class="bracket-empty">Sin Semi 1</div>`}
+
+          ${sf2 ? matchCard({
+            title: 'Semi 2',
+            aName: sf2.pareja_a?.nombre,
+            bName: sf2.pareja_b?.nombre,
+            aScore: sf2.games_a,
+            bScore: sf2.games_b
+          }) : `<div class="bracket-empty">Sin Semi 2</div>`}
+        </div>
+
+        <div class="bracket-col">
+          <div class="bracket-col-title">Final</div>
+          ${fin ? matchCard({
+            title: 'Final',
+            aName: fin.pareja_a?.nombre,
+            bName: fin.pareja_b?.nombre,
+            aScore: fin.games_a,
+            bScore: fin.games_b
+          }) : `<div class="bracket-empty">Todavía no hay Final</div>`}
+        </div>
+
+        <div class="bracket-col">
+          <div class="bracket-col-title">3° Puesto</div>
+          ${p3 ? matchCard({
+            title: '3° Puesto',
+            aName: p3.pareja_a?.nombre,
+            bName: p3.pareja_b?.nombre,
+            aScore: p3.games_a,
+            bScore: p3.games_b
+          }) : `<div class="bracket-empty">Todavía no hay 3° Puesto</div>`}
+        </div>
+      </div>
+    </div>
+
+    <details class="viewer-details">
+      <summary>Ver lista de partidos</summary>
+      <div class="viewer-card">
+        ${partidos.length ? partidos.map(p => {
+          const a = p.pareja_a?.nombre ?? '—';
+          const b = p.pareja_b?.nombre ?? '—';
+          const res = (p.games_a === null || p.games_b === null) ? 'Pendiente' : `${p.games_a} - ${p.games_b}`;
+          return `
+            <div class="viewer-match">
+              <div class="viewer-match-names">${labelRonda(p.ronda_copa)} · ${a} <span class="vs">vs</span> ${b}</div>
+              <div class="viewer-match-res">${res}</div>
+            </div>
+          `;
+        }).join('') : '<p>Sin partidos.</p>'}
+      </div>
+    </details>
+  `;
+}
+
 function renderCopas() {
   const { copas, partidosCopas } = cache;
 
@@ -469,79 +575,18 @@ function renderCopas() {
     .filter(p => p.copa_id === activeCopaId)
     .sort((a, b) => (a.orden_copa ?? 999) - (b.orden_copa ?? 999));
 
-  const sf = partidos.filter(p => p.ronda_copa === 'SF').sort((a, b) => (a.orden_copa ?? 99) - (b.orden_copa ?? 99));
-  const fin = partidos.find(p => p.ronda_copa === 'F') || null;
-  const p3 = partidos.find(p => p.ronda_copa === '3P') || null;
-
-  const sf1 = sf[0] || null;
-  const sf2 = sf[1] || null;
+  // DETECCIÓN AUTOMÁTICA: ¿Tiene partidos con ronda_copa?
+  const tieneRondas = partidos.some(p => p.ronda_copa !== null);
 
   const wrap = document.createElement('div');
   wrap.innerHTML = `
     <div class="viewer-section">
       <div class="viewer-section-title">${copa?.nombre ?? 'Copa'}</div>
-
-      <div class="bracket-copa">
-        <div class="bracket-grid">
-          <div class="bracket-col">
-            <div class="bracket-col-title">Semis</div>
-            ${sf1 ? matchCard({
-              title: 'Semi 1',
-              aName: sf1.pareja_a?.nombre,
-              bName: sf1.pareja_b?.nombre,
-              aScore: sf1.games_a,
-              bScore: sf1.games_b
-            }) : `<div class="bracket-empty">Sin Semi 1</div>`}
-
-            ${sf2 ? matchCard({
-              title: 'Semi 2',
-              aName: sf2.pareja_a?.nombre,
-              bName: sf2.pareja_b?.nombre,
-              aScore: sf2.games_a,
-              bScore: sf2.games_b
-            }) : `<div class="bracket-empty">Sin Semi 2</div>`}
-          </div>
-
-          <div class="bracket-col">
-            <div class="bracket-col-title">Final</div>
-            ${fin ? matchCard({
-              title: 'Final',
-              aName: fin.pareja_a?.nombre,
-              bName: fin.pareja_b?.nombre,
-              aScore: fin.games_a,
-              bScore: fin.games_b
-            }) : `<div class="bracket-empty">Todavía no hay Final</div>`}
-          </div>
-
-          <div class="bracket-col">
-            <div class="bracket-col-title">3° Puesto</div>
-            ${p3 ? matchCard({
-              title: '3° Puesto',
-              aName: p3.pareja_a?.nombre,
-              bName: p3.pareja_b?.nombre,
-              aScore: p3.games_a,
-              bScore: p3.games_b
-            }) : `<div class="bracket-empty">Todavía no hay 3° Puesto</div>`}
-          </div>
-        </div>
-      </div>
-
-      <details class="viewer-details">
-        <summary>Ver lista de partidos</summary>
-        <div class="viewer-card">
-          ${partidos.length ? partidos.map(p => {
-            const a = p.pareja_a?.nombre ?? '—';
-            const b = p.pareja_b?.nombre ?? '—';
-            const res = (p.games_a === null || p.games_b === null) ? 'Pendiente' : `${p.games_a} - ${p.games_b}`;
-            return `
-              <div class="viewer-match">
-                <div class="viewer-match-names">${labelRonda(p.ronda_copa)} · ${a} <span class="vs">vs</span> ${b}</div>
-                <div class="viewer-match-res">${res}</div>
-              </div>
-            `;
-          }).join('') : '<p>Sin partidos.</p>'}
-        </div>
-      </details>
+      
+      ${tieneRondas 
+        ? renderBracketTradicional(partidos)  // Formato bracket (semis/final)
+        : renderCopaDirecta(copa, partidos)    // Formato cruces directos
+      }
     </div>
   `;
 
