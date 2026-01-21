@@ -773,11 +773,29 @@ async function checkIdentidadYCargar() {
 // Exponer funciones globales para onclick en HTML
 window.app = {
   async cargarResultado(partidoId) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:775',message:'cargarResultado iniciado',data:{partidoId:partidoId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A_B'})}).catch(()=>{});
+    // #endregion
+    
     const identidad = getIdentidad();
-    if (!identidad) return;
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:778',message:'identidad obtenida',data:{identidad:identidad,esNull:identidad===null,esUndefined:identidad===undefined},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    
+    if (!identidad) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:782',message:'identidad es null - saliendo',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      return;
+    }
 
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:788',message:'antes de fetch partido',data:{partidoId:partidoId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    
     // Buscar partido en cache o fetche ar
-    const { data: partido } = await supabase
+    const { data: partido, error: errorPartido } = await supabase
       .from('partidos')
       .select(`
         id, games_a, games_b, estado,
@@ -787,9 +805,26 @@ window.app = {
       .eq('id', partidoId)
       .single();
 
-    if (!partido) return;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:803',message:'fetch partido completado',data:{partido:partido,error:errorPartido,esNull:partido===null},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+
+    if (!partido) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:808',message:'partido es null - saliendo',data:{error:errorPartido},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
+      return;
+    }
+
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:814',message:'antes de mostrarModalCargarResultado',data:{partidoId:partido.id},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
 
     mostrarModalCargarResultado(partido, identidad, async (gamesA, gamesB) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:819',message:'onSubmit modal ejecutado',data:{gamesA:gamesA,gamesB:gamesB},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+      // #endregion
+      
       const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
       
       if (resultado.ok) {
@@ -799,6 +834,10 @@ window.app = {
         alert('Error: ' + resultado.mensaje);
       }
     });
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'viewer.js:833',message:'mostrarModalCargarResultado llamado',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+    // #endregion
   },
 
   async confirmarResultado(partidoId, gamesA, gamesB) {

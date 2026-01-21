@@ -300,6 +300,10 @@ export async function pedirAyudaAdmin(supabase, partidoId, identidad, nota = '')
  * Muestra modal/UI para cargar resultado
  */
 export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cargarResultado.js:302',message:'mostrarModalCargarResultado iniciado',data:{partidoId:partido.id,identidadNombre:identidad.parejaNombre},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
+  
   const oponente = partido.pareja_a?.id === identidad.parejaId 
     ? partido.pareja_b?.nombre 
     : partido.pareja_a?.nombre;
@@ -321,6 +325,11 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
 
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cargarResultado.js:324',message:'modal creado',data:{modalClassName:modal.className},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
+  
   modal.innerHTML = `
     <div class="modal-content">
       <div class="modal-header">
@@ -387,7 +396,15 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
     </div>
   `;
 
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cargarResultado.js:390',message:'antes de appendChild modal',data:{bodyExists:!!document.body},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
+  
   document.body.appendChild(modal);
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'cargarResultado.js:396',message:'modal agregado al DOM',data:{modalEnDOM:document.body.contains(modal)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+  // #endregion
 
   // Event listeners
   const close = () => {

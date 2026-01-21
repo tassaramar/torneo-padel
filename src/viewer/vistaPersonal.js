@@ -895,7 +895,7 @@ function renderPartidosCargar(partidosPendientes, todosPartidosGrupo, todosParti
           ` : ''}
           
           <div class="partido-actions">
-            <button class="btn-primary" onclick="app.cargarResultado('${p.id}')">
+            <button class="btn-primary" onclick="fetch('http://127.0.0.1:7242/ingest/55950f91-7837-4b4e-a7ee-c1c8657c32bb',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'vistaPersonal.js:898',message:'boton cargar click',data:{partidoId:'${p.id}',appDefined:typeof window.app!=='undefined',cargarDefined:typeof window.app?.cargarResultado==='function'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A_B'})}).catch(()=>{}); app.cargarResultado('${p.id}')">
               ${esperandoConfirmacion ? '✏️ Editar resultado' : '📝 Cargar resultado'}
             </button>
           </div>
