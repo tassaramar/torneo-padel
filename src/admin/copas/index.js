@@ -1210,33 +1210,55 @@ export async function generarFinalesYTercerPuesto() {
 ========================= */
 
 async function obtenerPosicionesFinales(grupoId, grupoNombre) {
-  // Primero intentar orden manual
-  const { data: manual } = await supabase
+  // 1. Calcular orden automático (base)
+  const calc = await calcularTablaGrupoDB(grupoId);
+  
+  if (!calc.ok || calc.rows.length < 5) {
+    logMsg(`❌ ${grupoNombre}: ${calc.msg || 'no se pudo calcular orden automático'}`);
+    return null;
+  }
+  
+  // 2. Obtener overrides manuales (si existen)
+  const { data: manual, error: errManual } = await supabase
     .from('posiciones_manual')
-    .select('pareja_id, orden_manual, parejas(nombre)')
+    .select('pareja_id, orden_manual')
     .eq('torneo_id', TORNEO_ID)
     .eq('grupo_id', grupoId)
     .not('orden_manual', 'is', null)
     .order('orden_manual');
     
-  if (manual && manual.length >= 5) {
-    logMsg(`✅ ${grupoNombre}: usando orden manual (${manual.length} parejas)`);
-    return manual.map(m => ({
-      pareja_id: m.pareja_id,
-      nombre: m.parejas?.nombre || '?'
-    }));
+  if (errManual) {
+    console.error(errManual);
+    logMsg(`⚠️ ${grupoNombre}: error leyendo overrides (usando automático)`);
   }
   
-  // Si no hay manual, calcular automático
-  const calc = await calcularTablaGrupoDB(grupoId);
-  
-  if (!calc.ok || calc.rows.length < 5) {
-    logMsg(`❌ ${grupoNombre}: ${calc.msg || 'no se pudo calcular'}`);
-    return null;
+  // 3. Crear mapa de overrides
+  const overridesMap = {};
+  if (manual && manual.length > 0) {
+    manual.forEach(ov => {
+      overridesMap[ov.pareja_id] = ov.orden_manual;
+    });
   }
   
-  logMsg(`✅ ${grupoNombre}: usando orden automático (${calc.rows.length} parejas)`);
-  return calc.rows.map(r => ({
+  // 4. Separar: con override vs sin override
+  const conOverride = calc.rows.filter(r => overridesMap[r.pareja_id] !== undefined);
+  const sinOverride = calc.rows.filter(r => overridesMap[r.pareja_id] === undefined);
+  
+  // 5. Ordenar con override por orden_manual
+  conOverride.sort((a, b) => overridesMap[a.pareja_id] - overridesMap[b.pareja_id]);
+  
+  // 6. Ya sin override está ordenado automáticamente
+  
+  // 7. Tabla final: overrides primero, luego automáticos
+  const tablaFinal = [...conOverride, ...sinOverride];
+  
+  if (manual && manual.length > 0) {
+    logMsg(`✅ ${grupoNombre}: usando orden con ${manual.length} override(s) + automático`);
+  } else {
+    logMsg(`✅ ${grupoNombre}: usando orden automático (sin overrides)`);
+  }
+  
+  return tablaFinal.map(r => ({
     pareja_id: r.pareja_id,
     nombre: r.nombre
   }));
