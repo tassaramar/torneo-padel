@@ -1,6 +1,6 @@
 import { supabase, TORNEO_ID, dom, logMsg, el } from '../context.js';
 import { shuffle, cmpStatsDesc } from '../utils.js';
-import { calcularTablaGrupo, ordenarAutomatico } from '../groups/compute.js';
+import { calcularTablaGrupo, ordenarAutomatico, ordenarConOverrides } from '../groups/compute.js';
 
 export function initCopas() {
   console.log('INIT COPAS');
@@ -1210,11 +1210,11 @@ export async function generarFinalesYTercerPuesto() {
 ========================= */
 
 async function obtenerPosicionesFinales(grupoId, grupoNombre) {
-  // 1. Calcular orden automático (base)
+  // 1. Calcular tabla del grupo
   const calc = await calcularTablaGrupoDB(grupoId);
   
   if (!calc.ok || calc.rows.length < 5) {
-    logMsg(`❌ ${grupoNombre}: ${calc.msg || 'no se pudo calcular orden automático'}`);
+    logMsg(`❌ ${grupoNombre}: ${calc.msg || 'no se pudo calcular tabla'}`);
     return null;
   }
   
@@ -1224,8 +1224,7 @@ async function obtenerPosicionesFinales(grupoId, grupoNombre) {
     .select('pareja_id, orden_manual')
     .eq('torneo_id', TORNEO_ID)
     .eq('grupo_id', grupoId)
-    .not('orden_manual', 'is', null)
-    .order('orden_manual');
+    .not('orden_manual', 'is', null);
     
   if (errManual) {
     console.error(errManual);
@@ -1240,25 +1239,16 @@ async function obtenerPosicionesFinales(grupoId, grupoNombre) {
     });
   }
   
-  // 4. Separar: con override vs sin override
-  const conOverride = calc.rows.filter(r => overridesMap[r.pareja_id] !== undefined);
-  const sinOverride = calc.rows.filter(r => overridesMap[r.pareja_id] === undefined);
-  
-  // 5. Ordenar con override por orden_manual
-  conOverride.sort((a, b) => overridesMap[a.pareja_id] - overridesMap[b.pareja_id]);
-  
-  // 6. Ya sin override está ordenado automáticamente
-  
-  // 7. Tabla final: overrides primero, luego automáticos
-  const tablaFinal = [...conOverride, ...sinOverride];
+  // 4. Usar la función ordenarConOverrides (misma lógica que el admin)
+  const tablaOrdenada = ordenarConOverrides(calc.rows, overridesMap);
   
   if (manual && manual.length > 0) {
-    logMsg(`✅ ${grupoNombre}: usando orden con ${manual.length} override(s) + automático`);
+    logMsg(`✅ ${grupoNombre}: usando orden con ${manual.length} override(s)`);
   } else {
-    logMsg(`✅ ${grupoNombre}: usando orden automático (sin overrides)`);
+    logMsg(`✅ ${grupoNombre}: usando orden automático`);
   }
   
-  return tablaFinal.map(r => ({
+  return tablaOrdenada.map(r => ({
     pareja_id: r.pareja_id,
     nombre: r.nombre
   }));
