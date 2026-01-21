@@ -54,11 +54,11 @@ function mostrarPantallaBusqueda() {
   
   app.innerHTML = `
     <div class="identificacion-container">
-      <h1>¡Bienvenido al torneo Swing Padel: Segundo Saque! 🎾</h1>
+      <h1>¡Bienvenido!</h1>
       <p class="subtitle">Para ver tus partidos, primero necesitamos saber quién sos</p>
       
       <div class="card">
-        <div class="helper-text" style="margin-bottom: 12px; color: var(--muted); font-size: 14px;">
+        <div id="helper-text" class="helper-text" style="margin-bottom: 12px; color: var(--muted); font-size: 14px;">
           💡 Tu nombre como figura en el fixture
         </div>
         <input 
@@ -75,8 +75,21 @@ function mostrarPantallaBusqueda() {
   `;
   
   const input = document.getElementById('search-input');
+  const container = document.querySelector('.identificacion-container');
   input.addEventListener('input', (e) => buscarJugador(e.target.value));
-  input.focus();
+  
+  // Scroll solo cuando el usuario toca el input manualmente (no al cargar)
+  // Hacer scroll al título "¡Bienvenido!" para que quede visible
+  input.addEventListener('focus', () => {
+    setTimeout(() => {
+      const h1 = container?.querySelector('h1');
+      if (h1) {
+        h1.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 300);
+  }, { once: false });
+  
+  // No hacer focus automático al cargar - dejar que el usuario interactúe primero
 }
 
 /**
@@ -120,6 +133,16 @@ function buscarJugador(query) {
       seleccionarJugador(item.dataset.parejaId, item.dataset.nombre);
     });
   });
+  
+  // Hacer scroll para que los resultados sean visibles (especialmente en móviles con teclado)
+  if (matches.length > 0) {
+    setTimeout(() => {
+      const firstResult = results.querySelector('.result-item');
+      if (firstResult) {
+        firstResult.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 100);
+  }
 }
 
 /**

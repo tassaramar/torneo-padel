@@ -31,7 +31,10 @@
   --ring: rgba(20, 184, 166, 0.25);
 }
 
-html, body { height: 100%; }
+html, body { 
+  height: 100%; 
+  min-height: 100vh; /* Asegurar altura mínima del viewport */
+}
 
 body{
   margin: 0;
@@ -1145,6 +1148,9 @@ tbody td:first-child{
 
 .results-list {
   margin-top: 12px;
+  padding-bottom: 20px; /* Espacio extra para scroll */
+  max-height: 60vh; /* Limitar altura máxima */
+  overflow-y: auto;
 }
 
 .result-item {
@@ -1297,21 +1303,35 @@ tbody td:first-child{
   font-weight: 700;
 }
 
-.personal-actions {
+.personal-change-link {
+  display: inline-block;
   margin-top: 12px;
-}
-
-.personal-actions button {
-  font-size: 14px;
-  padding: 8px 14px;
-  background: transparent;
-  border: 1px solid var(--border);
+  font-size: 13px;
   color: var(--muted);
+  background: transparent;
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: none;
   min-height: auto;
+  border-radius: 6px;
+  transition: all 0.15s ease;
 }
 
-.personal-actions button {
-  width: auto;
+.personal-change-link:hover {
+  color: var(--text);
+  background: rgba(15, 23, 42, 0.04);
+  text-decoration: underline;
+}
+
+.personal-change-link:active {
+  transform: none;
+}
+
+.personal-change-link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .personal-section {
@@ -1941,6 +1961,34 @@ tbody td:first-child{
 
 /* ===== Responsive ===== */
 @media (max-width: 600px) {
+  /* Forzar altura mínima mayor en móviles para acomodar teclado */
+  html, body {
+    min-height: 120vh; /* Más alto para permitir scroll cuando aparece el teclado */
+  }
+  
+  /* Layout compacto para pantalla de identificación en móviles */
+  .identificacion-container {
+    padding-top: 12px;
+  }
+  
+  .identificacion-container h1 {
+    font-size: 24px;
+    margin: 4px 0 6px;
+  }
+  
+  .identificacion-container .subtitle {
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+  
+  .card {
+    padding: 16px;
+  }
+  
+  .results-list {
+    max-height: 50vh; /* Altura más pequeña en móviles */
+  }
+  
   .personal-header {
     flex-direction: column;
   }
@@ -2527,4 +2575,330 @@ tbody td:first-child{
   height: 120px;
   margin-bottom: 14px;
   border-radius: 14px;
+}
+
+/* ===== Fixture Grid ===== */
+.fixture-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.fixture-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.fixture-title {
+  font-size: 2rem;
+  color: #1976d2;
+  margin-bottom: 8px;
+}
+
+.fixture-subtitle {
+  font-size: 1.1rem;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.fixture-status {
+  font-size: 0.9rem;
+  color: #999;
+}
+
+/* Leyenda */
+.fixture-legend {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.95rem;
+}
+
+.legend-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.badge-jugado {
+  background: #e8f5e9;
+  border: 2px solid #4caf50;
+  color: #2e7d32;
+}
+
+.badge-pendiente {
+  background: #e3f2fd;
+  border: 2px solid #2196f3;
+  color: #1565c0;
+}
+
+.badge-fecha-libre {
+  background: #fff8e1;
+  border: 2px solid #ff9800;
+  color: #e65100;
+}
+
+/* Grid matricial */
+.fixture-grid {
+  overflow-x: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.fixture-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  min-width: 800px;
+}
+
+.fixture-table th {
+  background: #f5f5f5;
+  padding: 16px 12px;
+  text-align: center;
+  font-weight: 600;
+  border: 1px solid #ddd;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.fixture-table td {
+  padding: 12px;
+  border: 1px solid #ddd;
+  vertical-align: top;
+}
+
+.fixture-ronda-header {
+  background: #e3f2fd;
+  font-weight: 700;
+  text-align: center;
+  color: #1976d2;
+  min-width: 100px;
+}
+
+.fixture-cell {
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Cards de partidos */
+.fixture-partido-card {
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 2px solid;
+  transition: all 0.2s;
+  font-size: 0.9rem;
+}
+
+.fixture-partido-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.fixture-partido-jugado {
+  background: #e8f5e9;
+  border-color: #4caf50;
+}
+
+.fixture-partido-pendiente {
+  background: #e3f2fd;
+  border-color: #2196f3;
+}
+
+.fixture-fecha-libre {
+  background: #fff8e1;
+  border-color: #ff9800;
+  text-align: center;
+  padding: 16px 12px;
+}
+
+.fixture-vs {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.fixture-equipo {
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.fixture-resultado {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #2e7d32;
+}
+
+.fixture-icono {
+  font-size: 1.2rem;
+  margin-right: 6px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .fixture-container {
+    padding: 10px 6px;
+  }
+
+  .fixture-title {
+    font-size: 1.3rem;
+    margin-bottom: 4px;
+  }
+  
+  .fixture-subtitle {
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+  }
+
+  .fixture-status {
+    font-size: 0.8rem;
+  }
+
+  /* Ocultar leyenda en móvil */
+  .fixture-legend-desktop {
+    display: none !important;
+  }
+  
+  /* Mantener tabla pero optimizada para scroll horizontal */
+  .fixture-grid {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-top: 12px;
+  }
+
+  .fixture-table {
+    min-width: 500px;
+    font-size: 0.75rem;
+  }
+  
+  .fixture-table th {
+    padding: 8px 4px;
+    font-size: 0.8rem;
+    position: sticky;
+    top: 0;
+  }
+  
+  .fixture-table td {
+    padding: 5px;
+    min-width: 150px;
+  }
+  
+  .fixture-table th {
+    font-size: 0.75rem !important;
+  }
+  
+  /* Columna Ronda ULTRA compacta - solo número */
+  .fixture-ronda-header {
+    min-width: 30px !important;
+    max-width: 30px !important;
+    padding: 8px 2px !important;
+    font-size: 1rem !important;
+    font-weight: 700 !important;
+    writing-mode: horizontal-tb !important;
+    background: #1976d2 !important;
+    color: white !important;
+  }
+  
+  .fixture-cell {
+    min-height: 50px;
+    gap: 5px;
+  }
+  
+  /* Cards más compactas */
+  .fixture-partido-card {
+    padding: 6px;
+    font-size: 0.75rem;
+    border-width: 2px;
+  }
+  
+  /* Ocultar iconos en móvil */
+  .fixture-icono {
+    display: none !important;
+  }
+  
+  /* Rivales en una sola línea horizontal */
+  .fixture-partido-card:not(.fixture-fecha-libre) > div {
+    display: flex;
+    flex-direction: row !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 3px;
+  }
+  
+  .fixture-partido-card:not(.fixture-fecha-libre) > div > div {
+    flex: 1;
+    text-align: center;
+    font-size: 0.7rem;
+  }
+  
+  .fixture-partido-card:not(.fixture-fecha-libre) > div > div:nth-child(2) {
+    flex: 0 0 auto;
+    font-size: 0.65rem;
+    color: #999;
+  }
+  
+  .fixture-vs {
+    flex-direction: row !important;
+    gap: 3px !important;
+    margin-top: 0 !important;
+  }
+  
+  .fixture-equipo {
+    font-size: 0.75rem !important;
+    font-weight: 600 !important;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.2;
+  }
+  
+  .fixture-resultado {
+    font-size: 0.9rem !important;
+    font-weight: 700 !important;
+    flex: 0 0 auto;
+    margin: 0 3px;
+  }
+  
+  /* Fecha libre más compacta */
+  .fixture-fecha-libre {
+    padding: 8px 6px;
+  }
+  
+  .fixture-fecha-libre > div:first-of-type {
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+  
+  .fixture-fecha-libre > div:last-of-type {
+    font-size: 0.7rem;
+    margin-top: 2px;
+    line-height: 1.2;
+  }
+
+  /* Fix para topnav */
+  .topnav {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px 8px;
+  }
+
+  .topnav-link {
+    font-size: 0.8rem;
+    padding: 7px 10px;
+    white-space: nowrap;
+  }
 }

@@ -518,10 +518,8 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
         <div class="personal-info">
           <h1 class="personal-title">${escapeHtml(identidad.parejaNombre)}</h1>
           <div class="personal-meta">Grupo ${escapeHtml(identidad.grupo)}</div>
-        </div>
-        <div class="personal-actions">
-          <button class="btn-secondary btn-sm" id="btn-change-pareja" type="button">
-            <span style="font-size: 12px;">🔄</span> Elegir otra pareja
+          <button class="personal-change-link" id="btn-change-pareja" type="button">
+            ¿No sos vos?
           </button>
         </div>
       </div>
