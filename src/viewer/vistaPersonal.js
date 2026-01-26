@@ -5,6 +5,7 @@
 
 import { getMensajeResultado } from '../utils/mensajesResultado.js';
 import { obtenerFrasesUnicas } from '../utils/frasesFechaLibre.js';
+import { formatearResultado, tieneResultado } from '../utils/formatoResultado.js';
 import {
   calcularTablaGrupo as calcularTablaGrupoCentral,
   ordenarConOverrides,
@@ -577,13 +578,54 @@ function renderPartidosRevision(partidos, identidad) {
     const oponente = getOponenteName(p, identidad);
     const soyA = p.pareja_a?.id === identidad.parejaId;
     
+    // Calcular resultados desde sets o games
+    let gamesA1, gamesB1, gamesA2, gamesB2;
+    
+    if (p.set1_a !== null && p.set1_b !== null) {
+      // Calcular desde sets originales
+      let setsA = 0, setsB = 0;
+      if (p.set1_a > p.set1_b) setsA++; else if (p.set1_b > p.set1_a) setsB++;
+      if (p.set2_a !== null && p.set2_b !== null) {
+        if (p.set2_a > p.set2_b) setsA++; else if (p.set2_b > p.set2_a) setsB++;
+      }
+      if (p.set3_a !== null && p.set3_b !== null) {
+        if (p.set3_a > p.set3_b) setsA++; else if (p.set3_b > p.set3_a) setsB++;
+      }
+      gamesA1 = setsA;
+      gamesB1 = setsB;
+      
+      // Calcular desde sets temporales
+      setsA = 0; setsB = 0;
+      if (p.set1_temp_a > p.set1_temp_b) setsA++; else if (p.set1_temp_b > p.set1_temp_a) setsB++;
+      if (p.set2_temp_a !== null && p.set2_temp_b !== null) {
+        if (p.set2_temp_a > p.set2_temp_b) setsA++; else if (p.set2_temp_b > p.set2_temp_a) setsB++;
+      }
+      if (p.set3_temp_a !== null && p.set3_temp_b !== null) {
+        if (p.set3_temp_a > p.set3_temp_b) setsA++; else if (p.set3_temp_b > p.set3_temp_a) setsB++;
+      }
+      gamesA2 = setsA;
+      gamesB2 = setsB;
+    } else {
+      gamesA1 = p.games_a;
+      gamesB1 = p.games_b;
+      gamesA2 = p.resultado_temp_a;
+      gamesB2 = p.resultado_temp_b;
+    }
+    
     // Resultado 1 (original)
-    const resultado1 = getMensajeResultado(p.games_a, p.games_b, soyA);
+    const resultado1 = getMensajeResultado(gamesA1, gamesB1, soyA);
     const mensaje1 = resultado1.ganador === 'yo' ? 'Vos ganaste' : 'Vos perdiste';
     
     // Resultado 2 (temporal)
-    const resultado2 = getMensajeResultado(p.resultado_temp_a, p.resultado_temp_b, soyA);
+    const resultado2 = getMensajeResultado(gamesA2, gamesB2, soyA);
     const mensaje2 = resultado2.ganador === 'yo' ? 'Vos ganaste' : 'Vos perdiste';
+    
+    // Formatear resultados para mostrar
+    const res1 = p.set1_a !== null ? formatearResultado(p) : `${gamesA1} - ${gamesB1}`;
+    const res2 = p.set1_temp_a !== null ? (() => {
+      const tempPartido = { ...p, set1_a: p.set1_temp_a, set1_b: p.set1_temp_b, set2_a: p.set2_temp_a, set2_b: p.set2_temp_b, set3_a: p.set3_temp_a, set3_b: p.set3_temp_b };
+      return formatearResultado(tempPartido);
+    })() : `${gamesA2} - ${gamesB2}`;
     
     return `
       <div class="partido partido-revision" data-partido-id="${p.id}">
@@ -595,7 +637,7 @@ function renderPartidosRevision(partidos, identidad) {
         <div class="conflicto-box">
           <div class="conflicto-item ${esParejaCargadora ? 'es-mio' : ''}">
             <div class="conflicto-label">${esParejaCargadora ? 'Tu resultado' : 'Resultado de ' + oponente}</div>
-            <div class="conflicto-score">${p.games_a} - ${p.games_b}</div>
+            <div class="conflicto-score">${res1}</div>
             <div class="conflicto-mensaje ${resultado1.ganador === 'yo' ? 'ganaste' : 'perdiste'}">${mensaje1}</div>
           </div>
           
@@ -603,7 +645,7 @@ function renderPartidosRevision(partidos, identidad) {
           
           <div class="conflicto-item ${!esParejaCargadora ? 'es-mio' : ''}">
             <div class="conflicto-label">${!esParejaCargadora ? 'Tu resultado' : 'Resultado de ' + oponente}</div>
-            <div class="conflicto-score">${p.resultado_temp_a} - ${p.resultado_temp_b}</div>
+            <div class="conflicto-score">${res2}</div>
             <div class="conflicto-mensaje ${resultado2.ganador === 'yo' ? 'ganaste' : 'perdiste'}">${mensaje2}</div>
           </div>
         </div>
@@ -631,7 +673,27 @@ function renderPartidosConfirmar(partidos, identidad) {
   container.innerHTML = partidos.map(p => {
     const oponente = getOponenteName(p, identidad);
     const soyA = p.pareja_a?.id === identidad.parejaId;
-    const resultado = getMensajeResultado(p.games_a, p.games_b, soyA);
+    
+    // Calcular resultado desde sets o games
+    let gamesA, gamesB;
+    if (p.set1_a !== null && p.set1_b !== null) {
+      // Calcular desde sets
+      let setsA = 0, setsB = 0;
+      if (p.set1_a > p.set1_b) setsA++; else if (p.set1_b > p.set1_a) setsB++;
+      if (p.set2_a !== null && p.set2_b !== null) {
+        if (p.set2_a > p.set2_b) setsA++; else if (p.set2_b > p.set2_a) setsB++;
+      }
+      if (p.set3_a !== null && p.set3_b !== null) {
+        if (p.set3_a > p.set3_b) setsA++; else if (p.set3_b > p.set3_a) setsB++;
+      }
+      gamesA = setsA;
+      gamesB = setsB;
+    } else {
+      gamesA = p.games_a;
+      gamesB = p.games_b;
+    }
+    
+    const resultado = getMensajeResultado(gamesA, gamesB, soyA);
     const mensajeResultado = resultado.ganador === 'yo' ? '🎉 Ganaste' : '😔 Perdiste';
     const claseResultado = resultado.ganador === 'yo' ? 'ganaste' : 'perdiste';
     
@@ -644,12 +706,12 @@ function renderPartidosConfirmar(partidos, identidad) {
         
         <div class="resultado-cargado ${claseResultado}">
           <div class="resultado-label">${escapeHtml(oponente)} cargó:</div>
-          <div class="resultado-score">${p.games_a} - ${p.games_b}</div>
+          <div class="resultado-score">${formatearResultado(p)}</div>
           <div class="resultado-mensaje">${mensajeResultado}</div>
         </div>
         
         <div class="partido-actions">
-          <button class="btn-primary" onclick="app.confirmarResultado('${p.id}', ${p.games_a}, ${p.games_b})">
+          <button class="btn-primary" onclick="app.confirmarResultadoConSets('${p.id}')">
             ✅ Confirmar este resultado
           </button>
           <button class="btn-secondary" onclick="app.cargarResultadoDiferente('${p.id}')">

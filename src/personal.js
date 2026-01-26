@@ -329,11 +329,20 @@ window.app = {
 
     if (!partido) return;
 
-    mostrarModalCargarResultado(partido, identidad, async (gamesA, gamesB) => {
+    mostrarModalCargarResultado(partido, identidad, async (setsOrGamesA, gamesBOrNumSets) => {
       // Animar salida de la tarjeta
       await animarPartidoSalida(partidoId);
       
-      const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
+      let resultado;
+      // Detectar si es modo sets (objeto) o modo legacy (números)
+      if (typeof setsOrGamesA === 'object' && setsOrGamesA.set1) {
+        // Modo sets
+        const { cargarResultadoConSets } = await import('./viewer/cargarResultado.js');
+        resultado = await cargarResultadoConSets(supabase, partidoId, setsOrGamesA, gamesBOrNumSets, identidad);
+      } else {
+        // Modo legacy (games)
+        resultado = await cargarResultado(supabase, partidoId, setsOrGamesA, gamesBOrNumSets, identidad);
+      }
       
       if (resultado.ok) {
         // Animación ya mostró el éxito, solo recargar
@@ -345,6 +354,7 @@ window.app = {
   },
 
   async confirmarResultado(partidoId, gamesA, gamesB) {
+    // Versión legacy - mantiene compatibilidad
     const identidad = getIdentidad();
     if (!identidad) return;
 
@@ -358,6 +368,50 @@ window.app = {
       await init();
     } else {
       mostrarToastError(resultado.mensaje);
+    }
+  },
+
+  async confirmarResultadoConSets(partidoId) {
+    // Nueva versión que confirma usando los sets ya cargados
+    const identidad = getIdentidad();
+    if (!identidad) return;
+
+    // Obtener el partido para usar sus sets
+    const { data: partido, error } = await supabase
+      .from('partidos')
+      .select('*')
+      .eq('id', partidoId)
+      .single();
+
+    if (error || !partido) {
+      mostrarToastError('Error al obtener el partido');
+      return;
+    }
+
+    // Animar salida de la tarjeta
+    await animarPartidoSalida(partidoId);
+
+    // Si tiene sets, confirmar con sets
+    if (partido.set1_a !== null && partido.set1_b !== null) {
+      const sets = {
+        set1: { setA: partido.set1_a, setB: partido.set1_b },
+        set2: { setA: partido.set2_a, setB: partido.set2_b }
+      };
+      if (partido.set3_a !== null && partido.set3_b !== null) {
+        sets.set3 = { setA: partido.set3_a, setB: partido.set3_b };
+      }
+
+      const { cargarResultadoConSets } = await import('./viewer/cargarResultado.js');
+      const resultado = await cargarResultadoConSets(supabase, partidoId, sets, partido.num_sets || 3, identidad);
+      
+      if (resultado.ok) {
+        await init();
+      } else {
+        mostrarToastError(resultado.mensaje);
+      }
+    } else {
+      // Fallback a modo legacy
+      await this.confirmarResultado(partidoId, partido.games_a, partido.games_b);
     }
   },
 

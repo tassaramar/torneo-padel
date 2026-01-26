@@ -128,6 +128,7 @@ async function fetchAll() {
       supabase.from('grupos').select('id, nombre').eq('torneo_id', TORNEO_ID).order('nombre'),
       supabase.from('partidos').select(`
         id, games_a, games_b, estado, ronda,
+        set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
         pareja_a_id, pareja_b_id,
         grupos ( id, nombre ),
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
@@ -136,6 +137,7 @@ async function fetchAll() {
       supabase.from('copas').select('id, nombre, orden').eq('torneo_id', TORNEO_ID).order('orden'),
       supabase.from('partidos').select(`
         id, games_a, games_b, ronda_copa, orden_copa, copa_id,
+        set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
         copas ( id, nombre, orden ),
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
@@ -259,7 +261,9 @@ function renderPartidosConRondas(partidos) {
     
     // Renderizar partido
     if (jugado) {
-      const res = `${p.games_a} - ${p.games_b}`;
+      // Importar función de formateo
+      const { formatearResultado } = await import('./utils/formatoResultado.js');
+      const res = formatearResultado(p);
       html += `
         <div class="viewer-match ${esperandoConfirmacion ? 'viewer-match-esperando' : ''} ${enRevision ? 'viewer-match-revision' : ''}">
           <div class="viewer-match-ronda">R${ronda}</div>
@@ -442,8 +446,9 @@ function renderCopaDirecta(copa, partidos) {
       ${partidos.map(p => {
         const a = p.pareja_a?.nombre ?? '—';
         const b = p.pareja_b?.nombre ?? '—';
-        const jugado = p.games_a !== null && p.games_b !== null;
-        const res = jugado ? `${p.games_a} - ${p.games_b}` : 'Pendiente';
+        const { tieneResultado, formatearResultado } = await import('./utils/formatoResultado.js');
+        const jugado = tieneResultado(p);
+        const res = jugado ? formatearResultado(p) : 'Pendiente';
         const pending = !jugado;
         
         return `
@@ -521,7 +526,8 @@ function renderBracketTradicional(partidos) {
         ${partidos.length ? partidos.map(p => {
           const a = p.pareja_a?.nombre ?? '—';
           const b = p.pareja_b?.nombre ?? '—';
-          const res = (p.games_a === null || p.games_b === null) ? 'Pendiente' : `${p.games_a} - ${p.games_b}`;
+          const { tieneResultado, formatearResultado } = await import('./utils/formatoResultado.js');
+          const res = tieneResultado(p) ? formatearResultado(p) : 'Pendiente';
           return `
             <div class="viewer-match">
               <div class="viewer-match-names">${labelRonda(p.ronda_copa)} · ${a} <span class="vs">vs</span> ${b}</div>
@@ -769,6 +775,7 @@ window.app = {
       .from('partidos')
       .select(`
         id, games_a, games_b, estado,
+        set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
         pareja_a_id, pareja_b_id,
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
@@ -778,8 +785,17 @@ window.app = {
 
     if (!partido) return;
 
-    mostrarModalCargarResultado(partido, identidad, async (gamesA, gamesB) => {
-      const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
+    mostrarModalCargarResultado(partido, identidad, async (setsOrGamesA, gamesBOrNumSets) => {
+      let resultado;
+      // Detectar si es modo sets (objeto) o modo legacy (números)
+      if (typeof setsOrGamesA === 'object' && setsOrGamesA.set1) {
+        // Modo sets
+        const { cargarResultadoConSets } = await import('./viewer/cargarResultado.js');
+        resultado = await cargarResultadoConSets(supabase, partidoId, setsOrGamesA, gamesBOrNumSets, identidad);
+      } else {
+        // Modo legacy (games)
+        resultado = await cargarResultado(supabase, partidoId, setsOrGamesA, gamesBOrNumSets, identidad);
+      }
       
       if (resultado.ok) {
         alert(resultado.mensaje);
@@ -791,6 +807,7 @@ window.app = {
   },
 
   async confirmarResultado(partidoId, gamesA, gamesB) {
+    // Versión legacy - mantiene compatibilidad
     const identidad = getIdentidad();
     if (!identidad) return;
 
@@ -801,6 +818,48 @@ window.app = {
       await init('personal');
     } else {
       alert('Error: ' + resultado.mensaje);
+    }
+  },
+
+  async confirmarResultadoConSets(partidoId) {
+    // Nueva versión que confirma usando los sets ya cargados
+    const identidad = getIdentidad();
+    if (!identidad) return;
+
+    // Obtener el partido para usar sus sets
+    const { data: partido, error } = await supabase
+      .from('partidos')
+      .select('*')
+      .eq('id', partidoId)
+      .single();
+
+    if (error || !partido) {
+      alert('Error al obtener el partido');
+      return;
+    }
+
+    // Si tiene sets, confirmar con sets
+    if (partido.set1_a !== null && partido.set1_b !== null) {
+      const sets = {
+        set1: { setA: partido.set1_a, setB: partido.set1_b },
+        set2: { setA: partido.set2_a, setB: partido.set2_b }
+      };
+      if (partido.set3_a !== null && partido.set3_b !== null) {
+        sets.set3 = { setA: partido.set3_a, setB: partido.set3_b };
+      }
+
+      const { cargarResultadoConSets } = await import('./viewer/cargarResultado.js');
+      const resultado = await cargarResultadoConSets(supabase, partidoId, sets, partido.num_sets || 3, identidad);
+      
+      if (resultado.ok) {
+        alert(resultado.mensaje);
+        await init('personal');
+      } else {
+        alert('Error: ' + resultado.mensaje);
+      }
+    } else {
+      // Fallback a modo legacy
+      await this.confirmarResultado(partidoId, partido.games_a, partido.games_b);
     }
   },
 

@@ -50,6 +50,8 @@ Procedimientos y pasos para aplicar cambios o configuraciones.
 - `roadmap.md` - Roadmap del proyecto
 - `copas-flexibles.md` - Documentación sobre el sistema de copas flexibles
 - `testing-formatos-variables.md` - Testing de formatos y variables
+- `GESTION-BACKUPS.md` - ⭐ **Guía completa de gestión de backups** (crear, limpiar, restaurar)
+- `RESTAURAR-BACKUP.md` - Guía detallada para restaurar backups
 
 ---
 

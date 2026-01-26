@@ -1,4 +1,4 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { createClient } from '@supabase/supabase-js';
 
 export const TORNEO_ID = 'ad58a855-fa74-4c2e-825e-32c20f972136';
 

@@ -117,6 +117,7 @@ async function fetchAll() {
       supabase.from('grupos').select('id, nombre').eq('torneo_id', TORNEO_ID).order('nombre'),
       supabase.from('partidos').select(`
         id, games_a, games_b, estado, ronda,
+        set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
         pareja_a_id, pareja_b_id,
         grupos ( id, nombre ),
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
@@ -125,6 +126,7 @@ async function fetchAll() {
       supabase.from('copas').select('id, nombre, orden').eq('torneo_id', TORNEO_ID).order('orden'),
       supabase.from('partidos').select(`
         id, games_a, games_b, ronda_copa, orden_copa, copa_id,
+        set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
         copas ( id, nombre, orden ),
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )

@@ -1,6 +1,7 @@
 import { state } from './state.js';
 import { crearCardEditable } from './cardEditable.js';
 import { obtenerFrasesUnicas } from '../utils/frasesFechaLibre.js';
+import { formatearResultado } from '../utils/formatoResultado.js';
 
 async function guardarResultado(supabase, partidoId, gamesA, gamesB) {
   const { error } = await supabase
@@ -31,7 +32,7 @@ export async function cargarPartidosGrupos({ supabase, torneoId, msgCont, listCo
 
   let q = supabase
     .from('partidos')
-    .select(`
+      .select(`
       id,
       games_a,
       games_b,
@@ -41,6 +42,8 @@ export async function cargarPartidosGrupos({ supabase, torneoId, msgCont, listCo
       resultado_temp_b,
       notas_revision,
       ronda,
+      set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
+      set1_temp_a, set1_temp_b, set2_temp_a, set2_temp_b, set3_temp_a, set3_temp_b,
       grupos ( nombre ),
       pareja_a:parejas!partidos_pareja_a_id_fkey ( nombre ),
       pareja_b:parejas!partidos_pareja_b_id_fkey ( nombre )
@@ -340,14 +343,17 @@ function crearCardRevision(p, supabase, onAfterSave) {
     <div style="display: flex; gap: 16px; margin-bottom: 16px; padding: 14px; background: rgba(15, 23, 42, 0.03); border-radius: 10px;">
       <div style="flex: 1; text-align: center; padding: 10px; background: var(--card); border: 2px solid var(--border); border-radius: 8px;">
         <div style="font-size: 11px; color: var(--muted); margin-bottom: 4px; font-weight: 700;">PRIMERA CARGA</div>
-        <div style="font-size: 22px; font-weight: 900;">${p.games_a} - ${p.games_b}</div>
+        <div style="font-size: 22px; font-weight: 900;" class="resultado-display" data-partido-id="${p.id}">${formatearResultado(p)}</div>
       </div>
       
       <div style="display: flex; align-items: center; font-weight: 800; color: var(--muted);">vs</div>
       
       <div style="flex: 1; text-align: center; padding: 10px; background: var(--card); border: 2px solid var(--border); border-radius: 8px;">
         <div style="font-size: 11px; color: var(--muted); margin-bottom: 4px; font-weight: 700;">SEGUNDA CARGA</div>
-        <div style="font-size: 22px; font-weight: 900;">${p.resultado_temp_a} - ${p.resultado_temp_b}</div>
+        <div style="font-size: 22px; font-weight: 900;">${(() => {
+          const tempPartido = { ...p, set1_a: p.set1_temp_a, set1_b: p.set1_temp_b, set2_a: p.set2_temp_a, set2_b: p.set2_temp_b, set3_a: p.set3_temp_a, set3_b: p.set3_temp_b };
+          return formatearResultado(tempPartido);
+        })()}</div>
       </div>
     </div>
 
@@ -372,16 +378,25 @@ function crearCardRevision(p, supabase, onAfterSave) {
 
   // Event listeners
   card.querySelector('[data-action="aceptar-1"]').addEventListener('click', async () => {
-    if (!confirm(`¿Aceptar resultado ${p.games_a}-${p.games_b}?`)) return;
+    const resTexto = formatearResultado(p);
+    if (!confirm(`¿Aceptar resultado ${resTexto}?`)) return;
+    
+    const updateData = {
+      estado: 'confirmado',
+      set1_temp_a: null,
+      set1_temp_b: null,
+      set2_temp_a: null,
+      set2_temp_b: null,
+      set3_temp_a: null,
+      set3_temp_b: null,
+      resultado_temp_a: null,
+      resultado_temp_b: null,
+      notas_revision: null
+    };
     
     const { error } = await supabase
       .from('partidos')
-      .update({
-        estado: 'confirmado',
-        resultado_temp_a: null,
-        resultado_temp_b: null,
-        notas_revision: null
-      })
+      .update(updateData)
       .eq('id', p.id);
 
     if (error) {
@@ -395,18 +410,35 @@ function crearCardRevision(p, supabase, onAfterSave) {
   });
 
   card.querySelector('[data-action="aceptar-2"]').addEventListener('click', async () => {
-    if (!confirm(`¿Aceptar resultado ${p.resultado_temp_a}-${p.resultado_temp_b}?`)) return;
+    const tempPartido = { ...p, set1_a: p.set1_temp_a, set1_b: p.set1_temp_b, set2_a: p.set2_temp_a, set2_b: p.set2_temp_b, set3_a: p.set3_temp_a, set3_b: p.set3_temp_b };
+    const resTexto = formatearResultado(tempPartido);
+    if (!confirm(`¿Aceptar resultado ${resTexto}?`)) return;
+    
+    const updateData = {
+      set1_a: p.set1_temp_a,
+      set1_b: p.set1_temp_b,
+      set2_a: p.set2_temp_a,
+      set2_b: p.set2_temp_b,
+      estado: 'confirmado',
+      set1_temp_a: null,
+      set1_temp_b: null,
+      set2_temp_a: null,
+      set2_temp_b: null,
+      set3_temp_a: null,
+      set3_temp_b: null,
+      resultado_temp_a: null,
+      resultado_temp_b: null,
+      notas_revision: null
+    };
+    
+    if (p.set3_temp_a !== null && p.set3_temp_b !== null) {
+      updateData.set3_a = p.set3_temp_a;
+      updateData.set3_b = p.set3_temp_b;
+    }
     
     const { error } = await supabase
       .from('partidos')
-      .update({
-        games_a: p.resultado_temp_a,
-        games_b: p.resultado_temp_b,
-        estado: 'confirmado',
-        resultado_temp_a: null,
-        resultado_temp_b: null,
-        notas_revision: null
-      })
+      .update(updateData)
       .eq('id', p.id);
 
     if (error) {

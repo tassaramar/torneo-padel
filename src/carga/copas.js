@@ -36,6 +36,7 @@ export async function cargarCopas({ supabase, torneoId, copasCont, onAfterSave }
       games_b,
       ronda_copa,
       orden_copa,
+      set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
       copas ( id, nombre, orden ),
       pareja_a:parejas!partidos_pareja_a_id_fkey ( nombre ),
       pareja_b:parejas!partidos_pareja_b_id_fkey ( nombre )

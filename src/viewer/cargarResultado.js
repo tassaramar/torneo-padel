@@ -7,7 +7,215 @@ import { getMensajeResultado } from '../utils/mensajesResultado.js';
 import { trackCargaResultado } from '../tracking/trackingService.js';
 
 /**
- * Carga o actualiza un resultado de partido
+ * Carga o actualiza un resultado de partido (versión con sets)
+ * @param {Object} supabase - Cliente de Supabase
+ * @param {String} partidoId - ID del partido
+ * @param {Object} sets - Objeto con sets: { set1: {setA, setB}, set2: {setA, setB}, set3?: {setA, setB} }
+ * @param {Number} numSets - Número de sets del partido (2 o 3, default 3)
+ * @param {Object} identidad - Identidad del usuario
+ * @returns {Object} Resultado de la operación
+ */
+export async function cargarResultadoConSets(supabase, partidoId, sets, numSets, identidad) {
+  try {
+    // 1. Obtener estado actual del partido
+    const { data: partido, error: fetchError } = await supabase
+      .from('partidos')
+      .select('*')
+      .eq('id', partidoId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    // Validar que sea uno de los participantes
+    if (partido.pareja_a_id !== identidad.parejaId && partido.pareja_b_id !== identidad.parejaId) {
+      return { ok: false, mensaje: 'No podés cargar resultados de otros partidos.' };
+    }
+
+    const estado = partido.estado || 'pendiente';
+    const soyA = partido.pareja_a_id === identidad.parejaId;
+
+    // Mapear sets según si soy pareja A o B
+    const set1A = soyA ? sets.set1?.setA : sets.set1?.setB;
+    const set1B = soyA ? sets.set1?.setB : sets.set1?.setA;
+    const set2A = soyA ? sets.set2?.setA : sets.set2?.setB;
+    const set2B = soyA ? sets.set2?.setB : sets.set2?.setA;
+    const set3A = sets.set3 ? (soyA ? sets.set3?.setA : sets.set3?.setB) : null;
+    const set3B = sets.set3 ? (soyA ? sets.set3?.setB : sets.set3?.setA) : null;
+
+    // Preparar objeto de actualización
+    const updateData = {
+      set1_a: set1A,
+      set1_b: set1B,
+      set2_a: set2A,
+      set2_b: set2B,
+      num_sets: numSets || 3,
+      updated_at: new Date().toISOString()
+    };
+
+    if (numSets === 3 && set3A !== null && set3B !== null) {
+      updateData.set3_a = set3A;
+      updateData.set3_b = set3B;
+    } else {
+      updateData.set3_a = null;
+      updateData.set3_b = null;
+    }
+
+    // 2. Lógica según estado actual
+    if (estado === 'pendiente') {
+      updateData.estado = 'a_confirmar';
+      updateData.cargado_por_pareja_id = identidad.parejaId;
+
+      const { error: updateError } = await supabase
+        .from('partidos')
+        .update(updateData)
+        .eq('id', partidoId);
+
+      if (updateError) throw updateError;
+
+      trackCargaResultado(supabase, identidad, partidoId, null, null)
+        .catch(err => console.warn('Error tracking carga:', err));
+
+      return {
+        ok: true,
+        mensaje: '✅ Resultado cargado. Esperando confirmación de la otra pareja.',
+        nuevoEstado: 'a_confirmar'
+      };
+    }
+
+    if (estado === 'a_confirmar') {
+      if (partido.cargado_por_pareja_id === identidad.parejaId) {
+        // Editar mi propia carga
+        const { error: updateError } = await supabase
+          .from('partidos')
+          .update(updateData)
+          .eq('id', partidoId);
+
+        if (updateError) throw updateError;
+
+        trackCargaResultado(supabase, identidad, partidoId, null, null)
+          .catch(err => console.warn('Error tracking carga:', err));
+
+        return {
+          ok: true,
+          mensaje: '✅ Resultado actualizado. Esperando confirmación.',
+          nuevoEstado: 'a_confirmar'
+        };
+      } else {
+        // Segunda pareja confirmando - comparar sets
+        const coinciden = 
+          partido.set1_a === set1A && partido.set1_b === set1B &&
+          partido.set2_a === set2A && partido.set2_b === set2B &&
+          (numSets === 2 || (partido.set3_a === set3A && partido.set3_b === set3B));
+
+        if (coinciden) {
+          const { error: updateError } = await supabase
+            .from('partidos')
+            .update({
+              estado: 'confirmado',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', partidoId);
+
+          if (updateError) throw updateError;
+
+          trackCargaResultado(supabase, identidad, partidoId, null, null)
+            .catch(err => console.warn('Error tracking carga:', err));
+
+          return {
+            ok: true,
+            mensaje: '🎉 ¡Resultado confirmado! Ambas parejas coinciden.',
+            nuevoEstado: 'confirmado'
+          };
+        } else {
+          // NO COINCIDEN - Pasar a revisión
+          const { error: updateError } = await supabase
+            .from('partidos')
+            .update({
+              estado: 'en_revision',
+              set1_temp_a: set1A,
+              set1_temp_b: set1B,
+              set2_temp_a: set2A,
+              set2_temp_b: set2B,
+              set3_temp_a: set3A,
+              set3_temp_b: set3B,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', partidoId);
+
+          if (updateError) throw updateError;
+
+          trackCargaResultado(supabase, identidad, partidoId, null, null)
+            .catch(err => console.warn('Error tracking carga:', err));
+
+          return {
+            ok: true,
+            mensaje: '⚠️ Los resultados no coinciden. El partido pasó a revisión.',
+            nuevoEstado: 'en_revision'
+          };
+        }
+      }
+    }
+
+    if (estado === 'en_revision') {
+      const esParejaCargadora = partido.cargado_por_pareja_id === identidad.parejaId;
+
+      if (esParejaCargadora) {
+        // Actualizo el resultado original
+        const { error: updateError } = await supabase
+          .from('partidos')
+          .update(updateData)
+          .eq('id', partidoId);
+
+        if (updateError) throw updateError;
+      } else {
+        // Actualizo el resultado temporal
+        const { error: updateError } = await supabase
+          .from('partidos')
+          .update({
+            set1_temp_a: set1A,
+            set1_temp_b: set1B,
+            set2_temp_a: set2A,
+            set2_temp_b: set2B,
+            set3_temp_a: set3A,
+            set3_temp_b: set3B,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', partidoId);
+
+        if (updateError) throw updateError;
+      }
+
+      trackCargaResultado(supabase, identidad, partidoId, null, null)
+        .catch(err => console.warn('Error tracking carga:', err));
+
+      return {
+        ok: true,
+        mensaje: '✅ Tu resultado actualizado. Sigue en revisión.',
+        nuevoEstado: 'en_revision'
+      };
+    }
+
+    if (estado === 'confirmado') {
+      return {
+        ok: false,
+        mensaje: 'Este resultado ya está confirmado. No se puede modificar.'
+      };
+    }
+
+    return { ok: false, mensaje: 'Estado desconocido.' };
+
+  } catch (error) {
+    console.error('Error cargando resultado:', error);
+    return {
+      ok: false,
+      mensaje: 'Error al guardar. Revisá la consola.',
+      error
+    };
+  }
+}
+
+/**
+ * Carga o actualiza un resultado de partido (versión legacy con games)
  * @param {Object} supabase - Cliente de Supabase
  * @param {String} partidoId - ID del partido
  * @param {Number} gamesA - Games de pareja A
@@ -16,6 +224,14 @@ import { trackCargaResultado } from '../tracking/trackingService.js';
  * @returns {Object} Resultado de la operación
  */
 export async function cargarResultado(supabase, partidoId, gamesA, gamesB, identidad) {
+  // Versión legacy - mantiene compatibilidad con código existente
+  // Convierte games a sets simples (1 set con el resultado total)
+  // Esto es para mantener compatibilidad mientras migramos a sets
+  const sets = {
+    set1: { setA: gamesA, setB: gamesB },
+    set2: { setA: gamesA, setB: gamesB }
+  };
+  return cargarResultadoConSets(supabase, partidoId, sets, 2, identidad);
   try {
     // 1. Obtener estado actual del partido
     const { data: partido, error: fetchError } = await supabase
@@ -218,17 +434,32 @@ export async function aceptarOtroResultado(supabase, partidoId, identidad) {
 
     if (esParejaCargadora) {
       // Acepto el resultado temporal (de la otra pareja)
+      const updateData = {
+        set1_a: partido.set1_temp_a,
+        set1_b: partido.set1_temp_b,
+        set2_a: partido.set2_temp_a,
+        set2_b: partido.set2_temp_b,
+        estado: 'confirmado',
+        set1_temp_a: null,
+        set1_temp_b: null,
+        set2_temp_a: null,
+        set2_temp_b: null,
+        set3_temp_a: null,
+        set3_temp_b: null,
+        resultado_temp_a: null,
+        resultado_temp_b: null,
+        notas_revision: null,
+        updated_at: new Date().toISOString()
+      };
+
+      if (partido.set3_temp_a !== null && partido.set3_temp_b !== null) {
+        updateData.set3_a = partido.set3_temp_a;
+        updateData.set3_b = partido.set3_temp_b;
+      }
+
       const { error: updateError } = await supabase
         .from('partidos')
-        .update({
-          games_a: partido.resultado_temp_a,
-          games_b: partido.resultado_temp_b,
-          estado: 'confirmado',
-          resultado_temp_a: null,
-          resultado_temp_b: null,
-          notas_revision: null,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', partidoId);
 
       if (updateError) throw updateError;
@@ -238,6 +469,12 @@ export async function aceptarOtroResultado(supabase, partidoId, identidad) {
         .from('partidos')
         .update({
           estado: 'confirmado',
+          set1_temp_a: null,
+          set1_temp_b: null,
+          set2_temp_a: null,
+          set2_temp_b: null,
+          set3_temp_a: null,
+          set3_temp_b: null,
           resultado_temp_a: null,
           resultado_temp_b: null,
           notas_revision: null,
@@ -297,7 +534,7 @@ export async function pedirAyudaAdmin(supabase, partidoId, identidad, nota = '')
 }
 
 /**
- * Muestra modal/UI para cargar resultado
+ * Muestra modal/UI para cargar resultado con sets
  */
 export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   const oponente = partido.pareja_a?.id === identidad.parejaId 
@@ -305,19 +542,40 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
     : partido.pareja_a?.nombre;
 
   const miNombre = identidad.parejaNombre;
-  const gamesAPrevia = partido.games_a;
-  const gamesBPrevia = partido.games_b;
-
-  // Determinar qué inputs corresponden a cada pareja
   const soyA = partido.pareja_a?.id === identidad.parejaId;
   
-  // Valores iniciales - SIEMPRE en orden: mis games, games del rival
-  const valorInicialMisGames = soyA 
-    ? (gamesAPrevia !== null ? gamesAPrevia : '')
-    : (gamesBPrevia !== null ? gamesBPrevia : '');
-  const valorInicialRivalGames = soyA 
-    ? (gamesBPrevia !== null ? gamesBPrevia : '')
-    : (gamesAPrevia !== null ? gamesAPrevia : '');
+  // Determinar número de sets (default 3, puede ser 2 para semifinales)
+  const numSets = partido.num_sets || 3;
+  
+  // Obtener valores previos de sets (si existen) o usar games como fallback
+  const tieneSets = partido.set1_a !== null || partido.set1_b !== null;
+  
+  // Valores iniciales para cada set
+  const getSetValue = (setNum, isA) => {
+    const setField = `set${setNum}_${isA ? 'a' : 'b'}`;
+    const tempField = `set${setNum}_temp_${isA ? 'a' : 'b'}`;
+    
+    if (partido.estado === 'en_revision' && partido[tempField] !== null) {
+      return partido[tempField];
+    }
+    if (partido[setField] !== null) {
+      return partido[setField];
+    }
+    return '';
+  };
+
+  const set1Mis = soyA ? getSetValue(1, true) : getSetValue(1, false);
+  const set1Rival = soyA ? getSetValue(1, false) : getSetValue(1, true);
+  const set2Mis = soyA ? getSetValue(2, true) : getSetValue(2, false);
+  const set2Rival = soyA ? getSetValue(2, false) : getSetValue(2, true);
+  const set3Mis = numSets === 3 ? (soyA ? getSetValue(3, true) : getSetValue(3, false)) : '';
+  const set3Rival = numSets === 3 ? (soyA ? getSetValue(3, false) : getSetValue(3, true)) : '';
+  
+  // Fallback a games si no hay sets
+  const gamesAPrevia = partido.games_a;
+  const gamesBPrevia = partido.games_b;
+  const valorInicialMisGames = !tieneSets ? (soyA ? (gamesAPrevia !== null ? gamesAPrevia : '') : (gamesBPrevia !== null ? gamesBPrevia : '')) : '';
+  const valorInicialRivalGames = !tieneSets ? (soyA ? (gamesBPrevia !== null ? gamesBPrevia : '') : (gamesAPrevia !== null ? gamesAPrevia : '')) : '';
 
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
@@ -344,31 +602,114 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
         </div>
 
         <div class="score-inputs" id="score-inputs-container">
-          <div class="score-group" id="score-group-mis-games">
-            <label for="input-mis-games">Tus games</label>
-            <input 
-              type="number" 
-              id="input-mis-games" 
-              class="input-score-modal"
-              min="0" 
-              max="20"
-              value="${valorInicialMisGames}"
-              placeholder=""
-            />
-          </div>
-          
-          <div class="score-group" id="score-group-rival-games">
-            <label for="input-rival-games">Games de ${escapeHtml(oponente)}</label>
-            <input 
-              type="number" 
-              id="input-rival-games" 
-              class="input-score-modal"
-              min="0" 
-              max="20"
-              value="${valorInicialRivalGames}"
-              placeholder=""
-            />
-          </div>
+          ${tieneSets || numSets === 2 ? `
+            <!-- Modo Sets -->
+            <div class="sets-container">
+              <div class="set-input-group">
+                <label class="set-label">Set 1</label>
+                <div class="set-inputs-row">
+                  <input 
+                    type="number" 
+                    id="input-set1-mis" 
+                    class="input-score-modal input-set"
+                    min="0" 
+                    max="7"
+                    value="${set1Mis}"
+                    placeholder=""
+                  />
+                  <span class="set-separator">-</span>
+                  <input 
+                    type="number" 
+                    id="input-set1-rival" 
+                    class="input-score-modal input-set"
+                    min="0" 
+                    max="7"
+                    value="${set1Rival}"
+                    placeholder=""
+                  />
+                </div>
+              </div>
+              
+              <div class="set-input-group">
+                <label class="set-label">Set 2</label>
+                <div class="set-inputs-row">
+                  <input 
+                    type="number" 
+                    id="input-set2-mis" 
+                    class="input-score-modal input-set"
+                    min="0" 
+                    max="7"
+                    value="${set2Mis}"
+                    placeholder=""
+                  />
+                  <span class="set-separator">-</span>
+                  <input 
+                    type="number" 
+                    id="input-set2-rival" 
+                    class="input-score-modal input-set"
+                    min="0" 
+                    max="7"
+                    value="${set2Rival}"
+                    placeholder=""
+                  />
+                </div>
+              </div>
+              
+              ${numSets === 3 ? `
+                <div class="set-input-group">
+                  <label class="set-label">Set 3 <span class="set-optional">(opcional si ya ganaron 2)</span></label>
+                  <div class="set-inputs-row">
+                    <input 
+                      type="number" 
+                      id="input-set3-mis" 
+                      class="input-score-modal input-set"
+                      min="0" 
+                      max="7"
+                      value="${set3Mis}"
+                      placeholder=""
+                    />
+                    <span class="set-separator">-</span>
+                    <input 
+                      type="number" 
+                      id="input-set3-rival" 
+                      class="input-score-modal input-set"
+                      min="0" 
+                      max="7"
+                      value="${set3Rival}"
+                      placeholder=""
+                    />
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          ` : `
+            <!-- Modo Legacy (solo games) - para compatibilidad -->
+            <div class="score-group" id="score-group-mis-games">
+              <label for="input-mis-games">Tus games</label>
+              <input 
+                type="number" 
+                id="input-mis-games" 
+                class="input-score-modal"
+                min="0" 
+                max="20"
+                value="${valorInicialMisGames}"
+                placeholder=""
+              />
+            </div>
+            
+            <div class="score-group" id="score-group-rival-games">
+              <label for="input-rival-games">Games de ${escapeHtml(oponente)}</label>
+              <input 
+                type="number" 
+                id="input-rival-games" 
+                class="input-score-modal"
+                min="0" 
+                max="20"
+                value="${valorInicialRivalGames}"
+                placeholder=""
+              />
+            </div>
+          `}
         </div>
         
         <div id="error-validation" class="error-validation"></div>
@@ -400,49 +741,102 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   
   // Actualizar preview cuando cambien los valores
   const actualizarPreview = () => {
-    const inputMisGames = document.getElementById('input-mis-games');
-    const inputRivalGames = document.getElementById('input-rival-games');
-    const groupMisGames = document.getElementById('score-group-mis-games');
-    const groupRivalGames = document.getElementById('score-group-rival-games');
     const mensajeDiv = document.getElementById('mensaje-preview');
-    
-    const misGames = parseInt(inputMisGames.value);
-    const rivalGames = parseInt(inputRivalGames.value);
-
-    // Limpiar clases previas
-    groupMisGames.classList.remove('ganador', 'perdedor');
-    groupRivalGames.classList.remove('ganador', 'perdedor');
     mensajeDiv.innerHTML = '';
 
-    if (isNaN(misGames) || isNaN(rivalGames) || misGames < 0 || rivalGames < 0) {
-      return; // No mostrar nada si no son válidos
-    }
+    if (tieneSets || numSets === 2) {
+      // Modo sets
+      const set1Mis = parseInt(document.getElementById('input-set1-mis')?.value || '');
+      const set1Rival = parseInt(document.getElementById('input-set1-rival')?.value || '');
+      const set2Mis = parseInt(document.getElementById('input-set2-mis')?.value || '');
+      const set2Rival = parseInt(document.getElementById('input-set2-rival')?.value || '');
+      const set3Mis = numSets === 3 ? parseInt(document.getElementById('input-set3-mis')?.value || '') : null;
+      const set3Rival = numSets === 3 ? parseInt(document.getElementById('input-set3-rival')?.value || '') : null;
 
-    // Obtener mensaje y aplicar colores
-    // Siempre comparamos desde la perspectiva del usuario (yo siempre soy "A" en esta vista)
-    const resultado = getMensajeResultado(misGames, rivalGames, true);
-    
-    if (resultado.tipo === 'empate') {
-      mensajeDiv.innerHTML = `<div class="mensaje-empate">${resultado.mensaje}</div>`;
-      return;
-    }
+      // Validar sets
+      const sets = [
+        { setA: set1Mis, setB: set1Rival },
+        { setA: set2Mis, setB: set2Rival }
+      ];
+      if (numSets === 3 && set3Mis !== null && set3Rival !== null) {
+        sets.push({ setA: set3Mis, setB: set3Rival });
+      }
 
-    // Colorear ganador/perdedor
-    if (misGames > rivalGames) {
-      groupMisGames.classList.add('ganador');
-      groupRivalGames.classList.add('perdedor');
+      // Calcular sets ganados
+      let setsGanadosMis = 0;
+      let setsGanadosRival = 0;
+
+      for (const set of sets) {
+        if (!isNaN(set.setA) && !isNaN(set.setB) && set.setA >= 0 && set.setB >= 0) {
+          if (set.setA > set.setB) setsGanadosMis++;
+          else if (set.setB > set.setA) setsGanadosRival++;
+        }
+      }
+
+      const setsNecesarios = numSets === 2 ? 2 : 2;
+      if (setsGanadosMis >= setsNecesarios || setsGanadosRival >= setsNecesarios) {
+        const yoGano = setsGanadosMis >= setsNecesarios;
+        const resultado = getMensajeResultado(yoGano ? 2 : 0, yoGano ? 0 : 2, true);
+        const clase = resultado.tipo === 'victoria' ? 'mensaje-victoria' : 'mensaje-derrota';
+        mensajeDiv.innerHTML = `<div class="${clase}">${resultado.mensaje}</div>`;
+      }
     } else {
-      groupRivalGames.classList.add('ganador');
-      groupMisGames.classList.add('perdedor');
-    }
+      // Modo legacy (games)
+      const inputMisGames = document.getElementById('input-mis-games');
+      const inputRivalGames = document.getElementById('input-rival-games');
+      const groupMisGames = document.getElementById('score-group-mis-games');
+      const groupRivalGames = document.getElementById('score-group-rival-games');
+      
+      if (!inputMisGames || !inputRivalGames) return;
+      
+      const misGames = parseInt(inputMisGames.value);
+      const rivalGames = parseInt(inputRivalGames.value);
 
-    // Mostrar mensaje
-    const clase = resultado.tipo === 'victoria' ? 'mensaje-victoria' : 'mensaje-derrota';
-    mensajeDiv.innerHTML = `<div class="${clase}">${resultado.mensaje}</div>`;
+      // Limpiar clases previas
+      if (groupMisGames) groupMisGames.classList.remove('ganador', 'perdedor');
+      if (groupRivalGames) groupRivalGames.classList.remove('ganador', 'perdedor');
+
+      if (isNaN(misGames) || isNaN(rivalGames) || misGames < 0 || rivalGames < 0) {
+        return;
+      }
+
+      const resultado = getMensajeResultado(misGames, rivalGames, true);
+      
+      if (resultado.tipo === 'empate') {
+        mensajeDiv.innerHTML = `<div class="mensaje-empate">${resultado.mensaje}</div>`;
+        return;
+      }
+
+      if (groupMisGames && groupRivalGames) {
+        if (misGames > rivalGames) {
+          groupMisGames.classList.add('ganador');
+          groupRivalGames.classList.add('perdedor');
+        } else {
+          groupRivalGames.classList.add('ganador');
+          groupMisGames.classList.add('perdedor');
+        }
+      }
+
+      const clase = resultado.tipo === 'victoria' ? 'mensaje-victoria' : 'mensaje-derrota';
+      mensajeDiv.innerHTML = `<div class="${clase}">${resultado.mensaje}</div>`;
+    }
   };
 
-  document.getElementById('input-mis-games').addEventListener('input', actualizarPreview);
-  document.getElementById('input-rival-games').addEventListener('input', actualizarPreview);
+  // Event listeners para sets
+  if (tieneSets || numSets === 2) {
+    ['set1', 'set2'].forEach(setNum => {
+      document.getElementById(`input-${setNum}-mis`)?.addEventListener('input', actualizarPreview);
+      document.getElementById(`input-${setNum}-rival`)?.addEventListener('input', actualizarPreview);
+    });
+    if (numSets === 3) {
+      document.getElementById('input-set3-mis')?.addEventListener('input', actualizarPreview);
+      document.getElementById('input-set3-rival')?.addEventListener('input', actualizarPreview);
+    }
+  } else {
+    // Modo legacy
+    document.getElementById('input-mis-games')?.addEventListener('input', actualizarPreview);
+    document.getElementById('input-rival-games')?.addEventListener('input', actualizarPreview);
+  }
   
   const mostrarError = (mensaje) => {
     const errorDiv = document.getElementById('error-validation');
@@ -460,30 +854,72 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   };
 
   document.getElementById('modal-submit').addEventListener('click', () => {
-    const misGames = parseInt(document.getElementById('input-mis-games').value);
-    const rivalGames = parseInt(document.getElementById('input-rival-games').value);
+    if (tieneSets || numSets === 2) {
+      // Modo sets
+      const set1Mis = document.getElementById('input-set1-mis')?.value;
+      const set1Rival = document.getElementById('input-set1-rival')?.value;
+      const set2Mis = document.getElementById('input-set2-mis')?.value;
+      const set2Rival = document.getElementById('input-set2-rival')?.value;
+      const set3Mis = numSets === 3 ? document.getElementById('input-set3-mis')?.value : null;
+      const set3Rival = numSets === 3 ? document.getElementById('input-set3-rival')?.value : null;
 
-    if (isNaN(misGames) || isNaN(rivalGames)) {
-      mostrarError('Por favor ingresá ambos resultados.');
-      return;
+      // Validar sets
+      const sets = [
+        { setA: parseInt(set1Mis), setB: parseInt(set1Rival) },
+        { setA: parseInt(set2Mis), setB: parseInt(set2Rival) }
+      ];
+
+      if (numSets === 3 && set3Mis !== '' && set3Rival !== '') {
+        sets.push({ setA: parseInt(set3Mis), setB: parseInt(set3Rival) });
+      }
+
+      // Importar validación
+      import('../carga/scores.js').then(({ validarSets }) => {
+        const validacion = validarSets(sets, numSets);
+        if (!validacion.ok) {
+          mostrarError(validacion.msg);
+          return;
+        }
+
+        // Preparar objeto de sets para onSubmit
+        const setsObj = {
+          set1: { setA: sets[0].setA, setB: sets[0].setB },
+          set2: { setA: sets[1].setA, setB: sets[1].setB }
+        };
+        if (numSets === 3 && sets.length > 2) {
+          setsObj.set3 = { setA: sets[2].setA, setB: sets[2].setB };
+        }
+
+        onSubmit(setsObj, numSets);
+        close();
+      });
+    } else {
+      // Modo legacy (games)
+      const misGames = parseInt(document.getElementById('input-mis-games')?.value);
+      const rivalGames = parseInt(document.getElementById('input-rival-games')?.value);
+
+      if (isNaN(misGames) || isNaN(rivalGames)) {
+        mostrarError('Por favor ingresá ambos resultados.');
+        return;
+      }
+
+      if (misGames < 0 || rivalGames < 0) {
+        mostrarError('Los resultados no pueden ser negativos.');
+        return;
+      }
+
+      if (misGames === rivalGames) {
+        mostrarError('No se puede empatar en pádel. Revisá el resultado.');
+        return;
+      }
+
+      // Mapear los valores según si soy pareja A o B
+      const gamesA = soyA ? misGames : rivalGames;
+      const gamesB = soyA ? rivalGames : misGames;
+
+      onSubmit(gamesA, gamesB);
+      close();
     }
-
-    if (misGames < 0 || rivalGames < 0) {
-      mostrarError('Los resultados no pueden ser negativos.');
-      return;
-    }
-
-    if (misGames === rivalGames) {
-      mostrarError('No se puede empatar en pádel. Revisá el resultado.');
-      return;
-    }
-
-    // Mapear los valores según si soy pareja A o B
-    const gamesA = soyA ? misGames : rivalGames;
-    const gamesB = soyA ? rivalGames : misGames;
-
-    onSubmit(gamesA, gamesB);
-    close();
   });
 
   // Focus en primer input

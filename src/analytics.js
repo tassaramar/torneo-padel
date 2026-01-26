@@ -2,7 +2,7 @@
  * Punto de entrada del dashboard de analytics
  */
 
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { createClient } from '@supabase/supabase-js';
 import { 
   getActivityStats, 
   getTimelineData, 
