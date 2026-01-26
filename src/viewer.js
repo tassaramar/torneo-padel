@@ -1,4 +1,4 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { createClient } from '@supabase/supabase-js';
 import { agruparEnRondas } from './carga/partidosGrupos.js';
 import { obtenerFrasesUnicas } from './utils/frasesFechaLibre.js';
 import { getIdentidad, clearIdentidad } from './identificacion/identidad.js';
@@ -9,6 +9,13 @@ import {
   aceptarOtroResultado,
   mostrarModalCargarResultado 
 } from './viewer/cargarResultado.js';
+import {
+  calcularTablaGrupo,
+  ordenarConOverrides,
+  detectarEmpatesReales,
+  cargarOverrides,
+  agregarMetadataOverrides
+} from './utils/tablaPosiciones.js';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -121,6 +128,7 @@ async function fetchAll() {
       supabase.from('grupos').select('id, nombre').eq('torneo_id', TORNEO_ID).order('nombre'),
       supabase.from('partidos').select(`
         id, games_a, games_b, estado, ronda,
+        pareja_a_id, pareja_b_id,
         grupos ( id, nombre ),
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
@@ -149,64 +157,8 @@ async function fetchAll() {
 
 /* =========================
    POSICIONES (por grupo)
-   P: 2 ganar / 1 perder
-   Desempate: P -> DG -> GF
+   Usa funciones centralizadas de tablaPosiciones.js
 ========================= */
-
-function computeTablaGrupo(partidos) {
-  const map = {};
-
-  function initPareja(p) {
-    if (!map[p.id]) {
-      map[p.id] = {
-        pareja_id: p.id,
-        nombre: p.nombre,
-        PJ: 0, PG: 0, PP: 0,
-        GF: 0, GC: 0, DG: 0,
-        P: 0
-      };
-    }
-    return map[p.id];
-  }
-
-  for (const m of partidos) {
-    const a = initPareja(m.pareja_a);
-    const b = initPareja(m.pareja_b);
-
-    const jugado = m.games_a !== null && m.games_b !== null;
-    if (!jugado) continue;
-    
-    // Incluir partidos confirmados y a_confirmar, pero NO en_revision
-    const contabilizar = m.estado === 'confirmado' || m.estado === 'a_confirmar';
-    if (!contabilizar) continue;
-
-    const ga = Number(m.games_a);
-    const gb = Number(m.games_b);
-
-    a.PJ += 1; b.PJ += 1;
-
-    a.GF += ga; a.GC += gb;
-    b.GF += gb; b.GC += ga;
-
-    a.DG = a.GF - a.GC;
-    b.DG = b.GF - b.GC;
-
-    if (ga > gb) {
-      a.P += 2; a.PG += 1;
-      b.P += 1; b.PP += 1;
-    } else if (gb > ga) {
-      b.P += 2; b.PG += 1;
-      a.P += 1; a.PP += 1;
-    }
-  }
-
-  return Object.values(map).sort((x, y) => {
-    if (y.P !== x.P) return y.P - x.P;
-    if (y.DG !== x.DG) return y.DG - x.DG;
-    if (y.GF !== x.GF) return y.GF - x.GF;
-    return String(x.nombre).localeCompare(String(y.nombre));
-  });
-}
 
 /* =========================
    RENDER
@@ -348,7 +300,7 @@ function renderPartidosConRondas(partidos) {
   return html;
 }
 
-function renderGrupos() {
+async function renderGrupos() {
   const { grupos, partidosGrupo } = cache;
 
   if (!grupos.length) {
@@ -386,13 +338,42 @@ function renderGrupos() {
   const jugados = partidosDelGrupo.filter(p => p.games_a !== null && p.games_b !== null).length;
   const total = partidosDelGrupo.length;
 
-  const tabla = computeTablaGrupo(partidosDelGrupo);
+  // Calcular tabla usando función centralizada
+  const tablaBase = calcularTablaGrupo(partidosDelGrupo);
+
+  // Cargar overrides
+  const overridesMap = await cargarOverrides(supabase, TORNEO_ID, activeGrupoId);
+
+  // Aplicar overrides (solo en empates reales)
+  const tablaOrdenada = ordenarConOverrides(tablaBase, overridesMap, partidosDelGrupo);
+
+  // Agregar metadata de overrides
+  const tablaConMetadata = agregarMetadataOverrides(tablaOrdenada, overridesMap);
+
+  // Detectar empates
+  const { tieSet, tieLabel, tieGroups } = detectarEmpatesReales(tablaConMetadata, partidosDelGrupo, overridesMap);
+
+  // Crear mapa de colores de empate
+  const tieColorMap = {};
+  if (tieGroups) {
+    tieGroups.forEach(group => {
+      group.parejaIds.forEach(parejaId => {
+        tieColorMap[parejaId] = group.color;
+      });
+    });
+  }
+
+  const hasOverrides = Object.keys(overridesMap).length > 0;
 
   const wrap = document.createElement('div');
   wrap.innerHTML = `
     <div class="viewer-section">
       <div class="viewer-section-title">Grupo ${grupo?.nombre ?? ''}</div>
-      <div class="viewer-meta">Partidos: <strong>${jugados}/${total}</strong></div>
+      <div class="viewer-meta">
+        Partidos: <strong>${jugados}/${total}</strong>
+        ${hasOverrides ? '<span style="font-size:12px; opacity:0.7; margin-left:8px;">📌 Orden manual aplicado</span>' : ''}
+        ${tieLabel ? `<span style="font-size:12px; opacity:0.7; margin-left:8px;">⚠️ ${tieLabel}</span>` : ''}
+      </div>
 
       <div class="viewer-card">
         <table>
@@ -408,14 +389,21 @@ function renderGrupos() {
             </tr>
           </thead>
           <tbody>
-            ${tabla.map((r, idx) => `
-              <tr class="${idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : ''}">
-                <td>${r.nombre}</td>
+            ${tablaConMetadata.map((r, idx) => {
+              const rankClass = idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : '';
+              const tieColor = tieColorMap[r.pareja_id];
+              const tieStyle = tieColor ? `background: ${tieColor.bg}; border-left: 4px solid ${tieColor.border};` : '';
+              const overrideBadge = r.tieneOverrideAplicado ? ' <span style="font-size:11px; opacity:0.7;" title="Orden manual aplicado">📌</span>' : '';
+              
+              return `
+              <tr class="${rankClass}" style="${tieStyle}">
+                <td>${r.nombre}${overrideBadge}</td>
                 <td>${r.PJ}</td><td>${r.PG}</td><td>${r.PP}</td>
                 <td>${r.GF}</td><td>${r.GC}</td><td>${r.DG}</td>
                 <td><strong>${r.P}</strong></td>
               </tr>
-            `).join('')}
+            `;
+            }).join('')}
           </tbody>
         </table>
       </div>
@@ -781,6 +769,7 @@ window.app = {
       .from('partidos')
       .select(`
         id, games_a, games_b, estado,
+        pareja_a_id, pareja_b_id,
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
       `)

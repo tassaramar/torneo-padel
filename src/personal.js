@@ -1,4 +1,4 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { createClient } from '@supabase/supabase-js';
 import { getIdentidad, clearIdentidad } from './identificacion/identidad.js';
 import { iniciarIdentificacion } from './identificacion/ui.js';
 import { cargarVistaPersonalizada } from './viewer/vistaPersonal.js';
@@ -183,6 +183,15 @@ async function init(mostrarSkeleton = true) {
       cambiarDePareja,
       verVistaGeneral
     );
+    
+    // Si la pareja no existe, limpiar identidad y pedir reidentificación
+    if (!resultado.ok && resultado.error?.code === 'PAREJA_NO_ENCONTRADA') {
+      console.warn('Pareja guardada ya no existe, limpiando identidad y pidiendo reidentificación');
+      clearIdentidad();
+      // Recargar para mostrar flujo de identificación
+      await init();
+      return;
+    }
     
     // Detectar y destacar cambios después del polling
     if (partidosAnteriores && resultado.ok) {

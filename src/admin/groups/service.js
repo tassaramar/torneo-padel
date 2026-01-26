@@ -199,6 +199,9 @@ export async function cargarGrupoCierre(grupo) {
       id,
       games_a,
       games_b,
+      estado,
+      pareja_a_id,
+      pareja_b_id,
       pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
       pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
     `)
@@ -215,13 +218,12 @@ export async function cargarGrupoCierre(grupo) {
   const jugados = (partidos || []).filter(p => p.games_a !== null && p.games_b !== null).length;
   const faltan = totalPartidos - jugados;
 
-  const rowsBase = calcularTablaGrupo(partidos || []);
-  const autoOrder = ordenarAutomatico(rowsBase);
+  const partidosArray = partidos || [];
+  const rowsBase = calcularTablaGrupo(partidosArray);
+  const autoOrder = ordenarAutomatico(rowsBase, partidosArray);
 
   const autoPosMap = {};
   autoOrder.forEach((r, idx) => (autoPosMap[r.pareja_id] = idx + 1));
-
-  const { tieSet, tieLabel, tieGroups } = detectarEmpatesReales(rowsBase);
 
   const { data: ov, error: errOv } = await supabase
     .from('posiciones_manual')
@@ -238,7 +240,11 @@ export async function cargarGrupoCierre(grupo) {
 
   const hasSavedOverride = Object.keys(ovMap).length > 0;
 
-  const rowsOrdenadas = ordenarConOverrides(rowsBase, ovMap);
+  // Aplicar overrides con nueva lógica (solo en empates reales)
+  const rowsOrdenadas = ordenarConOverrides(rowsBase, ovMap, partidosArray);
+
+  // Detectar empates considerando enfrentamiento directo y overrides
+  const { tieSet, tieLabel, tieGroups } = detectarEmpatesReales(rowsOrdenadas, partidosArray, ovMap);
 
   state.groups[grupo.id] = {
     grupo,

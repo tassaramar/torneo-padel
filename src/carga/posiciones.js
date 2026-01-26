@@ -1,3 +1,11 @@
+import {
+  calcularTablaGrupo,
+  ordenarConOverrides,
+  detectarEmpatesReales,
+  cargarOverrides,
+  agregarMetadataOverrides
+} from '../utils/tablaPosiciones.js';
+
 async function cargarOverridesPosiciones(supabase, torneoId) {
   const { data, error } = await supabase
     .from('posiciones_manual')
@@ -19,86 +27,44 @@ async function cargarOverridesPosiciones(supabase, torneoId) {
   return map;
 }
 
-function calcularPosiciones(partidos) {
-  const grupos = {}; // grupoId -> { id, nombre, parejasMap }
+function calcularPosiciones(partidos, overridesMap) {
+  const grupos = {}; // grupoId -> { id, nombre, parejas }
 
+  // Agrupar partidos por grupo
+  const partidosPorGrupo = {};
   partidos.forEach(p => {
     const gid = p.grupos?.id;
-    const gname = p.grupos?.nombre ?? '?';
     if (!gid) return;
+    if (!partidosPorGrupo[gid]) partidosPorGrupo[gid] = [];
+    partidosPorGrupo[gid].push(p);
+  });
 
-    if (!grupos[gid]) grupos[gid] = { id: gid, nombre: gname, parejas: {} };
+  // Calcular tabla para cada grupo usando función centralizada
+  Object.keys(partidosPorGrupo).forEach(gid => {
+    const partidosGrupo = partidosPorGrupo[gid];
+    const primerPartido = partidosGrupo[0];
+    const gname = primerPartido.grupos?.nombre ?? '?';
 
-    const parejas = [
-      { id: p.pareja_a.id, nombre: p.pareja_a.nombre, gf: p.games_a, gc: p.games_b },
-      { id: p.pareja_b.id, nombre: p.pareja_b.nombre, gf: p.games_b, gc: p.games_a }
-    ];
+    // Calcular tabla base
+    const tablaBase = calcularTablaGrupo(partidosGrupo);
 
-    parejas.forEach(par => {
-      if (!grupos[gid].parejas[par.id]) {
-        grupos[gid].parejas[par.id] = {
-          pareja_id: par.id,
-          nombre: par.nombre,
-          PJ: 0,
-          PG: 0,
-          PP: 0,
-          GF: 0,
-          GC: 0,
-          DG: 0,
-          P: 0
-        };
-      }
-    });
+    // Obtener overrides para este grupo
+    const ovMap = overridesMap?.[gid] || {};
 
-    if (p.games_a === null || p.games_b === null) return;
+    // Aplicar overrides (solo en empates reales)
+    const tablaOrdenada = ordenarConOverrides(tablaBase, ovMap, partidosGrupo);
 
-    parejas.forEach(par => {
-      const r = grupos[gid].parejas[par.id];
-      r.PJ += 1;
-      r.GF += Number(par.gf);
-      r.GC += Number(par.gc);
-      r.DG = r.GF - r.GC;
-    });
+    // Agregar metadata de overrides
+    const tablaConMetadata = agregarMetadataOverrides(tablaOrdenada, ovMap);
 
-    const ga = Number(p.games_a);
-    const gb = Number(p.games_b);
-
-    if (ga > gb) {
-      grupos[gid].parejas[p.pareja_a.id].P += 2;
-      grupos[gid].parejas[p.pareja_a.id].PG += 1;
-
-      grupos[gid].parejas[p.pareja_b.id].P += 1;
-      grupos[gid].parejas[p.pareja_b.id].PP += 1;
-    } else if (gb > ga) {
-      grupos[gid].parejas[p.pareja_b.id].P += 2;
-      grupos[gid].parejas[p.pareja_b.id].PG += 1;
-
-      grupos[gid].parejas[p.pareja_a.id].P += 1;
-      grupos[gid].parejas[p.pareja_a.id].PP += 1;
-    } else {
-      console.warn('Partido con empate de games, no asigna puntos', p.id);
-    }
+    grupos[gid] = {
+      id: gid,
+      nombre: gname,
+      parejas: tablaConMetadata
+    };
   });
 
   return grupos;
-}
-
-function ordenarLista(lista, overrideMap) {
-  return lista.sort((a, b) => {
-    const oa = overrideMap?.[a.pareja_id];
-    const ob = overrideMap?.[b.pareja_id];
-
-    const aHas = oa != null;
-    const bHas = ob != null;
-
-    if (aHas && bHas) return oa - ob;
-    if (aHas && !bHas) return -1;
-    if (!aHas && bHas) return 1;
-
-    if (b.P !== a.P) return b.P - a.P;
-    if (b.DG !== a.DG) return b.DG - a.DG;
-    return b.GF - a.GF;
-  });
 }
 
 function renderPosiciones(posicionesCont, grupos, overrides) {
@@ -107,12 +73,24 @@ function renderPosiciones(posicionesCont, grupos, overrides) {
   const gruposList = Object.values(grupos).sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
 
   gruposList.forEach(g => {
-    const lista = Object.values(g.parejas);
+    const lista = g.parejas || [];
 
-    const ovMap = overrides?.[g.id] || null;
+    const ovMap = overrides?.[g.id] || {};
     const hayOv = ovMap && Object.keys(ovMap).length > 0;
 
-    ordenarLista(lista, ovMap);
+    // Obtener partidos del grupo para detectar empates
+    const partidosGrupo = grupos._partidosPorGrupo?.[g.id] || [];
+    const { tieGroups } = detectarEmpatesReales(lista, partidosGrupo, ovMap);
+
+    // Crear mapa de colores de empate
+    const tieColorMap = {};
+    if (tieGroups) {
+      tieGroups.forEach(group => {
+        group.parejaIds.forEach(parejaId => {
+          tieColorMap[parejaId] = group.color;
+        });
+      });
+    }
 
     const table = document.createElement('table');
     table.style.width = '100%';
@@ -145,10 +123,24 @@ function renderPosiciones(posicionesCont, grupos, overrides) {
     lista.forEach(p => {
       const tr = document.createElement('tr');
       
+      // Aplicar color de empate si existe
+      if (tieColorMap[p.pareja_id]) {
+        const tieColor = tieColorMap[p.pareja_id];
+        tr.style.background = tieColor.bg;
+        tr.style.borderLeft = `4px solid ${tieColor.border}`;
+      }
+      
       // Nombre (con negrita para todos)
       const tdNombre = document.createElement('td');
       tdNombre.style.cssText = 'padding:6px 0; border-bottom:1px solid #f0f0f0; font-weight:700 !important;';
-      tdNombre.textContent = p.nombre;
+      
+      // Agregar indicador de override si aplica
+      const nombreText = p.nombre || 'Sin nombre';
+      const overrideBadge = p.tieneOverrideAplicado ? ' 📌' : '';
+      tdNombre.textContent = nombreText + overrideBadge;
+      if (p.tieneOverrideAplicado) {
+        tdNombre.title = 'Orden manual aplicado';
+      }
       tr.appendChild(tdNombre);
 
       // Resto de columnas
@@ -190,16 +182,18 @@ export async function cargarPosiciones({ supabase, torneoId, posicionesCont }) {
     supabase
       .from('partidos')
       .select(`
+        id,
         games_a,
         games_b,
+        estado,
+        pareja_a_id,
+        pareja_b_id,
         grupos ( id, nombre ),
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
       `)
       .eq('torneo_id', torneoId)
       .is('copa_id', null)
-      .not('games_a', 'is', null)
-      .not('games_b', 'is', null)
   ]);
 
   const { data, error } = partidosResp;
@@ -209,6 +203,19 @@ export async function cargarPosiciones({ supabase, torneoId, posicionesCont }) {
     return;
   }
 
-  const grupos = calcularPosiciones(data || []);
+  // Guardar partidos por grupo para detectar empates
+  const partidosPorGrupo = {};
+  (data || []).forEach(p => {
+    const gid = p.grupos?.id;
+    if (!gid) return;
+    if (!partidosPorGrupo[gid]) partidosPorGrupo[gid] = [];
+    partidosPorGrupo[gid].push(p);
+  });
+
+  const grupos = calcularPosiciones(data || [], ovMap);
+  
+  // Agregar partidos por grupo para uso en render
+  grupos._partidosPorGrupo = partidosPorGrupo;
+  
   renderPosiciones(posicionesCont, grupos, ovMap);
 }

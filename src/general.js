@@ -1,6 +1,14 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { createClient } from '@supabase/supabase-js';
 import { agruparEnRondas } from './carga/partidosGrupos.js';
 import { obtenerFrasesUnicas } from './utils/frasesFechaLibre.js';
+import {
+  calcularTablaGrupo,
+  ordenarConOverrides,
+  detectarEmpatesReales,
+  cargarOverrides,
+  agregarMetadataOverrides,
+  ordenarTabla
+} from './utils/tablaPosiciones.js';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -109,6 +117,7 @@ async function fetchAll() {
       supabase.from('grupos').select('id, nombre').eq('torneo_id', TORNEO_ID).order('nombre'),
       supabase.from('partidos').select(`
         id, games_a, games_b, estado, ronda,
+        pareja_a_id, pareja_b_id,
         grupos ( id, nombre ),
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
@@ -141,112 +150,27 @@ async function fetchAll() {
    Desempate: P -> DG -> GF
 ========================= */
 
-function detectarEmpatesReales(rows) {
-  const buckets = new Map();
-  for (const r of rows) {
-    const key = `${r.P}|${r.DG}|${r.GF}`;
-    if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key).push(r);
-  }
-
-  // Colores para diferentes grupos de empate
-  const colors = [
-    { bg: '#fff3cd', border: '#d39e00' }, // Amarillo
-    { bg: '#e3f2fd', border: '#1976d2' }, // Azul
-    { bg: '#e8f5e9', border: '#43a047' }, // Verde
-    { bg: '#fce4ec', border: '#c2185b' }, // Rosa
-    { bg: '#f3e5f5', border: '#7b1fa2' }, // Púrpura
-    { bg: '#fff8e1', border: '#f57c00' }, // Naranja claro
-  ];
-
-  const tieGroups = [];
-  let colorIndex = 0;
-
-  for (const arr of buckets.values()) {
-    // Solo marcar empate si tienen partidos jugados
-    const tienenPartidos = arr.some(r => r.PJ > 0);
-    if (arr.length >= 2 && tienenPartidos) {
-      const color = colors[colorIndex % colors.length];
-      
-      const group = {
-        parejaIds: arr.map(x => x.pareja_id),
-        color: color,
-        size: arr.length
-      };
-      
-      tieGroups.push(group);
-      colorIndex++;
-    }
-  }
-
-  return { tieGroups };
-}
+// Funciones de tabla de posiciones ahora están centralizadas en utils/tablaPosiciones.js
 
 async function computeTablaGrupoConOverrides(grupoId, partidos) {
-  const map = {};
+  // Calcular tabla usando función centralizada
+  const tablaBase = calcularTablaGrupo(partidos);
 
-  function initPareja(p) {
-    if (!map[p.id]) {
-      map[p.id] = {
-        pareja_id: p.id,
-        nombre: p.nombre,
-        PJ: 0, PG: 0, PP: 0,
-        GF: 0, GC: 0, DG: 0,
-        P: 0
-      };
-    }
-    return map[p.id];
-  }
-
-  for (const m of partidos) {
-    const a = initPareja(m.pareja_a);
-    const b = initPareja(m.pareja_b);
-
-    const jugado = m.games_a !== null && m.games_b !== null;
-    if (!jugado) continue;
-    
-    // Incluir partidos confirmados y a_confirmar, pero NO en_revision
-    const contabilizar = m.estado === 'confirmado' || m.estado === 'a_confirmar';
-    if (!contabilizar) continue;
-
-    const ga = Number(m.games_a);
-    const gb = Number(m.games_b);
-
-    a.PJ += 1; b.PJ += 1;
-
-    a.GF += ga; a.GC += gb;
-    b.GF += gb; b.GC += ga;
-
-    a.DG = a.GF - a.GC;
-    b.DG = b.GF - b.GC;
-
-    if (ga > gb) {
-      a.P += 2; a.PG += 1;
-      b.P += 1; b.PP += 1;
-    } else if (gb > ga) {
-      b.P += 2; b.PG += 1;
-      a.P += 1; a.PP += 1;
-    }
-  }
-
-  const rowsBase = Object.values(map);
-
-  // Calcular tabla ordenada automáticamente
-  const tablaAuto = [...rowsBase].sort((x, y) => {
-    if (y.P !== x.P) return y.P - x.P;
-    if (y.DG !== x.DG) return y.DG - x.DG;
-    if (y.GF !== x.GF) return y.GF - x.GF;
-    return String(x.nombre).localeCompare(String(y.nombre));
-  });
-
-  // Crear mapa de posición automática
+  // Calcular posición automática (sin overrides) para comparación
+  const tablaAuto = ordenarTabla(tablaBase, partidos);
   const autoPosMap = {};
   tablaAuto.forEach((r, idx) => {
     autoPosMap[r.pareja_id] = idx + 1;
   });
 
-  // Detectar empates
-  const { tieGroups } = detectarEmpatesReales(rowsBase);
+  // Cargar overrides
+  const overridesMap = await cargarOverrides(supabase, TORNEO_ID, grupoId);
+
+  // Aplicar overrides (solo en empates reales)
+  const tablaOrdenada = ordenarConOverrides(tablaBase, overridesMap, partidos);
+
+  // Detectar empates considerando enfrentamiento directo y overrides
+  const { tieGroups } = detectarEmpatesReales(tablaOrdenada, partidos, overridesMap);
 
   // Crear mapa de color por pareja
   const tieColorMap = {};
@@ -258,46 +182,18 @@ async function computeTablaGrupoConOverrides(grupoId, partidos) {
     });
   }
 
-  // Obtener overrides manuales
-  const { data: overrides } = await supabase
-    .from('posiciones_manual')
-    .select('pareja_id, orden_manual')
-    .eq('torneo_id', TORNEO_ID)
-    .eq('grupo_id', grupoId);
+  // Agregar metadata de overrides
+  const tablaConMetadata = agregarMetadataOverrides(tablaOrdenada, overridesMap);
 
-  const overridesMap = {};
-  if (overrides && overrides.length > 0) {
-    overrides.forEach(ov => {
-      overridesMap[ov.pareja_id] = ov.orden_manual;
-    });
-  }
-
-  // Separar con y sin override
-  const conOverride = rowsBase.filter(s => overridesMap[s.pareja_id] !== undefined);
-  const sinOverride = rowsBase.filter(s => overridesMap[s.pareja_id] === undefined);
-
-  // Ordenar con override por orden_manual
-  conOverride.sort((a, b) => overridesMap[a.pareja_id] - overridesMap[b.pareja_id]);
-
-  // Ordenar sin override por criterio automático
-  sinOverride.sort((a, b) => {
-    if (b.P !== a.P) return b.P - a.P;
-    if (b.DG !== a.DG) return b.DG - a.DG;
-    if (b.GF !== a.GF) return b.GF - a.GF;
-    return String(a.nombre).localeCompare(String(b.nombre));
-  });
-
-  // Tabla final
-  const tabla = [...conOverride, ...sinOverride];
-
-  // Agregar metadata
-  tabla.forEach((s, idx) => {
-    s.posicionActual = idx + 1;
-    s.posicionAuto = autoPosMap[s.pareja_id];
-    s.delta = s.posicionAuto - s.posicionActual;
-    s.tieneOverride = overridesMap[s.pareja_id] !== undefined;
-    s.colorEmpate = tieColorMap[s.pareja_id] || null;
-  });
+  // Agregar metadata adicional
+  const tabla = tablaConMetadata.map((s, idx) => ({
+    ...s,
+    posicionActual: idx + 1,
+    posicionAuto: autoPosMap[s.pareja_id] || idx + 1,
+    delta: (autoPosMap[s.pareja_id] || idx + 1) - (idx + 1),
+    tieneOverride: s.tieneOverrideAplicado,
+    colorEmpate: tieColorMap[s.pareja_id] || null
+  }));
 
   return tabla;
 }
@@ -511,6 +407,9 @@ async function renderGrupos() {
                 indicadorPosicion = ` <sup style="font-size:11px; color:${color}; font-weight:700; margin-left:4px;">${txt}</sup>`;
               }
 
+              // Badge de override aplicado
+              const overrideBadge = r.tieneOverride ? ' <span style="font-size:11px; opacity:0.7;" title="Orden manual aplicado">📌</span>' : '';
+
               // Estilo de empate (si aplica)
               let styleEmpate = '';
               if (r.colorEmpate) {
@@ -521,7 +420,7 @@ async function renderGrupos() {
               
               return `
                 <tr class="${rankClass}" style="${styleEmpate}">
-                  <td>${r.nombre}${indicadorPosicion}</td>
+                  <td>${r.nombre}${overrideBadge}${indicadorPosicion}</td>
                   <td>${r.PJ}</td><td>${r.PG}</td><td>${r.PP}</td>
                   <td>${r.GF}</td><td>${r.GC}</td><td>${r.DG}</td>
                   <td><strong>${r.P}</strong></td>

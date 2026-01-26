@@ -99,6 +99,9 @@ async function calcularTablaGrupoDB(grupoId) {
       id,
       games_a,
       games_b,
+      estado,
+      pareja_a_id,
+      pareja_b_id,
       pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
       pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
     `)
@@ -118,14 +121,15 @@ async function calcularTablaGrupoDB(grupoId) {
     return { ok: false, msg: `faltan partidos (${jugados}/${total})` };
   }
 
-  const rows = calcularTablaGrupo(partidos || []);
-  const ordenadas = ordenarAutomatico(rows);
+  const partidosArray = partidos || [];
+  const rows = calcularTablaGrupo(partidosArray);
+  const ordenadas = ordenarAutomatico(rows, partidosArray);
 
   if (ordenadas.length < 2) {
     return { ok: false, msg: `grupo incompleto: ${ordenadas.length} pareja(s)` };
   }
 
-  return { ok: true, rows, ordenParejas: ordenadas.map(r => r.pareja_id) };
+  return { ok: true, rows, ordenParejas: ordenadas.map(r => r.pareja_id), partidos: partidosArray };
 }
 
 async function analizarEstadoCopa(copaId, copaNombre, copaOrden) {
@@ -1240,7 +1244,8 @@ async function obtenerPosicionesFinales(grupoId, grupoNombre) {
   }
   
   // 4. Usar la función ordenarConOverrides (misma lógica que el admin)
-  const tablaOrdenada = ordenarConOverrides(calc.rows, overridesMap);
+  // Usar los partidos que ya tenemos de calcularTablaGrupoDB
+  const tablaOrdenada = ordenarConOverrides(calc.rows, overridesMap, calc.partidos || []);
   
   if (manual && manual.length > 0) {
     logMsg(`✅ ${grupoNombre}: usando orden con ${manual.length} override(s)`);

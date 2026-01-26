@@ -5,31 +5,71 @@
 
 import { getMensajeResultado } from '../utils/mensajesResultado.js';
 import { obtenerFrasesUnicas } from '../utils/frasesFechaLibre.js';
+import {
+  calcularTablaGrupo as calcularTablaGrupoCentral,
+  ordenarConOverrides,
+  detectarEmpatesReales as detectarEmpatesRealesCentral,
+  cargarOverrides,
+  agregarMetadataOverrides,
+  ordenarTabla
+} from '../utils/tablaPosiciones.js';
 
 export async function cargarVistaPersonalizada(supabase, torneoId, identidad, onChangePareja, onVerTodos) {
   try {
+    // Validar que la identidad tenga grupo
+    if (!identidad.grupo) {
+      console.warn('Identidad sin grupo, usando grupo por defecto');
+      identidad.grupo = '?';
+    }
+
     // Fetch grupos del torneo
-    const { data: grupos } = await supabase
+    const { data: grupos, error: gruposError } = await supabase
       .from('grupos')
       .select('id, nombre')
       .eq('torneo_id', torneoId)
       .order('nombre');
 
+    if (gruposError) {
+      console.error('Error cargando grupos:', gruposError);
+      throw gruposError;
+    }
+
     // Fetch todas las parejas del torneo
-    const { data: todasParejas } = await supabase
+    const { data: todasParejas, error: parejasError } = await supabase
       .from('parejas')
       .select('id, nombre, orden')
       .eq('torneo_id', torneoId)
       .order('orden');
 
+    if (parejasError) {
+      console.error('Error cargando parejas:', parejasError);
+      throw parejasError;
+    }
+
     // Agregar grupo a cada pareja (mismo método que en viewer.js)
     const parejasConGrupo = agregarGrupoAParejas(todasParejas || [], grupos || []);
+    
+    // VALIDAR: Verificar que la pareja de la identidad todavía existe
+    const parejaExiste = todasParejas?.find(p => p.id === identidad.parejaId);
+    if (!parejaExiste) {
+      console.warn('[vistaPersonal] Pareja no encontrada:', identidad.parejaId, 'Nombre guardado:', identidad.parejaNombre);
+      // Retornar error especial para que el llamador limpie la identidad
+      return { 
+        ok: false, 
+        error: { 
+          code: 'PAREJA_NO_ENCONTRADA',
+          message: 'La pareja guardada ya no existe. Por favor, identifícate nuevamente.',
+          parejaId: identidad.parejaId
+        } 
+      };
+    }
     
     // Filtrar parejas del mismo grupo
     const miGrupo = identidad.grupo;
     const parejasDelGrupo = parejasConGrupo.filter(p => p.grupo === miGrupo);
 
     // Fetch partidos de la pareja identificada con datos completos
+    console.log('[vistaPersonal] Buscando partidos para parejaId:', identidad.parejaId, 'torneoId:', torneoId);
     const { data: misPartidos, error } = await supabase
       .from('partidos')
       .select(`
@@ -38,6 +78,8 @@ export async function cargarVistaPersonalizada(supabase, torneoId, identidad, on
         resultado_temp_a, resultado_temp_b,
         notas_revision,
         grupo_id,
+        pareja_a_id,
+        pareja_b_id,
         grupos ( id, nombre ),
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre ),
@@ -48,21 +90,44 @@ export async function cargarVistaPersonalizada(supabase, torneoId, identidad, on
       .or(`pareja_a_id.eq.${identidad.parejaId},pareja_b_id.eq.${identidad.parejaId}`)
       .order('updated_at', { ascending: false });
     
+    console.log('[vistaPersonal] Partidos encontrados:', misPartidos?.length || 0);
+    if (misPartidos && misPartidos.length > 0) {
+      console.log('[vistaPersonal] Primer partido:', {
+        id: misPartidos[0].id,
+        pareja_a_id: misPartidos[0].pareja_a_id,
+        pareja_b_id: misPartidos[0].pareja_b_id,
+        estado: misPartidos[0].estado,
+        games_a: misPartidos[0].games_a,
+        games_b: misPartidos[0].games_b
+      });
+    }
+    
+    if (error) {
+      console.error('[vistaPersonal] Error cargando partidos:', error);
+      throw error;
+    }
+    
     // Fetch TODOS los partidos del grupo para calcular fechas libres
-    const { data: todosPartidosGrupo } = await supabase
-      .from('partidos')
-      .select(`
-        id, games_a, games_b, ronda, estado,
-        grupo_id,
-        grupos ( nombre ),
-        pareja_a:parejas!partidos_pareja_a_id_fkey ( nombre ),
-        pareja_b:parejas!partidos_pareja_b_id_fkey ( nombre )
-      `)
-      .eq('torneo_id', torneoId)
-      .is('copa_id', null)
-      .eq('grupo_id', grupos?.find(g => g.nombre === miGrupo)?.id);
-
-    if (error) throw error;
+    const grupoId = grupos?.find(g => g.nombre === miGrupo)?.id;
+    console.log('[vistaPersonal] Grupo encontrado:', miGrupo, 'grupoId:', grupoId);
+    const { data: todosPartidosGrupo } = grupoId
+      ? await supabase
+          .from('partidos')
+          .select(`
+            id, games_a, games_b, ronda, estado,
+            grupo_id,
+            pareja_a_id,
+            pareja_b_id,
+            grupos ( nombre ),
+            pareja_a:parejas!partidos_pareja_a_id_fkey ( nombre ),
+            pareja_b:parejas!partidos_pareja_b_id_fkey ( nombre )
+          `)
+          .eq('torneo_id', torneoId)
+          .is('copa_id', null)
+          .eq('grupo_id', grupoId)
+      : { data: [] };
+    
+    console.log('[vistaPersonal] Partidos del grupo:', todosPartidosGrupo?.length || 0);
 
     // Categorizar partidos por estado y prioridad
     const partidos = categorizarPartidos(misPartidos || [], identidad);
@@ -72,6 +137,13 @@ export async function cargarVistaPersonalizada(supabase, torneoId, identidad, on
 
     // Calcular tabla de posiciones del grupo
     const tablaGrupo = await calcularTablaGrupo(supabase, torneoId, identidad, parejasDelGrupo);
+    console.log('[vistaPersonal] Tabla grupo calculada:', tablaGrupo?.length || 0, 'parejas');
+    console.log('[vistaPersonal] Partidos categorizados:', {
+      enRevision: partidos.enRevision.length,
+      porConfirmar: partidos.porConfirmar.length,
+      porCargar: partidos.porCargar.length,
+      confirmados: partidos.confirmados.length
+    });
 
     // Renderizar vista
     renderVistaPersonal(identidad, partidos, await estadisticas, tablaGrupo, todosPartidosGrupo || [], onChangePareja, onVerTodos);
@@ -143,14 +215,16 @@ async function calcularEstadisticas(partidos, identidad, supabase, torneoId) {
 async function calcularPosicionEnTabla(supabase, torneoId, identidad) {
   try {
     // Obtener grupo ID
-    const { data: grupos } = await supabase
+    if (!identidad.grupo) return null;
+    
+    const { data: grupos, error: grupoError } = await supabase
       .from('grupos')
       .select('id, nombre')
       .eq('torneo_id', torneoId)
-      .eq('nombre', identidad.grupo)
-      .single();
+      .eq('nombre', String(identidad.grupo).trim())
+      .maybeSingle();
 
-    if (!grupos) return null;
+    if (grupoError || !grupos?.id) return null;
 
     const grupoId = grupos.id;
 
@@ -159,94 +233,26 @@ async function calcularPosicionEnTabla(supabase, torneoId, identidad) {
       .from('partidos')
       .select(`
         id, games_a, games_b, estado,
-        pareja_a_id, pareja_b_id
+        pareja_a_id, pareja_b_id,
+        pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
+        pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
       `)
       .eq('torneo_id', torneoId)
       .eq('grupo_id', grupoId);
 
     if (!todosPartidos) return null;
 
-    // Filtrar solo partidos contabilizados (confirmados o a_confirmar, NO en_revision)
-    const partidosValidos = todosPartidos.filter(p => 
-      (p.estado === 'confirmado' || p.estado === 'a_confirmar') &&
-      p.games_a !== null && p.games_b !== null
-    );
+    // Calcular tabla usando función centralizada
+    const tablaBase = calcularTablaGrupoCentral(todosPartidos);
 
-    // Calcular puntos por pareja
-    const puntosPorPareja = {};
+    // Cargar overrides
+    const overridesMap = await cargarOverrides(supabase, torneoId, grupoId);
 
-    partidosValidos.forEach(p => {
-      const idA = p.pareja_a_id;
-      const idB = p.pareja_b_id;
-
-      if (!puntosPorPareja[idA]) puntosPorPareja[idA] = { puntos: 0, ganados: 0, jugados: 0, gamesAFavor: 0, gamesEnContra: 0 };
-      if (!puntosPorPareja[idB]) puntosPorPareja[idB] = { puntos: 0, ganados: 0, jugados: 0, gamesAFavor: 0, gamesEnContra: 0 };
-
-      puntosPorPareja[idA].jugados++;
-      puntosPorPareja[idB].jugados++;
-      puntosPorPareja[idA].gamesAFavor += p.games_a;
-      puntosPorPareja[idA].gamesEnContra += p.games_b;
-      puntosPorPareja[idB].gamesAFavor += p.games_b;
-      puntosPorPareja[idB].gamesEnContra += p.games_a;
-
-      if (p.games_a > p.games_b) {
-        puntosPorPareja[idA].puntos += 2; // Victoria: 2 puntos
-        puntosPorPareja[idA].ganados++;
-        puntosPorPareja[idB].puntos += 1; // Derrota: 1 punto
-      } else if (p.games_b > p.games_a) {
-        puntosPorPareja[idB].puntos += 2; // Victoria: 2 puntos
-        puntosPorPareja[idB].ganados++;
-        puntosPorPareja[idA].puntos += 1; // Derrota: 1 punto
-      } else {
-        // Empate (aunque no debería pasar)
-        puntosPorPareja[idA].puntos += 1;
-        puntosPorPareja[idB].puntos += 1;
-      }
-    });
-
-    // Obtener overrides manuales (orden final guardado por admin)
-    const { data: overrides } = await supabase
-      .from('posiciones_manual')
-      .select('pareja_id, orden_manual')
-      .eq('torneo_id', torneoId)
-      .eq('grupo_id', grupoId);
-
-    const overridesMap = {};
-    if (overrides && overrides.length > 0) {
-      overrides.forEach(ov => {
-        overridesMap[ov.pareja_id] = ov.orden_manual;
-      });
-    }
-
-    // Crear ranking: primero por overrides, luego automático
-    const conOverride = [];
-    const sinOverride = [];
-
-    Object.entries(puntosPorPareja).forEach(([id, stats]) => {
-      if (overridesMap[id] !== undefined) {
-        conOverride.push({ id, stats, override: overridesMap[id] });
-      } else {
-        sinOverride.push({ id, stats });
-      }
-    });
-
-    // Ordenar con override por orden_manual
-    conOverride.sort((a, b) => a.override - b.override);
-
-    // Ordenar sin override por criterio automático
-    sinOverride.sort((a, b) => {
-      if (b.stats.puntos !== a.stats.puntos) return b.stats.puntos - a.stats.puntos;
-      const difA = a.stats.gamesAFavor - a.stats.gamesEnContra;
-      const difB = b.stats.gamesAFavor - b.stats.gamesEnContra;
-      if (difB !== difA) return difB - difA;
-      return b.stats.gamesAFavor - a.stats.gamesAFavor;
-    });
-
-    // Ranking final
-    const ranking = [...conOverride, ...sinOverride];
+    // Aplicar overrides (solo en empates reales)
+    const tablaOrdenada = ordenarConOverrides(tablaBase, overridesMap, todosPartidos);
 
     // Encontrar posición de mi pareja
-    const miPosicion = ranking.findIndex(entry => entry.id === identidad.parejaId);
+    const miPosicion = tablaOrdenada.findIndex(entry => entry.pareja_id === identidad.parejaId);
 
     return miPosicion >= 0 ? miPosicion + 1 : null;
 
@@ -291,64 +297,24 @@ function categorizarPartidos(partidos, identidad) {
   return categorias;
 }
 
-/**
- * Detecta empates reales y asigna colores diferentes a cada grupo
- */
-function detectarEmpatesReales(rows) {
-  const buckets = new Map();
-  for (const r of rows) {
-    const key = `${r.puntos}|${(r.gamesAFavor - r.gamesEnContra)}|${r.gamesAFavor}`;
-    if (!buckets.has(key)) buckets.set(key, []);
-    buckets.get(key).push(r);
-  }
-
-  // Colores para diferentes grupos de empate
-  const colors = [
-    { bg: '#fff3cd', border: '#d39e00' }, // Amarillo
-    { bg: '#e3f2fd', border: '#1976d2' }, // Azul
-    { bg: '#e8f5e9', border: '#43a047' }, // Verde
-    { bg: '#fce4ec', border: '#c2185b' }, // Rosa
-    { bg: '#f3e5f5', border: '#7b1fa2' }, // Púrpura
-    { bg: '#fff8e1', border: '#f57c00' }, // Naranja claro
-  ];
-
-  const tieGroups = [];
-  let colorIndex = 0;
-
-  for (const arr of buckets.values()) {
-    // Solo marcar empate si tienen partidos jugados
-    const tienenPartidos = arr.some(r => r.jugados > 0);
-    if (arr.length >= 2 && tienenPartidos) {
-      const color = colors[colorIndex % colors.length];
-      
-      const group = {
-        parejaIds: arr.map(x => x.parejaId),
-        color: color,
-        size: arr.length
-      };
-      
-      tieGroups.push(group);
-      colorIndex++;
-    }
-  }
-
-  return { tieGroups };
-}
+// Función detectarEmpatesReales ahora usa la función centralizada
 
 /**
- * Calcula la tabla de posiciones del grupo
+ * Calcula la tabla de posiciones del grupo usando funciones centralizadas
  */
 async function calcularTablaGrupo(supabase, torneoId, identidad, parejasDelGrupo) {
   try {
     // Obtener grupo ID
-    const { data: grupos } = await supabase
+    if (!identidad.grupo) return [];
+    
+    const { data: grupos, error: grupoError } = await supabase
       .from('grupos')
       .select('id, nombre')
       .eq('torneo_id', torneoId)
-      .eq('nombre', identidad.grupo)
-      .single();
+      .eq('nombre', String(identidad.grupo).trim())
+      .maybeSingle();
 
-    if (!grupos) return [];
+    if (grupoError || !grupos?.id) return [];
 
     const grupoId = grupos.id;
 
@@ -358,6 +324,8 @@ async function calcularTablaGrupo(supabase, torneoId, identidad, parejasDelGrupo
       .select(`
         id, games_a, games_b, estado,
         pareja_a_id, pareja_b_id,
+        pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
+        pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre ),
         grupos ( nombre )
       `)
       .eq('torneo_id', torneoId)
@@ -365,90 +333,25 @@ async function calcularTablaGrupo(supabase, torneoId, identidad, parejasDelGrupo
 
     if (!partidosGrupo) return [];
 
-    // Filtrar solo partidos contabilizados
-    const partidosValidos = partidosGrupo.filter(p => 
-      (p.estado === 'confirmado' || p.estado === 'a_confirmar') &&
-      p.games_a !== null && p.games_b !== null
-    );
+    // Calcular tabla usando función centralizada
+    const tablaBase = calcularTablaGrupoCentral(partidosGrupo, parejasDelGrupo);
 
-    // Calcular estadísticas por pareja
-    const stats = {};
-    
-    parejasDelGrupo.forEach(p => {
-      stats[p.id] = {
-        parejaId: p.id,
-        nombre: p.nombre,
-        puntos: 0,
-        jugados: 0,
-        ganados: 0,
-        perdidos: 0,
-        gamesAFavor: 0,
-        gamesEnContra: 0,
-        esMiPareja: p.id === identidad.parejaId
-      };
-    });
+    // Calcular posición automática (sin overrides) usando ordenarTabla para considerar enfrentamiento directo
+    const tablaAuto = ordenarTabla([...tablaBase], partidosGrupo);
 
-    partidosValidos.forEach(p => {
-      const idA = p.pareja_a_id;
-      const idB = p.pareja_b_id;
-
-      if (!stats[idA] || !stats[idB]) return;
-
-      stats[idA].jugados++;
-      stats[idB].jugados++;
-      stats[idA].gamesAFavor += p.games_a;
-      stats[idA].gamesEnContra += p.games_b;
-      stats[idB].gamesAFavor += p.games_b;
-      stats[idB].gamesEnContra += p.games_a;
-
-      if (p.games_a > p.games_b) {
-        stats[idA].puntos += 2; // Victoria: 2 puntos
-        stats[idA].ganados++;
-        stats[idB].puntos += 1; // Derrota: 1 punto
-        stats[idB].perdidos++;
-      } else if (p.games_b > p.games_a) {
-        stats[idB].puntos += 2; // Victoria: 2 puntos
-        stats[idB].ganados++;
-        stats[idA].puntos += 1; // Derrota: 1 punto
-        stats[idA].perdidos++;
-      } else {
-        // Empate (aunque no debería pasar)
-        stats[idA].puntos += 1;
-        stats[idB].puntos += 1;
-      }
-    });
-
-    // Obtener overrides manuales (orden final guardado por admin)
-    const { data: overrides } = await supabase
-      .from('posiciones_manual')
-      .select('pareja_id, orden_manual')
-      .eq('torneo_id', torneoId)
-      .eq('grupo_id', grupoId);
-
-    const overridesMap = {};
-    if (overrides && overrides.length > 0) {
-      overrides.forEach(ov => {
-        overridesMap[ov.pareja_id] = ov.orden_manual;
-      });
-    }
-
-    // Calcular posición automática (sin overrides) para cada pareja
-    const tablaAuto = Object.values(stats).sort((a, b) => {
-      if (b.puntos !== a.puntos) return b.puntos - a.puntos;
-      const difA = a.gamesAFavor - a.gamesEnContra;
-      const difB = b.gamesAFavor - b.gamesEnContra;
-      if (difB !== difA) return difB - difA;
-      return b.gamesAFavor - a.gamesAFavor;
-    });
-
-    // Mapear posición automática (índice + 1)
     const autoPosMap = {};
     tablaAuto.forEach((s, idx) => {
-      autoPosMap[s.parejaId] = idx + 1;
+      autoPosMap[s.pareja_id] = idx + 1;
     });
 
-    // Detectar empates reales con colores
-    const { tieGroups } = detectarEmpatesReales(Object.values(stats));
+    // Cargar overrides
+    const overridesMap = await cargarOverrides(supabase, torneoId, grupoId);
+
+    // Aplicar overrides (solo en empates reales)
+    const tablaOrdenada = ordenarConOverrides(tablaBase, overridesMap, partidosGrupo);
+
+    // Detectar empates reales
+    const { tieGroups } = detectarEmpatesRealesCentral(tablaOrdenada, partidosGrupo, overridesMap);
 
     // Crear mapa de color por pareja
     const tieColorMap = {};
@@ -460,35 +363,28 @@ async function calcularTablaGrupo(supabase, torneoId, identidad, parejasDelGrupo
       });
     }
 
-    // Ordenar: primero por overrides, luego por criterio automático
-    let tabla = Object.values(stats);
+    // Agregar metadata de overrides
+    const tablaConMetadata = agregarMetadataOverrides(tablaOrdenada, overridesMap);
 
-    // Separar: con override vs sin override
-    const conOverride = tabla.filter(s => overridesMap[s.parejaId] !== undefined);
-    const sinOverride = tabla.filter(s => overridesMap[s.parejaId] === undefined);
-
-    // Ordenar los que tienen override por su orden_manual
-    conOverride.sort((a, b) => overridesMap[a.parejaId] - overridesMap[b.parejaId]);
-
-    // Ordenar los que NO tienen override por criterio automático
-    sinOverride.sort((a, b) => {
-      if (b.puntos !== a.puntos) return b.puntos - a.puntos;
-      const difA = a.gamesAFavor - a.gamesEnContra;
-      const difB = b.gamesAFavor - b.gamesEnContra;
-      if (difB !== difA) return difB - difA;
-      return b.gamesAFavor - a.gamesAFavor;
-    });
-
-    // Tabla final: overrides primero, luego automáticos
-    tabla = [...conOverride, ...sinOverride];
-
-    // Agregar posición automática y delta a cada elemento
-    tabla.forEach((s, idx) => {
-      s.posicionActual = idx + 1;
-      s.posicionAuto = autoPosMap[s.parejaId];
-      s.delta = s.posicionAuto - s.posicionActual;
-      s.tieneOverride = overridesMap[s.parejaId] !== undefined;
-      s.colorEmpate = tieColorMap[s.parejaId] || null;
+    // Transformar a formato esperado por el render
+    const tabla = tablaConMetadata.map((s, idx) => {
+      // Mapear campos: pareja_id -> parejaId, P -> puntos, etc.
+      return {
+        parejaId: s.pareja_id,
+        nombre: s.nombre,
+        puntos: s.P,
+        jugados: s.PJ,
+        ganados: s.PG,
+        perdidos: s.PP,
+        gamesAFavor: s.GF,
+        gamesEnContra: s.GC,
+        posicionActual: idx + 1,
+        posicionAuto: autoPosMap[s.pareja_id] || idx + 1,
+        delta: (autoPosMap[s.pareja_id] || idx + 1) - (idx + 1),
+        tieneOverride: s.tieneOverrideAplicado,
+        colorEmpate: tieColorMap[s.pareja_id] || null,
+        esMiPareja: s.pareja_id === identidad.parejaId
+      };
     });
 
     return tabla;
@@ -504,7 +400,11 @@ async function calcularTablaGrupo(supabase, torneoId, identidad, parejasDelGrupo
  */
 function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todosPartidosGrupo, onChangePareja, onVerTodos) {
   const contentEl = document.getElementById('viewer-content');
-  if (!contentEl) return;
+  if (!contentEl) {
+    console.error('[vistaPersonal] No se encontró #viewer-content en el DOM');
+    return;
+  }
+  console.log('[vistaPersonal] Renderizando vista para:', identidad.parejaNombre);
 
   const totalPendientes = partidos.enRevision.length + partidos.porConfirmar.length;
   
