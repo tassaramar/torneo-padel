@@ -544,16 +544,22 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   const miNombre = identidad.parejaNombre;
   const soyA = partido.pareja_a?.id === identidad.parejaId;
   
-  // Determinar número de sets (default 3, puede ser 2 para semifinales)
-  // Solo usar sets si num_sets está explícitamente definido (2 o 3)
-  const numSets = (partido.num_sets !== null && partido.num_sets !== undefined) ? partido.num_sets : 3;
+  // Determinar número de sets
+  // Si num_sets está explícitamente definido (2 o 3), usarlo. Si no, usar modo legacy (games)
+  const numSets = (partido.num_sets !== null && partido.num_sets !== undefined) ? partido.num_sets : null;
   
-  // Obtener valores previos de sets (si existen) o usar games como fallback
+  // Obtener valores previos de sets (si existen)
   const tieneSets = partido.set1_a !== null || partido.set1_b !== null;
   
-  // Usar modo sets solo si realmente hay sets cargados O si el partido está configurado explícitamente para sets
-  // Si num_sets está definido explícitamente (2 o 3), usar sets. Si no, usar games legacy
-  const usarModoSets = tieneSets || (partido.num_sets !== null && partido.num_sets !== undefined && (partido.num_sets === 2 || partido.num_sets === 3));
+  // Usar modo sets solo si:
+  // 1. Ya hay sets cargados, O
+  // 2. El partido está configurado explícitamente para sets (num_sets = 2 o 3)
+  // Si num_sets es null/undefined, usar modo legacy (games)
+  const usarModoSets = tieneSets || (numSets !== null && (numSets === 2 || numSets === 3));
+  
+  // Si usamos modo sets pero numSets es null, usar 3 como default solo para la UI
+  // Pero si no usamos modo sets, no importa el valor
+  const numSetsParaUI = usarModoSets ? (numSets !== null ? numSets : 3) : 3;
   
   // Valores iniciales para cada set
   const getSetValue = (setNum, isA) => {
@@ -573,8 +579,8 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   const set1Rival = soyA ? getSetValue(1, false) : getSetValue(1, true);
   const set2Mis = soyA ? getSetValue(2, true) : getSetValue(2, false);
   const set2Rival = soyA ? getSetValue(2, false) : getSetValue(2, true);
-  const set3Mis = numSets === 3 ? (soyA ? getSetValue(3, true) : getSetValue(3, false)) : '';
-  const set3Rival = numSets === 3 ? (soyA ? getSetValue(3, false) : getSetValue(3, true)) : '';
+  const set3Mis = usarModoSets && numSetsParaUI === 3 ? (soyA ? getSetValue(3, true) : getSetValue(3, false)) : '';
+  const set3Rival = usarModoSets && numSetsParaUI === 3 ? (soyA ? getSetValue(3, false) : getSetValue(3, true)) : '';
   
   // Fallback a games si no hay sets
   const gamesAPrevia = partido.games_a;
@@ -668,7 +674,7 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
                 </div>
               </div>
               
-              ${numSets === 3 ? `
+              ${usarModoSets && numSetsParaUI === 3 ? `
                 <div class="set-input-group">
                   <label class="set-label">Set 3 <span class="set-optional">(opcional si ya ganaron 2)</span></label>
                   <div class="set-inputs-row">
@@ -756,6 +762,9 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   document.getElementById('modal-close').addEventListener('click', close);
   document.getElementById('modal-cancel').addEventListener('click', close);
   
+  // Importar validarSet una sola vez
+  const { validarSet } = await import('../carga/scores.js');
+
   // Actualizar preview cuando cambien los valores
   const actualizarPreview = () => {
     const mensajeDiv = document.getElementById('mensaje-preview');
@@ -767,35 +776,86 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
       const set1Rival = parseInt(document.getElementById('input-set1-rival')?.value || '');
       const set2Mis = parseInt(document.getElementById('input-set2-mis')?.value || '');
       const set2Rival = parseInt(document.getElementById('input-set2-rival')?.value || '');
-      const set3Mis = numSets === 3 ? parseInt(document.getElementById('input-set3-mis')?.value || '') : null;
-      const set3Rival = numSets === 3 ? parseInt(document.getElementById('input-set3-rival')?.value || '') : null;
+      const set3Mis = numSetsParaUI === 3 ? parseInt(document.getElementById('input-set3-mis')?.value || '') : null;
+      const set3Rival = numSetsParaUI === 3 ? parseInt(document.getElementById('input-set3-rival')?.value || '') : null;
 
-      // Validar sets
-      const sets = [
-        { setA: set1Mis, setB: set1Rival },
-        { setA: set2Mis, setB: set2Rival }
-      ];
-      if (numSets === 3 && set3Mis !== null && set3Rival !== null) {
-        sets.push({ setA: set3Mis, setB: set3Rival });
+      // Validar y mostrar feedback por cada set
+      const set1Completo = !isNaN(set1Mis) && !isNaN(set1Rival) && set1Mis >= 0 && set1Rival >= 0;
+      const set2Completo = !isNaN(set2Mis) && !isNaN(set2Rival) && set2Mis >= 0 && set2Rival >= 0;
+      const set3Completo = numSetsParaUI === 3 && !isNaN(set3Mis) && !isNaN(set3Rival) && set3Mis >= 0 && set3Rival >= 0;
+
+      // Validar cada set individualmente y mostrar feedback
+      let mensajesSets = [];
+      let hayErrores = false;
+      const sets = [];
+
+      if (set1Completo) {
+        const validacion = validarSet(set1Mis, set1Rival);
+        sets.push({ setA: set1Mis, setB: set1Rival });
+        if (!validacion.ok) {
+          mensajesSets.push(`<strong>Set 1:</strong> ${validacion.msg}`);
+          hayErrores = true;
+        } else {
+          const ganador = set1Mis > set1Rival ? 'Vos' : oponente;
+          const resultado = `${set1Mis > set1Rival ? set1Mis : set1Rival}-${set1Mis > set1Rival ? set1Rival : set1Mis}`;
+          mensajesSets.push(`<strong>Set 1:</strong> ${ganador} ganaste ${resultado}`);
+        }
       }
 
-      // Calcular sets ganados
+      if (set2Completo) {
+        const validacion = validarSet(set2Mis, set2Rival);
+        sets.push({ setA: set2Mis, setB: set2Rival });
+        if (!validacion.ok) {
+          mensajesSets.push(`<strong>Set 2:</strong> ${validacion.msg}`);
+          hayErrores = true;
+        } else {
+          const ganador = set2Mis > set2Rival ? 'Vos' : oponente;
+          const resultado = `${set2Mis > set2Rival ? set2Mis : set2Rival}-${set2Mis > set2Rival ? set2Rival : set2Mis}`;
+          mensajesSets.push(`<strong>Set 2:</strong> ${ganador} ganaste ${resultado}`);
+        }
+      }
+
+      if (set3Completo) {
+        const validacion = validarSet(set3Mis, set3Rival);
+        sets.push({ setA: set3Mis, setB: set3Rival });
+        if (!validacion.ok) {
+          mensajesSets.push(`<strong>Set 3:</strong> ${validacion.msg}`);
+          hayErrores = true;
+        } else {
+          const ganador = set3Mis > set3Rival ? 'Vos' : oponente;
+          const resultado = `${set3Mis > set3Rival ? set3Mis : set3Rival}-${set3Mis > set3Rival ? set3Rival : set3Mis}`;
+          mensajesSets.push(`<strong>Set 3:</strong> ${ganador} ganaste ${resultado}`);
+        }
+      }
+
+      // Mostrar mensajes de sets individuales
+      if (mensajesSets.length > 0) {
+        const claseMensaje = hayErrores ? 'mensaje-empate' : 'mensaje-victoria';
+        mensajeDiv.innerHTML = `<div class="${claseMensaje}" style="font-size: 13px; text-align: left; padding: 8px 12px;">${mensajesSets.join('<br>')}</div>`;
+      }
+
+      // Calcular sets ganados y mostrar resultado final si está completo
       let setsGanadosMis = 0;
       let setsGanadosRival = 0;
 
       for (const set of sets) {
-        if (!isNaN(set.setA) && !isNaN(set.setB) && set.setA >= 0 && set.setB >= 0) {
-          if (set.setA > set.setB) setsGanadosMis++;
-          else if (set.setB > set.setA) setsGanadosRival++;
-        }
+        if (set.setA > set.setB) setsGanadosMis++;
+        else if (set.setB > set.setA) setsGanadosRival++;
       }
 
-      const setsNecesarios = numSets === 2 ? 2 : 2;
-      if (setsGanadosMis >= setsNecesarios || setsGanadosRival >= setsNecesarios) {
+      const setsNecesarios = numSetsParaUI === 2 ? 2 : 2;
+      const partidoCompleto = sets.length >= setsNecesarios && (setsGanadosMis >= setsNecesarios || setsGanadosRival >= setsNecesarios);
+      
+      if (partidoCompleto && !hayErrores) {
         const yoGano = setsGanadosMis >= setsNecesarios;
         const resultado = getMensajeResultado(yoGano ? 2 : 0, yoGano ? 0 : 2, true);
         const clase = resultado.tipo === 'victoria' ? 'mensaje-victoria' : 'mensaje-derrota';
-        mensajeDiv.innerHTML = `<div class="${clase}">${resultado.mensaje}</div>`;
+        const mensajeFinal = mensajesSets.length > 0 
+          ? `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.1); font-weight: 800;">${resultado.mensaje}</div>`
+          : `<div class="${clase}" style="font-weight: 800;">${resultado.mensaje}</div>`;
+        mensajeDiv.innerHTML = mensajesSets.length > 0 
+          ? `<div class="${claseMensaje}" style="font-size: 13px; text-align: left; padding: 8px 12px;">${mensajesSets.join('<br>')}${mensajeFinal}</div>`
+          : mensajeFinal;
       }
     } else {
       // Modo legacy (games)
@@ -845,7 +905,7 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
       document.getElementById(`input-${setNum}-mis`)?.addEventListener('input', actualizarPreview);
       document.getElementById(`input-${setNum}-rival`)?.addEventListener('input', actualizarPreview);
     });
-    if (numSets === 3) {
+    if (numSetsParaUI === 3) {
       document.getElementById('input-set3-mis')?.addEventListener('input', actualizarPreview);
       document.getElementById('input-set3-rival')?.addEventListener('input', actualizarPreview);
     }
@@ -877,8 +937,8 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
       const set1Rival = document.getElementById('input-set1-rival')?.value;
       const set2Mis = document.getElementById('input-set2-mis')?.value;
       const set2Rival = document.getElementById('input-set2-rival')?.value;
-      const set3Mis = numSets === 3 ? document.getElementById('input-set3-mis')?.value : null;
-      const set3Rival = numSets === 3 ? document.getElementById('input-set3-rival')?.value : null;
+      const set3Mis = numSetsParaUI === 3 ? document.getElementById('input-set3-mis')?.value : null;
+      const set3Rival = numSetsParaUI === 3 ? document.getElementById('input-set3-rival')?.value : null;
 
       // Validar sets
       const sets = [
@@ -886,13 +946,13 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
         { setA: parseInt(set2Mis), setB: parseInt(set2Rival) }
       ];
 
-      if (numSets === 3 && set3Mis !== '' && set3Rival !== '') {
+      if (numSetsParaUI === 3 && set3Mis !== '' && set3Rival !== '') {
         sets.push({ setA: parseInt(set3Mis), setB: parseInt(set3Rival) });
       }
 
       // Importar validación
       import('../carga/scores.js').then(({ validarSets }) => {
-        const validacion = validarSets(sets, numSets);
+        const validacion = validarSets(sets, numSetsParaUI);
         if (!validacion.ok) {
           mostrarError(validacion.msg);
           return;
@@ -903,11 +963,11 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
           set1: { setA: sets[0].setA, setB: sets[0].setB },
           set2: { setA: sets[1].setA, setB: sets[1].setB }
         };
-        if (numSets === 3 && sets.length > 2) {
+        if (numSetsParaUI === 3 && sets.length > 2) {
           setsObj.set3 = { setA: sets[2].setA, setB: sets[2].setB };
         }
 
-        onSubmit(setsObj, numSets);
+        onSubmit(setsObj, numSetsParaUI);
         close();
       });
     } else {
