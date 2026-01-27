@@ -595,33 +595,31 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   let mostrarBotonSet2 = false;
   let mostrarBotonSet3 = false;
   
-  if (usarModoSets) {
-    if (numSets !== null && (numSets === 2 || numSets === 3)) {
-      // num_sets está definido: mostrar todos los sets según num_sets
-      numSetsParaUI = numSets;
-      mostrarSet1 = true;
-      mostrarSet2 = true;
-      mostrarSet3 = numSets === 3;
-    } else {
-      // num_sets es undefined/null: mostrar progresivamente
-      // Siempre mostrar Set 1
-      mostrarSet1 = true;
-      
-      // Mostrar Set 2 solo si ya está cargado
-      mostrarSet2 = tieneSet2;
-      
-      // Mostrar botón "Agregar Set 2" si hay Set 1 cargado pero no Set 2
-      // O si es un partido pendiente (sin Set 1 cargado aún)
-      mostrarBotonSet2 = !tieneSet2;
-      
-      // Mostrar Set 3 solo si:
-      // - Hay 2 sets cargados
-      // - Y cada pareja ganó 1 set (1-1)
-      mostrarSet3 = estaEmpatado1a1 || tieneSet3;
-      
-      // Mostrar botón "Agregar Set 3" si hay Set 1 y 2, están empatados 1-1, pero no hay Set 3
-      mostrarBotonSet3 = tieneSet1 && tieneSet2 && estaEmpatado1a1 && !tieneSet3;
-    }
+  if (numSets !== null && (numSets === 2 || numSets === 3)) {
+    // num_sets está definido: mostrar todos los sets según num_sets
+    numSetsParaUI = numSets;
+    mostrarSet1 = true;
+    mostrarSet2 = true;
+    mostrarSet3 = numSets === 3;
+  } else {
+    // num_sets es undefined/null: mostrar progresivamente
+    // Siempre mostrar Set 1
+    mostrarSet1 = true;
+    
+    // Mostrar Set 2 solo si ya está cargado
+    mostrarSet2 = tieneSet2;
+    
+    // Mostrar botón "Agregar Set 2" si hay Set 1 cargado pero no Set 2
+    // O si es un partido pendiente (sin Set 1 cargado aún)
+    mostrarBotonSet2 = !tieneSet2;
+    
+    // Mostrar Set 3 solo si:
+    // - Hay 2 sets cargados
+    // - Y cada pareja ganó 1 set (1-1)
+    mostrarSet3 = estaEmpatado1a1 || tieneSet3;
+    
+    // Mostrar botón "Agregar Set 3" si hay Set 1 y 2, están empatados 1-1, pero no hay Set 3
+    mostrarBotonSet3 = tieneSet1 && tieneSet2 && estaEmpatado1a1 && !tieneSet3;
   }
   
   // Valores iniciales para cada set
