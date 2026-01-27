@@ -539,10 +539,10 @@ export async function pedirAyudaAdmin(supabase, partidoId, identidad, nota = '')
  */
 export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   const oponente = partido.pareja_a?.id === identidad.parejaId 
-    ? partido.pareja_b?.nombre 
-    : partido.pareja_a?.nombre;
+    ? (partido.pareja_b?.nombre || 'Oponente')
+    : (partido.pareja_a?.nombre || 'Oponente');
 
-  const miNombre = identidad.parejaNombre;
+  const miNombre = identidad.parejaNombre || 'Tu pareja';
   const soyA = partido.pareja_a?.id === identidad.parejaId;
   
   // Determinar número de sets
