@@ -954,50 +954,49 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   };
 
   // Event listeners para sets
-  if (usarModoSets) {
-    // Set 1 siempre está presente
-    document.getElementById('input-set1-mis')?.addEventListener('input', actualizarPreview);
-    document.getElementById('input-set1-rival')?.addEventListener('input', actualizarPreview);
-    
-    // Set 2 (si está visible)
-    if (mostrarSet2) {
+  // Set 1 siempre está presente
+  document.getElementById('input-set1-mis')?.addEventListener('input', actualizarPreview);
+  document.getElementById('input-set1-rival')?.addEventListener('input', actualizarPreview);
+  
+  // Set 2 (si está visible)
+  if (mostrarSet2) {
+    document.getElementById('input-set2-mis')?.addEventListener('input', actualizarPreview);
+    document.getElementById('input-set2-rival')?.addEventListener('input', actualizarPreview);
+  }
+  
+  // Set 3 (si está visible)
+  if (mostrarSet3) {
+    document.getElementById('input-set3-mis')?.addEventListener('input', actualizarPreview);
+    document.getElementById('input-set3-rival')?.addEventListener('input', actualizarPreview);
+  }
+  
+  // Botones para agregar sets
+  document.getElementById('btn-agregar-set2')?.addEventListener('click', () => {
+    const set2Group = document.getElementById('set2-group');
+    const btnSet2 = document.getElementById('btn-agregar-set2');
+    if (set2Group && btnSet2) {
+      set2Group.style.display = 'block';
+      btnSet2.parentElement.remove();
+      // Agregar event listeners a los nuevos inputs
       document.getElementById('input-set2-mis')?.addEventListener('input', actualizarPreview);
       document.getElementById('input-set2-rival')?.addEventListener('input', actualizarPreview);
+      actualizarPreview();
     }
-    
-    // Set 3 (si está visible)
-    if (mostrarSet3) {
+  });
+  
+  document.getElementById('btn-agregar-set3')?.addEventListener('click', () => {
+    const set3Group = document.getElementById('set3-group');
+    const btnSet3 = document.getElementById('btn-agregar-set3');
+    if (set3Group && btnSet3) {
+      set3Group.style.display = 'block';
+      btnSet3.parentElement.remove();
+      // Agregar event listeners a los nuevos inputs
       document.getElementById('input-set3-mis')?.addEventListener('input', actualizarPreview);
       document.getElementById('input-set3-rival')?.addEventListener('input', actualizarPreview);
+      actualizarPreview();
     }
-    
-    // Botones para agregar sets
-    document.getElementById('btn-agregar-set2')?.addEventListener('click', () => {
-      const set2Group = document.getElementById('set2-group');
-      const btnSet2 = document.getElementById('btn-agregar-set2');
-      if (set2Group && btnSet2) {
-        set2Group.style.display = 'block';
-        btnSet2.parentElement.remove();
-        // Agregar event listeners a los nuevos inputs
-        document.getElementById('input-set2-mis')?.addEventListener('input', actualizarPreview);
-        document.getElementById('input-set2-rival')?.addEventListener('input', actualizarPreview);
-        actualizarPreview();
-      }
-    });
-    
-    document.getElementById('btn-agregar-set3')?.addEventListener('click', () => {
-      const set3Group = document.getElementById('set3-group');
-      const btnSet3 = document.getElementById('btn-agregar-set3');
-      if (set3Group && btnSet3) {
-        set3Group.style.display = 'block';
-        btnSet3.parentElement.remove();
-        // Agregar event listeners a los nuevos inputs
-        document.getElementById('input-set3-mis')?.addEventListener('input', actualizarPreview);
-        document.getElementById('input-set3-rival')?.addEventListener('input', actualizarPreview);
-        actualizarPreview();
-      }
-    });
-  
+  });
+
   const mostrarError = (mensaje) => {
     const errorDiv = document.getElementById('error-validation');
     errorDiv.textContent = mensaje;
