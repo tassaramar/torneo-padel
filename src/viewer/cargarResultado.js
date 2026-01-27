@@ -571,6 +571,15 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   const tieneSet3 = (partido.set3_a !== null && partido.set3_a !== undefined && partido.set3_a !== '') ||
                      (partido.set3_b !== null && partido.set3_b !== undefined && partido.set3_b !== '');
   
+  // Determinar si el partido está empatado 1-1 en sets (necesita Set 3)
+  const set1GanadoA = tieneSet1 && partido.set1_a !== null && partido.set1_b !== null && partido.set1_a > partido.set1_b;
+  const set1GanadoB = tieneSet1 && partido.set1_a !== null && partido.set1_b !== null && partido.set1_b > partido.set1_a;
+  const set2GanadoA = tieneSet2 && partido.set2_a !== null && partido.set2_b !== null && partido.set2_a > partido.set2_b;
+  const set2GanadoB = tieneSet2 && partido.set2_a !== null && partido.set2_b !== null && partido.set2_b > partido.set2_a;
+  const setsGanadosA = (set1GanadoA ? 1 : 0) + (set2GanadoA ? 1 : 0);
+  const setsGanadosB = (set1GanadoB ? 1 : 0) + (set2GanadoB ? 1 : 0);
+  const estaEmpatado1a1 = tieneSet1 && tieneSet2 && setsGanadosA === 1 && setsGanadosB === 1;
+  
   // Debug
   console.log('[Modal] Partido:', {
     num_sets: partido.num_sets,
@@ -581,15 +590,6 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
     tieneSet3,
     estaEmpatado1a1
   });
-  
-  // Determinar si el partido está empatado 1-1 en sets (necesita Set 3)
-  const set1GanadoA = tieneSet1 && partido.set1_a !== null && partido.set1_b !== null && partido.set1_a > partido.set1_b;
-  const set1GanadoB = tieneSet1 && partido.set1_a !== null && partido.set1_b !== null && partido.set1_b > partido.set1_a;
-  const set2GanadoA = tieneSet2 && partido.set2_a !== null && partido.set2_b !== null && partido.set2_a > partido.set2_b;
-  const set2GanadoB = tieneSet2 && partido.set2_a !== null && partido.set2_b !== null && partido.set2_b > partido.set2_a;
-  const setsGanadosA = (set1GanadoA ? 1 : 0) + (set2GanadoA ? 1 : 0);
-  const setsGanadosB = (set1GanadoB ? 1 : 0) + (set2GanadoB ? 1 : 0);
-  const estaEmpatado1a1 = tieneSet1 && tieneSet2 && setsGanadosA === 1 && setsGanadosB === 1;
   
   // Determinar cuántos sets mostrar en la UI
   let numSetsParaUI = 3;
