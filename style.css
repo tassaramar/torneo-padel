@@ -1926,6 +1926,34 @@ tbody td:first-child{
   flex: 0 0 auto;
 }
 
+.set-add-button-container {
+  margin-top: 8px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: center;
+}
+
+.btn-add-set {
+  background: var(--primary-soft);
+  color: var(--primary-900);
+  border: 1px solid var(--primary);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-add-set:hover {
+  background: var(--primary-soft-2);
+  border-color: var(--primary-900);
+}
+
+.btn-add-set:active {
+  transform: scale(0.98);
+}
+
 .input-score-modal {
   width: 100%;
   font-size: 24px;
