@@ -63,13 +63,14 @@ export async function resetearResultados() {
   const confirmacion = confirm(
     'RESETEAR RESULTADOS\n\n' +
     'Esto va a:\n' +
-    '• Borrar todos los resultados de partidos\n' +
-    '• Volver todos los partidos a estado "pendiente"\n\n' +
+    '• Borrar todos los resultados de partidos de grupos\n' +
+    '• Volver todos los partidos de grupos a estado "pendiente"\n' +
+    '• Eliminar TODOS los partidos de copas\n\n' +
     'MANTIENE:\n' +
     '✅ Parejas\n' +
     '✅ Grupos\n' +
-    '✅ Copas\n' +
-    '✅ Estructura de partidos\n\n' +
+    '✅ Copas (estructura)\n' +
+    '✅ Estructura de partidos de grupos\n\n' +
     '¿Continuar?'
   );
 
@@ -117,42 +118,22 @@ export async function resetearResultados() {
 
   logMsg(`✅ Partidos de grupos reseteados: ${countGrupos || 0}`);
 
-  // Reset de partidos de COPAS
-  const { error: errorCopas, count: countCopas } = await supabase
+  // Eliminar partidos de COPAS (no solo resetear, sino borrarlos completamente)
+  logMsg('🧹 Eliminando partidos de copas...');
+  const { data: delPartidosCopas, error: errorCopas } = await supabase
     .from('partidos')
-    .update({ 
-      games_a: null, 
-      games_b: null,
-      set1_a: null,
-      set1_b: null,
-      set2_a: null,
-      set2_b: null,
-      set3_a: null,
-      set3_b: null,
-      set1_temp_a: null,
-      set1_temp_b: null,
-      set2_temp_a: null,
-      set2_temp_b: null,
-      set3_temp_a: null,
-      set3_temp_b: null,
-      resultado_temp_a: null,
-      resultado_temp_b: null,
-      estado: 'pendiente',
-      cargado_por_pareja_id: null,
-      notas_revision: null,
-      updated_at: new Date().toISOString()
-    })
+    .delete()
     .eq('torneo_id', TORNEO_ID)
     .not('copa_id', 'is', null)
-    .select('id', { count: 'exact', head: false });
+    .select('id');
 
   if (errorCopas) {
     console.error(errorCopas);
-    logMsg('❌ Error reseteando partidos de copas (ver consola)');
+    logMsg('❌ Error eliminando partidos de copas (ver consola)');
     return;
   }
 
-  logMsg(`✅ Partidos de copas reseteados: ${countCopas || 0}`);
+  logMsg(`✅ Partidos de copas eliminados: ${delPartidosCopas?.length || 0}`);
 
   // Limpiar posiciones manuales (opcional pero recomendado)
   const { error: errorPos, count: countPos } = await supabase
