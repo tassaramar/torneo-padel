@@ -560,6 +560,14 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   // Todos los partidos usan modo sets (sin modo legacy)
   const usarModoSets = true;
   
+  // Detectar cuántos sets están realmente cargados
+  const tieneSet1 = (partido.set1_a !== null && partido.set1_a !== undefined && partido.set1_a !== '') ||
+                     (partido.set1_b !== null && partido.set1_b !== undefined && partido.set1_b !== '');
+  const tieneSet2 = (partido.set2_a !== null && partido.set2_a !== undefined && partido.set2_a !== '') ||
+                     (partido.set2_b !== null && partido.set2_b !== undefined && partido.set2_b !== '');
+  const tieneSet3 = (partido.set3_a !== null && partido.set3_a !== undefined && partido.set3_a !== '') ||
+                     (partido.set3_b !== null && partido.set3_b !== undefined && partido.set3_b !== '');
+  
   // Debug
   console.log('[Modal] Partido:', {
     num_sets: partido.num_sets,
@@ -569,14 +577,6 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
     tieneSet2,
     tieneSet3
   });
-  
-  // Detectar cuántos sets están realmente cargados
-  const tieneSet1 = (partido.set1_a !== null && partido.set1_a !== undefined && partido.set1_a !== '') ||
-                     (partido.set1_b !== null && partido.set1_b !== undefined && partido.set1_b !== '');
-  const tieneSet2 = (partido.set2_a !== null && partido.set2_a !== undefined && partido.set2_a !== '') ||
-                     (partido.set2_b !== null && partido.set2_b !== undefined && partido.set2_b !== '');
-  const tieneSet3 = (partido.set3_a !== null && partido.set3_a !== undefined && partido.set3_a !== '') ||
-                     (partido.set3_b !== null && partido.set3_b !== undefined && partido.set3_b !== '');
   
   // Determinar si el partido está empatado 1-1 en sets (necesita Set 3)
   const set1GanadoA = tieneSet1 && partido.set1_a !== null && partido.set1_b !== null && partido.set1_a > partido.set1_b;
