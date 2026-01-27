@@ -554,11 +554,10 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   const esPartidoCopa = partido.copa_id !== null && partido.copa_id !== undefined;
   
   // Determinar número de sets
-  // Si num_sets está explícitamente definido (2 o 3) Y hay sets cargados o es copa, usarlo
-  // Si num_sets tiene el default (3) pero no hay sets cargados y no es copa, tratarlo como null
-  const numSetsRaw = partido.num_sets !== null && partido.num_sets !== undefined ? partido.num_sets : null;
-  const numSets = (numSetsRaw !== null && (numSetsRaw === 2 || numSetsRaw === 3) && (tieneSets || esPartidoCopa)) 
-    ? numSetsRaw 
+  // Si num_sets está explícitamente definido (2 o 3), usarlo
+  // Si es NULL, el frontend decide qué mostrar progresivamente
+  const numSets = (partido.num_sets !== null && partido.num_sets !== undefined && (partido.num_sets === 2 || partido.num_sets === 3)) 
+    ? partido.num_sets 
     : null;
   
   // Todos los partidos usan modo sets (sin modo legacy)
