@@ -5,6 +5,7 @@
 
 import { getMensajeResultado } from '../utils/mensajesResultado.js';
 import { trackCargaResultado } from '../tracking/trackingService.js';
+import { validarSet } from '../carga/scores.js';
 
 /**
  * Carga o actualiza un resultado de partido (versión con sets)
@@ -779,9 +780,6 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   document.getElementById('modal-close').addEventListener('click', close);
   document.getElementById('modal-cancel').addEventListener('click', close);
   
-  // Importar validarSet una sola vez
-  const { validarSet } = await import('../carga/scores.js');
-
   // Actualizar preview cuando cambien los valores
   const actualizarPreview = () => {
     const mensajeDiv = document.getElementById('mensaje-preview');
