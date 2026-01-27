@@ -868,91 +868,90 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
     mensajeDiv.innerHTML = '';
 
     // Modo sets (siempre activo)
-      const set1Mis = parseInt(document.getElementById('input-set1-mis')?.value || '');
-      const set1Rival = parseInt(document.getElementById('input-set1-rival')?.value || '');
-      const set2Mis = parseInt(document.getElementById('input-set2-mis')?.value || '');
-      const set2Rival = parseInt(document.getElementById('input-set2-rival')?.value || '');
-      const set3Mis = numSetsParaUI === 3 ? parseInt(document.getElementById('input-set3-mis')?.value || '') : null;
-      const set3Rival = numSetsParaUI === 3 ? parseInt(document.getElementById('input-set3-rival')?.value || '') : null;
+    const set1Mis = parseInt(document.getElementById('input-set1-mis')?.value || '');
+    const set1Rival = parseInt(document.getElementById('input-set1-rival')?.value || '');
+    const set2Mis = parseInt(document.getElementById('input-set2-mis')?.value || '');
+    const set2Rival = parseInt(document.getElementById('input-set2-rival')?.value || '');
+    const set3Mis = mostrarSet3 ? parseInt(document.getElementById('input-set3-mis')?.value || '') : null;
+    const set3Rival = mostrarSet3 ? parseInt(document.getElementById('input-set3-rival')?.value || '') : null;
 
-      // Validar y mostrar feedback por cada set
-      const set1Completo = !isNaN(set1Mis) && !isNaN(set1Rival) && set1Mis >= 0 && set1Rival >= 0;
-      const set2Completo = !isNaN(set2Mis) && !isNaN(set2Rival) && set2Mis >= 0 && set2Rival >= 0;
-      const set3Completo = numSetsParaUI === 3 && !isNaN(set3Mis) && !isNaN(set3Rival) && set3Mis >= 0 && set3Rival >= 0;
+    // Validar y mostrar feedback por cada set
+    const set1Completo = !isNaN(set1Mis) && !isNaN(set1Rival) && set1Mis >= 0 && set1Rival >= 0;
+    const set2Completo = !isNaN(set2Mis) && !isNaN(set2Rival) && set2Mis >= 0 && set2Rival >= 0;
+    const set3Completo = mostrarSet3 && !isNaN(set3Mis) && !isNaN(set3Rival) && set3Mis >= 0 && set3Rival >= 0;
 
-      // Validar cada set individualmente y mostrar feedback
-      let mensajesSets = [];
-      let hayErrores = false;
-      const sets = [];
+    // Validar cada set individualmente y mostrar feedback
+    let mensajesSets = [];
+    let hayErrores = false;
+    const sets = [];
 
-      if (set1Completo) {
-        const validacion = validarSet(set1Mis, set1Rival);
-        sets.push({ setA: set1Mis, setB: set1Rival });
-        if (!validacion.ok) {
-          mensajesSets.push(`<strong>Set 1:</strong> ${validacion.msg}`);
-          hayErrores = true;
-        } else {
-          const ganador = set1Mis > set1Rival ? 'Vos' : oponente;
-          const resultado = `${set1Mis > set1Rival ? set1Mis : set1Rival}-${set1Mis > set1Rival ? set1Rival : set1Mis}`;
-          mensajesSets.push(`<strong>Set 1:</strong> ${ganador} ganaste ${resultado}`);
-        }
+    if (set1Completo) {
+      const validacion = validarSet(set1Mis, set1Rival);
+      sets.push({ setA: set1Mis, setB: set1Rival });
+      if (!validacion.ok) {
+        mensajesSets.push(`<strong>Set 1:</strong> ${validacion.msg}`);
+        hayErrores = true;
+      } else {
+        const ganador = set1Mis > set1Rival ? 'Vos' : oponente;
+        const resultado = `${set1Mis > set1Rival ? set1Mis : set1Rival}-${set1Mis > set1Rival ? set1Rival : set1Mis}`;
+        mensajesSets.push(`<strong>Set 1:</strong> ${ganador} ganaste ${resultado}`);
       }
+    }
 
-      if (set2Completo) {
-        const validacion = validarSet(set2Mis, set2Rival);
-        sets.push({ setA: set2Mis, setB: set2Rival });
-        if (!validacion.ok) {
-          mensajesSets.push(`<strong>Set 2:</strong> ${validacion.msg}`);
-          hayErrores = true;
-        } else {
-          const ganador = set2Mis > set2Rival ? 'Vos' : oponente;
-          const resultado = `${set2Mis > set2Rival ? set2Mis : set2Rival}-${set2Mis > set2Rival ? set2Rival : set2Mis}`;
-          mensajesSets.push(`<strong>Set 2:</strong> ${ganador} ganaste ${resultado}`);
-        }
+    if (set2Completo) {
+      const validacion = validarSet(set2Mis, set2Rival);
+      sets.push({ setA: set2Mis, setB: set2Rival });
+      if (!validacion.ok) {
+        mensajesSets.push(`<strong>Set 2:</strong> ${validacion.msg}`);
+        hayErrores = true;
+      } else {
+        const ganador = set2Mis > set2Rival ? 'Vos' : oponente;
+        const resultado = `${set2Mis > set2Rival ? set2Mis : set2Rival}-${set2Mis > set2Rival ? set2Rival : set2Mis}`;
+        mensajesSets.push(`<strong>Set 2:</strong> ${ganador} ganaste ${resultado}`);
       }
+    }
 
-      if (set3Completo) {
-        const validacion = validarSet(set3Mis, set3Rival);
-        sets.push({ setA: set3Mis, setB: set3Rival });
-        if (!validacion.ok) {
-          mensajesSets.push(`<strong>Set 3:</strong> ${validacion.msg}`);
-          hayErrores = true;
-        } else {
-          const ganador = set3Mis > set3Rival ? 'Vos' : oponente;
-          const resultado = `${set3Mis > set3Rival ? set3Mis : set3Rival}-${set3Mis > set3Rival ? set3Rival : set3Mis}`;
-          mensajesSets.push(`<strong>Set 3:</strong> ${ganador} ganaste ${resultado}`);
-        }
+    if (set3Completo) {
+      const validacion = validarSet(set3Mis, set3Rival);
+      sets.push({ setA: set3Mis, setB: set3Rival });
+      if (!validacion.ok) {
+        mensajesSets.push(`<strong>Set 3:</strong> ${validacion.msg}`);
+        hayErrores = true;
+      } else {
+        const ganador = set3Mis > set3Rival ? 'Vos' : oponente;
+        const resultado = `${set3Mis > set3Rival ? set3Mis : set3Rival}-${set3Mis > set3Rival ? set3Rival : set3Mis}`;
+        mensajesSets.push(`<strong>Set 3:</strong> ${ganador} ganaste ${resultado}`);
       }
+    }
 
-      // Mostrar mensajes de sets individuales
-      if (mensajesSets.length > 0) {
-        const claseMensaje = hayErrores ? 'mensaje-empate' : 'mensaje-victoria';
-        mensajeDiv.innerHTML = `<div class="${claseMensaje}" style="font-size: 13px; text-align: left; padding: 8px 12px;">${mensajesSets.join('<br>')}</div>`;
-      }
+    // Mostrar mensajes de sets individuales
+    if (mensajesSets.length > 0) {
+      const claseMensaje = hayErrores ? 'mensaje-empate' : 'mensaje-victoria';
+      mensajeDiv.innerHTML = `<div class="${claseMensaje}" style="font-size: 13px; text-align: left; padding: 8px 12px;">${mensajesSets.join('<br>')}</div>`;
+    }
 
-      // Calcular sets ganados y mostrar resultado final si está completo
-      let setsGanadosMis = 0;
-      let setsGanadosRival = 0;
+    // Calcular sets ganados y mostrar resultado final si está completo
+    let setsGanadosMis = 0;
+    let setsGanadosRival = 0;
 
-      for (const set of sets) {
-        if (set.setA > set.setB) setsGanadosMis++;
-        else if (set.setB > set.setA) setsGanadosRival++;
-      }
+    for (const set of sets) {
+      if (set.setA > set.setB) setsGanadosMis++;
+      else if (set.setB > set.setA) setsGanadosRival++;
+    }
 
-      const setsNecesarios = numSetsParaUI === 2 ? 2 : 2;
-      const partidoCompleto = sets.length >= setsNecesarios && (setsGanadosMis >= setsNecesarios || setsGanadosRival >= setsNecesarios);
-      
-      if (partidoCompleto && !hayErrores) {
-        const yoGano = setsGanadosMis >= setsNecesarios;
-        const resultado = getMensajeResultado(yoGano ? 2 : 0, yoGano ? 0 : 2, true);
-        const clase = resultado.tipo === 'victoria' ? 'mensaje-victoria' : 'mensaje-derrota';
-        const mensajeFinal = mensajesSets.length > 0 
-          ? `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.1); font-weight: 800;">${resultado.mensaje}</div>`
-          : `<div class="${clase}" style="font-weight: 800;">${resultado.mensaje}</div>`;
-        mensajeDiv.innerHTML = mensajesSets.length > 0 
-          ? `<div class="${claseMensaje}" style="font-size: 13px; text-align: left; padding: 8px 12px;">${mensajesSets.join('<br>')}${mensajeFinal}</div>`
-          : mensajeFinal;
-      }
+    const setsNecesarios = numSetsParaUI === 2 ? 2 : 2;
+    const partidoCompleto = sets.length >= setsNecesarios && (setsGanadosMis >= setsNecesarios || setsGanadosRival >= setsNecesarios);
+    
+    if (partidoCompleto && !hayErrores) {
+      const yoGano = setsGanadosMis >= setsNecesarios;
+      const resultado = getMensajeResultado(yoGano ? 2 : 0, yoGano ? 0 : 2, true);
+      const clase = resultado.tipo === 'victoria' ? 'mensaje-victoria' : 'mensaje-derrota';
+      const mensajeFinal = mensajesSets.length > 0 
+        ? `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.1); font-weight: 800;">${resultado.mensaje}</div>`
+        : `<div class="${clase}" style="font-weight: 800;">${resultado.mensaje}</div>`;
+      mensajeDiv.innerHTML = mensajesSets.length > 0 
+        ? `<div class="${claseMensaje}" style="font-size: 13px; text-align: left; padding: 8px 12px;">${mensajesSets.join('<br>')}${mensajeFinal}</div>`
+        : mensajeFinal;
     }
   };
 
