@@ -1870,12 +1870,15 @@ tbody td:first-child{
   display: flex;
   flex-direction: column;
   gap: 8px;
+  align-items: center;
 }
 
 .set-label {
   font-size: 13px;
   font-weight: 700;
   color: var(--muted);
+  text-align: center;
+  width: 100%;
 }
 
 .set-optional {
@@ -1891,7 +1894,8 @@ tbody td:first-child{
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 0 16px;
+  max-width: 300px;
+  margin: 0 auto;
 }
 
 .set-input-wrapper {

@@ -557,24 +557,17 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   // Determinar si el partido es de copa (las copas típicamente usan sets)
   const esPartidoCopa = partido.copa_id !== null && partido.copa_id !== undefined;
   
-  // Usar modo sets si:
-  // 1. Ya hay sets cargados, O
-  // 2. Es un partido de copa (las copas usan sets), O
-  // 3. Es un partido nuevo sin sets (para mostrar Set 1 + botón Agregar Set 2)
-  // NOTA: Partidos con games cargados pero sin sets usan modo legacy
-  const tieneGamesLegacy = (partido.games_a !== null && partido.games_a !== undefined) ||
-                            (partido.games_b !== null && partido.games_b !== undefined);
-  const usarModoSets = tieneSets || esPartidoCopa || (!tieneSets && !tieneGamesLegacy);
+  // Todos los partidos usan modo sets (sin modo legacy)
+  const usarModoSets = true;
   
   // Debug
   console.log('[Modal] Partido:', {
     num_sets: partido.num_sets,
     tieneSets,
     esPartidoCopa,
-    usarModoSets,
-    tieneGamesLegacy,
-    games_a: partido.games_a,
-    games_b: partido.games_b
+    tieneSet1,
+    tieneSet2,
+    tieneSet3
   });
   
   // Detectar cuántos sets están realmente cargados
@@ -618,8 +611,8 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
       mostrarSet2 = tieneSet2;
       
       // Mostrar botón "Agregar Set 2" si hay Set 1 cargado pero no Set 2
-      // O si es un partido nuevo (sin Set 1 cargado aún)
-      mostrarBotonSet2 = (tieneSet1 && !tieneSet2) || (!tieneSet1 && !tieneSet2);
+      // O si es un partido pendiente (sin Set 1 cargado aún)
+      mostrarBotonSet2 = !tieneSet2;
       
       // Mostrar Set 3 solo si:
       // - Hay 2 sets cargados
@@ -645,18 +638,13 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
     return '';
   };
 
-  const set1Mis = usarModoSets ? (soyA ? getSetValue(1, true) : getSetValue(1, false)) : '';
-  const set1Rival = usarModoSets ? (soyA ? getSetValue(1, false) : getSetValue(1, true)) : '';
-  const set2Mis = usarModoSets ? (soyA ? getSetValue(2, true) : getSetValue(2, false)) : '';
-  const set2Rival = usarModoSets ? (soyA ? getSetValue(2, false) : getSetValue(2, true)) : '';
-  const set3Mis = usarModoSets && numSetsParaUI === 3 ? (soyA ? getSetValue(3, true) : getSetValue(3, false)) : '';
-  const set3Rival = usarModoSets && numSetsParaUI === 3 ? (soyA ? getSetValue(3, false) : getSetValue(3, true)) : '';
+  const set1Mis = soyA ? getSetValue(1, true) : getSetValue(1, false);
+  const set1Rival = soyA ? getSetValue(1, false) : getSetValue(1, true);
+  const set2Mis = soyA ? getSetValue(2, true) : getSetValue(2, false);
+  const set2Rival = soyA ? getSetValue(2, false) : getSetValue(2, true);
+  const set3Mis = mostrarSet3 ? (soyA ? getSetValue(3, true) : getSetValue(3, false)) : '';
+  const set3Rival = mostrarSet3 ? (soyA ? getSetValue(3, false) : getSetValue(3, true)) : '';
   
-  // Fallback a games si no hay sets
-  const gamesAPrevia = partido.games_a;
-  const gamesBPrevia = partido.games_b;
-  const valorInicialMisGames = !tieneSets ? (soyA ? (gamesAPrevia !== null ? gamesAPrevia : '') : (gamesBPrevia !== null ? gamesBPrevia : '')) : '';
-  const valorInicialRivalGames = !tieneSets ? (soyA ? (gamesBPrevia !== null ? gamesBPrevia : '') : (gamesAPrevia !== null ? gamesAPrevia : '')) : '';
 
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
@@ -683,9 +671,8 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
         </div>
 
         <div class="score-inputs" id="score-inputs-container">
-          ${usarModoSets ? `
-            <!-- Modo Sets -->
-            <div class="sets-container">
+          <!-- Modo Sets (siempre activo) -->
+          <div class="sets-container">
               <div class="set-input-group">
                 <label class="set-label">Set 1</label>
                 <div class="set-inputs-row">
@@ -851,44 +838,11 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
                 </div>
               ` : ''}
             </div>
-          ` : `
-            <!-- Modo Legacy (solo games) - para compatibilidad -->
-            <div class="score-group" id="score-group-mis-games">
-              <label for="input-mis-games">Tus games</label>
-              <input 
-                type="number" 
-                id="input-mis-games" 
-                class="input-score-modal"
-                min="0" 
-                max="20"
-                value="${valorInicialMisGames}"
-                placeholder=""
-              />
-            </div>
-            
-            <div class="score-group" id="score-group-rival-games">
-              <label for="input-rival-games">Games de ${escapeHtml(oponente)}</label>
-              <input 
-                type="number" 
-                id="input-rival-games" 
-                class="input-score-modal"
-                min="0" 
-                max="20"
-                value="${valorInicialRivalGames}"
-                placeholder=""
-              />
-            </div>
-          `}
         </div>
         
         <div id="error-validation" class="error-validation"></div>
         <div id="mensaje-preview" class="mensaje-preview"></div>
 
-        ${gamesAPrevia !== null ? `
-          <div class="helper-info">
-            Resultado anterior: ${soyA ? gamesAPrevia : gamesBPrevia} - ${soyA ? gamesBPrevia : gamesAPrevia}
-          </div>
-        ` : ''}
       </div>
       
       <div class="modal-footer">
@@ -913,8 +867,7 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
     const mensajeDiv = document.getElementById('mensaje-preview');
     mensajeDiv.innerHTML = '';
 
-    if (usarModoSets) {
-      // Modo sets
+    // Modo sets (siempre activo)
       const set1Mis = parseInt(document.getElementById('input-set1-mis')?.value || '');
       const set1Rival = parseInt(document.getElementById('input-set1-rival')?.value || '');
       const set2Mis = parseInt(document.getElementById('input-set2-mis')?.value || '');
@@ -1000,45 +953,6 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
           ? `<div class="${claseMensaje}" style="font-size: 13px; text-align: left; padding: 8px 12px;">${mensajesSets.join('<br>')}${mensajeFinal}</div>`
           : mensajeFinal;
       }
-    } else {
-      // Modo legacy (games)
-      const inputMisGames = document.getElementById('input-mis-games');
-      const inputRivalGames = document.getElementById('input-rival-games');
-      const groupMisGames = document.getElementById('score-group-mis-games');
-      const groupRivalGames = document.getElementById('score-group-rival-games');
-      
-      if (!inputMisGames || !inputRivalGames) return;
-      
-      const misGames = parseInt(inputMisGames.value);
-      const rivalGames = parseInt(inputRivalGames.value);
-
-      // Limpiar clases previas
-      if (groupMisGames) groupMisGames.classList.remove('ganador', 'perdedor');
-      if (groupRivalGames) groupRivalGames.classList.remove('ganador', 'perdedor');
-
-      if (isNaN(misGames) || isNaN(rivalGames) || misGames < 0 || rivalGames < 0) {
-        return;
-      }
-
-      const resultado = getMensajeResultado(misGames, rivalGames, true);
-      
-      if (resultado.tipo === 'empate') {
-        mensajeDiv.innerHTML = `<div class="mensaje-empate">${resultado.mensaje}</div>`;
-        return;
-      }
-
-      if (groupMisGames && groupRivalGames) {
-        if (misGames > rivalGames) {
-          groupMisGames.classList.add('ganador');
-          groupRivalGames.classList.add('perdedor');
-        } else {
-          groupRivalGames.classList.add('ganador');
-          groupMisGames.classList.add('perdedor');
-        }
-      }
-
-      const clase = resultado.tipo === 'victoria' ? 'mensaje-victoria' : 'mensaje-derrota';
-      mensajeDiv.innerHTML = `<div class="${clase}">${resultado.mensaje}</div>`;
     }
   };
 
@@ -1086,11 +1000,6 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
         actualizarPreview();
       }
     });
-  } else {
-    // Modo legacy
-    document.getElementById('input-mis-games')?.addEventListener('input', actualizarPreview);
-    document.getElementById('input-rival-games')?.addEventListener('input', actualizarPreview);
-  }
   
   const mostrarError = (mensaje) => {
     const errorDiv = document.getElementById('error-validation');
@@ -1154,38 +1063,11 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
         onSubmit(setsObj, numSetsFinal);
         close();
       });
-    } else {
-      // Modo legacy (games)
-      const misGames = parseInt(document.getElementById('input-mis-games')?.value);
-      const rivalGames = parseInt(document.getElementById('input-rival-games')?.value);
-
-      if (isNaN(misGames) || isNaN(rivalGames)) {
-        mostrarError('Por favor ingresá ambos resultados.');
-        return;
-      }
-
-      if (misGames < 0 || rivalGames < 0) {
-        mostrarError('Los resultados no pueden ser negativos.');
-        return;
-      }
-
-      if (misGames === rivalGames) {
-        mostrarError('No se puede empatar en pádel. Revisá el resultado.');
-        return;
-      }
-
-      // Mapear los valores según si soy pareja A o B
-      const gamesA = soyA ? misGames : rivalGames;
-      const gamesB = soyA ? rivalGames : misGames;
-
-      onSubmit(gamesA, gamesB);
-      close();
-    }
   });
 
   // Focus en primer input
   setTimeout(() => {
-    document.getElementById('input-mis-games')?.focus();
+    document.getElementById('input-set1-mis')?.focus();
     actualizarPreview(); // Actualizar si hay valores previos
   }, 100);
 }
