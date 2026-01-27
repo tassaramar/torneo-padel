@@ -545,14 +545,6 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   const miNombre = identidad.parejaNombre || 'Tu pareja';
   const soyA = partido.pareja_a?.id === identidad.parejaId;
   
-  // Determinar número de sets
-  // Si num_sets está explícitamente definido (2 o 3) Y hay sets cargados o es copa, usarlo
-  // Si num_sets tiene el default (3) pero no hay sets cargados y no es copa, tratarlo como null
-  const numSetsRaw = partido.num_sets !== null && partido.num_sets !== undefined ? partido.num_sets : null;
-  const numSets = (numSetsRaw !== null && (numSetsRaw === 2 || numSetsRaw === 3) && (tieneSets || esPartidoCopa)) 
-    ? numSetsRaw 
-    : null;
-  
   // Obtener valores previos de sets (si existen)
   // Verificar que realmente hay valores numéricos, no solo que no sean null
   const tieneSets = (partido.set1_a !== null && partido.set1_a !== undefined && partido.set1_a !== '') ||
@@ -560,6 +552,14 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   
   // Determinar si el partido es de copa (las copas típicamente usan sets)
   const esPartidoCopa = partido.copa_id !== null && partido.copa_id !== undefined;
+  
+  // Determinar número de sets
+  // Si num_sets está explícitamente definido (2 o 3) Y hay sets cargados o es copa, usarlo
+  // Si num_sets tiene el default (3) pero no hay sets cargados y no es copa, tratarlo como null
+  const numSetsRaw = partido.num_sets !== null && partido.num_sets !== undefined ? partido.num_sets : null;
+  const numSets = (numSetsRaw !== null && (numSetsRaw === 2 || numSetsRaw === 3) && (tieneSets || esPartidoCopa)) 
+    ? numSetsRaw 
+    : null;
   
   // Todos los partidos usan modo sets (sin modo legacy)
   const usarModoSets = true;
