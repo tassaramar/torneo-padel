@@ -1017,50 +1017,50 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
 
   document.getElementById('modal-submit').addEventListener('click', () => {
     // Modo sets - obtener valores de los inputs visibles
-      const set1Mis = document.getElementById('input-set1-mis')?.value;
-      const set1Rival = document.getElementById('input-set1-rival')?.value;
-      const set2Mis = document.getElementById('input-set2-mis')?.value;
-      const set2Rival = document.getElementById('input-set2-rival')?.value;
-      const set3Mis = document.getElementById('input-set3-mis')?.value;
-      const set3Rival = document.getElementById('input-set3-rival')?.value;
-      
-      // Determinar cuántos sets están completos
-      const sets = [];
-      if (set1Mis !== '' && set1Rival !== '') {
-        sets.push({ setA: parseInt(set1Mis), setB: parseInt(set1Rival) });
+    const set1Mis = document.getElementById('input-set1-mis')?.value;
+    const set1Rival = document.getElementById('input-set1-rival')?.value;
+    const set2Mis = document.getElementById('input-set2-mis')?.value;
+    const set2Rival = document.getElementById('input-set2-rival')?.value;
+    const set3Mis = document.getElementById('input-set3-mis')?.value;
+    const set3Rival = document.getElementById('input-set3-rival')?.value;
+    
+    // Determinar cuántos sets están completos
+    const sets = [];
+    if (set1Mis !== '' && set1Rival !== '') {
+      sets.push({ setA: parseInt(set1Mis), setB: parseInt(set1Rival) });
+    }
+    if (set2Mis !== '' && set2Rival !== '') {
+      sets.push({ setA: parseInt(set2Mis), setB: parseInt(set2Rival) });
+    }
+    if (set3Mis !== '' && set3Rival !== '') {
+      sets.push({ setA: parseInt(set3Mis), setB: parseInt(set3Rival) });
+    }
+    
+    // Determinar numSets: si está definido en partido, usarlo; si no, usar cantidad de sets cargados
+    const numSetsFinal = numSets !== null && (numSets === 2 || numSets === 3) 
+      ? numSets 
+      : (sets.length >= 2 ? sets.length : 2); // Mínimo 2 sets
+    
+    // Validar sets
+    import('../carga/scores.js').then(({ validarSets }) => {
+      const validacion = validarSets(sets, numSetsFinal);
+      if (!validacion.ok) {
+        mostrarError(validacion.msg);
+        return;
       }
-      if (set2Mis !== '' && set2Rival !== '') {
-        sets.push({ setA: parseInt(set2Mis), setB: parseInt(set2Rival) });
-      }
-      if (set3Mis !== '' && set3Rival !== '') {
-        sets.push({ setA: parseInt(set3Mis), setB: parseInt(set3Rival) });
-      }
-      
-      // Determinar numSets: si está definido en partido, usarlo; si no, usar cantidad de sets cargados
-      const numSetsFinal = numSets !== null && (numSets === 2 || numSets === 3) 
-        ? numSets 
-        : (sets.length >= 2 ? sets.length : 2); // Mínimo 2 sets
-      
-      // Validar sets
-      import('../carga/scores.js').then(({ validarSets }) => {
-        const validacion = validarSets(sets, numSetsFinal);
-        if (!validacion.ok) {
-          mostrarError(validacion.msg);
-          return;
-        }
 
-        // Preparar objeto de sets para onSubmit
-        const setsObj = {
-          set1: { setA: sets[0].setA, setB: sets[0].setB },
-          set2: { setA: sets[1].setA, setB: sets[1].setB }
-        };
-        if (sets.length > 2) {
-          setsObj.set3 = { setA: sets[2].setA, setB: sets[2].setB };
-        }
+      // Preparar objeto de sets para onSubmit
+      const setsObj = {
+        set1: { setA: sets[0].setA, setB: sets[0].setB },
+        set2: { setA: sets[1].setA, setB: sets[1].setB }
+      };
+      if (sets.length > 2) {
+        setsObj.set3 = { setA: sets[2].setA, setB: sets[2].setB };
+      }
 
-        onSubmit(setsObj, numSetsFinal);
-        close();
-      });
+      onSubmit(setsObj, numSetsFinal);
+      close();
+    });
   });
 
   // Focus en primer input
