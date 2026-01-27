@@ -557,11 +557,14 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   // Determinar si el partido es de copa (las copas típicamente usan sets)
   const esPartidoCopa = partido.copa_id !== null && partido.copa_id !== undefined;
   
-  // Usar modo sets solo si:
+  // Usar modo sets si:
   // 1. Ya hay sets cargados, O
-  // 2. Es un partido de copa (las copas usan sets)
-  // NO usar el default de num_sets=3 para partidos de grupos sin sets cargados
-  const usarModoSets = tieneSets || esPartidoCopa;
+  // 2. Es un partido de copa (las copas usan sets), O
+  // 3. Es un partido nuevo sin sets (para mostrar Set 1 + botón Agregar Set 2)
+  // NOTA: Partidos con games cargados pero sin sets usan modo legacy
+  const tieneGamesLegacy = (partido.games_a !== null && partido.games_a !== undefined) ||
+                            (partido.games_b !== null && partido.games_b !== undefined);
+  const usarModoSets = tieneSets || esPartidoCopa || (!tieneSets && !tieneGamesLegacy);
   
   // Debug
   console.log('[Modal] Partido:', {
@@ -569,6 +572,7 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
     tieneSets,
     esPartidoCopa,
     usarModoSets,
+    tieneGamesLegacy,
     games_a: partido.games_a,
     games_b: partido.games_b
   });
@@ -613,8 +617,9 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
       // Mostrar Set 2 solo si ya está cargado
       mostrarSet2 = tieneSet2;
       
-      // Mostrar botón "Agregar Set 2" si hay Set 1 pero no Set 2
-      mostrarBotonSet2 = tieneSet1 && !tieneSet2;
+      // Mostrar botón "Agregar Set 2" si hay Set 1 cargado pero no Set 2
+      // O si es un partido nuevo (sin Set 1 cargado aún)
+      mostrarBotonSet2 = (tieneSet1 && !tieneSet2) || (!tieneSet1 && !tieneSet2);
       
       // Mostrar Set 3 solo si:
       // - Hay 2 sets cargados
