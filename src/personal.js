@@ -321,6 +321,9 @@ window.app = {
       .from('partidos')
       .select(`
         id, games_a, games_b, estado,
+        set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
+        set1_temp_a, set1_temp_b, set2_temp_a, set2_temp_b, set3_temp_a, set3_temp_b,
+        copa_id,
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
       `)
