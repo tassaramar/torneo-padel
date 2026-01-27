@@ -545,10 +545,15 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   const soyA = partido.pareja_a?.id === identidad.parejaId;
   
   // Determinar número de sets (default 3, puede ser 2 para semifinales)
-  const numSets = partido.num_sets || 3;
+  // Solo usar sets si num_sets está explícitamente definido (2 o 3)
+  const numSets = (partido.num_sets !== null && partido.num_sets !== undefined) ? partido.num_sets : 3;
   
   // Obtener valores previos de sets (si existen) o usar games como fallback
   const tieneSets = partido.set1_a !== null || partido.set1_b !== null;
+  
+  // Usar modo sets solo si realmente hay sets cargados O si el partido está configurado explícitamente para sets
+  // Si num_sets está definido explícitamente (2 o 3), usar sets. Si no, usar games legacy
+  const usarModoSets = tieneSets || (partido.num_sets !== null && partido.num_sets !== undefined && (partido.num_sets === 2 || partido.num_sets === 3));
   
   // Valores iniciales para cada set
   const getSetValue = (setNum, isA) => {
@@ -602,56 +607,64 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
         </div>
 
         <div class="score-inputs" id="score-inputs-container">
-          ${tieneSets || numSets === 2 ? `
+          ${usarModoSets ? `
             <!-- Modo Sets -->
             <div class="sets-container">
               <div class="set-input-group">
                 <label class="set-label">Set 1</label>
                 <div class="set-inputs-row">
-                  <input 
-                    type="number" 
-                    id="input-set1-mis" 
-                    class="input-score-modal input-set"
-                    min="0" 
-                    max="7"
-                    value="${set1Mis}"
-                    placeholder=""
-                  />
+                  <div class="set-input-wrapper">
+                    <input 
+                      type="number" 
+                      id="input-set1-mis" 
+                      class="input-score-modal input-set"
+                      min="0" 
+                      max="7"
+                      value="${set1Mis}"
+                      placeholder=""
+                    />
+                  </div>
                   <span class="set-separator">-</span>
-                  <input 
-                    type="number" 
-                    id="input-set1-rival" 
-                    class="input-score-modal input-set"
-                    min="0" 
-                    max="7"
-                    value="${set1Rival}"
-                    placeholder=""
-                  />
+                  <div class="set-input-wrapper">
+                    <input 
+                      type="number" 
+                      id="input-set1-rival" 
+                      class="input-score-modal input-set"
+                      min="0" 
+                      max="7"
+                      value="${set1Rival}"
+                      placeholder=""
+                    />
+                  </div>
                 </div>
               </div>
               
               <div class="set-input-group">
                 <label class="set-label">Set 2</label>
                 <div class="set-inputs-row">
-                  <input 
-                    type="number" 
-                    id="input-set2-mis" 
-                    class="input-score-modal input-set"
-                    min="0" 
-                    max="7"
-                    value="${set2Mis}"
-                    placeholder=""
-                  />
+                  <div class="set-input-wrapper">
+                    <input 
+                      type="number" 
+                      id="input-set2-mis" 
+                      class="input-score-modal input-set"
+                      min="0" 
+                      max="7"
+                      value="${set2Mis}"
+                      placeholder=""
+                    />
+                  </div>
                   <span class="set-separator">-</span>
-                  <input 
-                    type="number" 
-                    id="input-set2-rival" 
-                    class="input-score-modal input-set"
-                    min="0" 
-                    max="7"
-                    value="${set2Rival}"
-                    placeholder=""
-                  />
+                  <div class="set-input-wrapper">
+                    <input 
+                      type="number" 
+                      id="input-set2-rival" 
+                      class="input-score-modal input-set"
+                      min="0" 
+                      max="7"
+                      value="${set2Rival}"
+                      placeholder=""
+                    />
+                  </div>
                 </div>
               </div>
               
@@ -659,25 +672,29 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
                 <div class="set-input-group">
                   <label class="set-label">Set 3 <span class="set-optional">(opcional si ya ganaron 2)</span></label>
                   <div class="set-inputs-row">
-                    <input 
-                      type="number" 
-                      id="input-set3-mis" 
-                      class="input-score-modal input-set"
-                      min="0" 
-                      max="7"
-                      value="${set3Mis}"
-                      placeholder=""
-                    />
+                    <div class="set-input-wrapper">
+                      <input 
+                        type="number" 
+                        id="input-set3-mis" 
+                        class="input-score-modal input-set"
+                        min="0" 
+                        max="7"
+                        value="${set3Mis}"
+                        placeholder=""
+                      />
+                    </div>
                     <span class="set-separator">-</span>
-                    <input 
-                      type="number" 
-                      id="input-set3-rival" 
-                      class="input-score-modal input-set"
-                      min="0" 
-                      max="7"
-                      value="${set3Rival}"
-                      placeholder=""
-                    />
+                    <div class="set-input-wrapper">
+                      <input 
+                        type="number" 
+                        id="input-set3-rival" 
+                        class="input-score-modal input-set"
+                        min="0" 
+                        max="7"
+                        value="${set3Rival}"
+                        placeholder=""
+                      />
+                    </div>
                   </div>
                 </div>
               ` : ''}
@@ -744,7 +761,7 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
     const mensajeDiv = document.getElementById('mensaje-preview');
     mensajeDiv.innerHTML = '';
 
-    if (tieneSets || numSets === 2) {
+    if (usarModoSets) {
       // Modo sets
       const set1Mis = parseInt(document.getElementById('input-set1-mis')?.value || '');
       const set1Rival = parseInt(document.getElementById('input-set1-rival')?.value || '');
@@ -823,7 +840,7 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   };
 
   // Event listeners para sets
-  if (tieneSets || numSets === 2) {
+  if (usarModoSets) {
     ['set1', 'set2'].forEach(setNum => {
       document.getElementById(`input-${setNum}-mis`)?.addEventListener('input', actualizarPreview);
       document.getElementById(`input-${setNum}-rival`)?.addEventListener('input', actualizarPreview);
@@ -854,7 +871,7 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   };
 
   document.getElementById('modal-submit').addEventListener('click', () => {
-    if (tieneSets || numSets === 2) {
+    if (usarModoSets) {
       // Modo sets
       const set1Mis = document.getElementById('input-set1-mis')?.value;
       const set1Rival = document.getElementById('input-set1-rival')?.value;

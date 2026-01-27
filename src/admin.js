@@ -86,7 +86,23 @@ export async function resetearResultados() {
     .update({ 
       games_a: null, 
       games_b: null,
+      set1_a: null,
+      set1_b: null,
+      set2_a: null,
+      set2_b: null,
+      set3_a: null,
+      set3_b: null,
+      set1_temp_a: null,
+      set1_temp_b: null,
+      set2_temp_a: null,
+      set2_temp_b: null,
+      set3_temp_a: null,
+      set3_temp_b: null,
+      resultado_temp_a: null,
+      resultado_temp_b: null,
       estado: 'pendiente',
+      cargado_por_pareja_id: null,
+      notas_revision: null,
       updated_at: new Date().toISOString()
     })
     .eq('torneo_id', TORNEO_ID)
@@ -107,7 +123,23 @@ export async function resetearResultados() {
     .update({ 
       games_a: null, 
       games_b: null,
+      set1_a: null,
+      set1_b: null,
+      set2_a: null,
+      set2_b: null,
+      set3_a: null,
+      set3_b: null,
+      set1_temp_a: null,
+      set1_temp_b: null,
+      set2_temp_a: null,
+      set2_temp_b: null,
+      set3_temp_a: null,
+      set3_temp_b: null,
+      resultado_temp_a: null,
+      resultado_temp_b: null,
       estado: 'pendiente',
+      cargado_por_pareja_id: null,
+      notas_revision: null,
       updated_at: new Date().toISOString()
     })
     .eq('torneo_id', TORNEO_ID)
