@@ -550,18 +550,26 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   const numSets = (partido.num_sets !== null && partido.num_sets !== undefined) ? partido.num_sets : null;
   
   // Obtener valores previos de sets (si existen)
-  const tieneSets = partido.set1_a !== null || partido.set1_b !== null;
+  const tieneSets = (partido.set1_a !== null && partido.set1_a !== undefined) || (partido.set1_b !== null && partido.set1_b !== undefined);
   
   // Determinar si el partido es de copa (las copas típicamente usan sets)
   const esPartidoCopa = partido.copa_id !== null && partido.copa_id !== undefined;
   
   // Usar modo sets solo si:
   // 1. Ya hay sets cargados, O
-  // 2. Es un partido de copa (las copas usan sets), O
-  // 3. El partido tiene num_sets configurado Y tiene resultados (para evitar usar el default de 3 en partidos nuevos sin resultados)
-  // Si no cumple ninguna condición, usar modo legacy (games)
-  const tieneResultados = partido.games_a !== null || partido.games_b !== null;
-  const usarModoSets = tieneSets || esPartidoCopa || (numSets !== null && (numSets === 2 || numSets === 3) && tieneResultados);
+  // 2. Es un partido de copa (las copas usan sets)
+  // NO usar el default de num_sets=3 para partidos de grupos sin sets cargados
+  const usarModoSets = tieneSets || esPartidoCopa;
+  
+  // Debug
+  console.log('[Modal] Partido:', {
+    num_sets: partido.num_sets,
+    tieneSets,
+    esPartidoCopa,
+    usarModoSets,
+    games_a: partido.games_a,
+    games_b: partido.games_b
+  });
   
   // Si usamos modo sets, determinar cuántos sets mostrar
   // Si numSets está definido, usarlo
@@ -570,7 +578,7 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   // Si no usamos modo sets, este valor no se usa
   let numSetsParaUI = 3;
   if (usarModoSets) {
-    if (numSets !== null) {
+    if (numSets !== null && (numSets === 2 || numSets === 3)) {
       numSetsParaUI = numSets;
     } else if (esPartidoCopa) {
       numSetsParaUI = 2; // Semifinales típicamente son a 2 sets
@@ -584,19 +592,19 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
     const setField = `set${setNum}_${isA ? 'a' : 'b'}`;
     const tempField = `set${setNum}_temp_${isA ? 'a' : 'b'}`;
     
-    if (partido.estado === 'en_revision' && partido[tempField] !== null) {
-      return partido[tempField];
+    if (partido.estado === 'en_revision' && partido[tempField] !== null && partido[tempField] !== undefined) {
+      return String(partido[tempField]);
     }
-    if (partido[setField] !== null) {
-      return partido[setField];
+    if (partido[setField] !== null && partido[setField] !== undefined) {
+      return String(partido[setField]);
     }
     return '';
   };
 
-  const set1Mis = soyA ? getSetValue(1, true) : getSetValue(1, false);
-  const set1Rival = soyA ? getSetValue(1, false) : getSetValue(1, true);
-  const set2Mis = soyA ? getSetValue(2, true) : getSetValue(2, false);
-  const set2Rival = soyA ? getSetValue(2, false) : getSetValue(2, true);
+  const set1Mis = usarModoSets ? (soyA ? getSetValue(1, true) : getSetValue(1, false)) : '';
+  const set1Rival = usarModoSets ? (soyA ? getSetValue(1, false) : getSetValue(1, true)) : '';
+  const set2Mis = usarModoSets ? (soyA ? getSetValue(2, true) : getSetValue(2, false)) : '';
+  const set2Rival = usarModoSets ? (soyA ? getSetValue(2, false) : getSetValue(2, true)) : '';
   const set3Mis = usarModoSets && numSetsParaUI === 3 ? (soyA ? getSetValue(3, true) : getSetValue(3, false)) : '';
   const set3Rival = usarModoSets && numSetsParaUI === 3 ? (soyA ? getSetValue(3, false) : getSetValue(3, true)) : '';
   
