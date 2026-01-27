@@ -545,23 +545,38 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   const soyA = partido.pareja_a?.id === identidad.parejaId;
   
   // Determinar número de sets
-  // Si num_sets está explícitamente definido (2 o 3), usarlo. Si no, usar modo legacy (games)
+  // Si num_sets está explícitamente definido (2 o 3), usarlo
   const numSets = (partido.num_sets !== null && partido.num_sets !== undefined) ? partido.num_sets : null;
   
   // Obtener valores previos de sets (si existen)
   const tieneSets = partido.set1_a !== null || partido.set1_b !== null;
   
+  // Determinar si el partido es de copa (las copas típicamente usan sets)
+  const esPartidoCopa = partido.copa_id !== null && partido.copa_id !== undefined;
+  
   // Usar modo sets solo si:
   // 1. Ya hay sets cargados, O
-  // 2. El partido está configurado explícitamente para sets (num_sets = 2 o 3)
-  // Si num_sets es null/undefined y no hay sets cargados, usar modo legacy (games)
-  const usarModoSets = tieneSets || (numSets !== null && (numSets === 2 || numSets === 3));
+  // 2. Es un partido de copa (las copas usan sets), O
+  // 3. El partido tiene num_sets configurado Y tiene resultados (para evitar usar el default de 3 en partidos nuevos sin resultados)
+  // Si no cumple ninguna condición, usar modo legacy (games)
+  const tieneResultados = partido.games_a !== null || partido.games_b !== null;
+  const usarModoSets = tieneSets || esPartidoCopa || (numSets !== null && (numSets === 2 || numSets === 3) && tieneResultados);
   
   // Si usamos modo sets, determinar cuántos sets mostrar
-  // Si numSets es null pero tenemos sets cargados, asumir 3 sets
   // Si numSets está definido, usarlo
+  // Si es partido de copa y numSets es null, usar 2 (semifinales típicamente son a 2 sets)
+  // Si tiene sets cargados pero numSets es null, asumir 3 sets
   // Si no usamos modo sets, este valor no se usa
-  const numSetsParaUI = usarModoSets ? (numSets !== null ? numSets : (tieneSets ? 3 : 3)) : 2;
+  let numSetsParaUI = 3;
+  if (usarModoSets) {
+    if (numSets !== null) {
+      numSetsParaUI = numSets;
+    } else if (esPartidoCopa) {
+      numSetsParaUI = 2; // Semifinales típicamente son a 2 sets
+    } else if (tieneSets) {
+      numSetsParaUI = 3; // Si hay sets cargados pero no num_sets, asumir 3
+    }
+  }
   
   // Valores iniciales para cada set
   const getSetValue = (setNum, isA) => {
