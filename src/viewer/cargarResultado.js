@@ -554,12 +554,14 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   // Usar modo sets solo si:
   // 1. Ya hay sets cargados, O
   // 2. El partido está configurado explícitamente para sets (num_sets = 2 o 3)
-  // Si num_sets es null/undefined, usar modo legacy (games)
+  // Si num_sets es null/undefined y no hay sets cargados, usar modo legacy (games)
   const usarModoSets = tieneSets || (numSets !== null && (numSets === 2 || numSets === 3));
   
-  // Si usamos modo sets pero numSets es null, usar 3 como default solo para la UI
-  // Pero si no usamos modo sets, no importa el valor
-  const numSetsParaUI = usarModoSets ? (numSets !== null ? numSets : 3) : 3;
+  // Si usamos modo sets, determinar cuántos sets mostrar
+  // Si numSets es null pero tenemos sets cargados, asumir 3 sets
+  // Si numSets está definido, usarlo
+  // Si no usamos modo sets, este valor no se usa
+  const numSetsParaUI = usarModoSets ? (numSets !== null ? numSets : (tieneSets ? 3 : 3)) : 2;
   
   // Valores iniciales para cada set
   const getSetValue = (setNum, isA) => {
