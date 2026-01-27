@@ -546,8 +546,12 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   const soyA = partido.pareja_a?.id === identidad.parejaId;
   
   // Determinar número de sets
-  // Si num_sets está explícitamente definido (2 o 3), usarlo
-  const numSets = (partido.num_sets !== null && partido.num_sets !== undefined) ? partido.num_sets : null;
+  // Si num_sets está explícitamente definido (2 o 3) Y hay sets cargados o es copa, usarlo
+  // Si num_sets tiene el default (3) pero no hay sets cargados y no es copa, tratarlo como null
+  const numSetsRaw = partido.num_sets !== null && partido.num_sets !== undefined ? partido.num_sets : null;
+  const numSets = (numSetsRaw !== null && (numSetsRaw === 2 || numSetsRaw === 3) && (tieneSets || esPartidoCopa)) 
+    ? numSetsRaw 
+    : null;
   
   // Obtener valores previos de sets (si existen)
   // Verificar que realmente hay valores numéricos, no solo que no sean null
@@ -575,7 +579,8 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
     esPartidoCopa,
     tieneSet1,
     tieneSet2,
-    tieneSet3
+    tieneSet3,
+    estaEmpatado1a1
   });
   
   // Determinar si el partido está empatado 1-1 en sets (necesita Set 3)
@@ -609,8 +614,7 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
     // Mostrar Set 2 solo si ya está cargado
     mostrarSet2 = tieneSet2;
     
-    // Mostrar botón "Agregar Set 2" si hay Set 1 cargado pero no Set 2
-    // O si es un partido pendiente (sin Set 1 cargado aún)
+    // Mostrar botón "Agregar Set 2" si no hay Set 2 cargado
     mostrarBotonSet2 = !tieneSet2;
     
     // Mostrar Set 3 solo si:
@@ -621,6 +625,16 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
     // Mostrar botón "Agregar Set 3" si hay Set 1 y 2, están empatados 1-1, pero no hay Set 3
     mostrarBotonSet3 = tieneSet1 && tieneSet2 && estaEmpatado1a1 && !tieneSet3;
   }
+  
+  // Debug de visualización
+  console.log('[Modal] Visualización:', {
+    mostrarSet1,
+    mostrarSet2,
+    mostrarSet3,
+    mostrarBotonSet2,
+    mostrarBotonSet3,
+    numSetsParaUI
+  });
   
   // Valores iniciales para cada set
   const getSetValue = (setNum, isA) => {
