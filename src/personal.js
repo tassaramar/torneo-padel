@@ -193,6 +193,14 @@ async function init(mostrarSkeleton = true) {
       return;
     }
     
+    // Si hay error de red u otro error, mostrar mensaje
+    if (!resultado.ok) {
+      const errorMsg = resultado.error?.message || 'Error desconocido';
+      console.error('Error cargando vista personalizada:', resultado.error);
+      setStatus(`⚠️ Error: ${errorMsg.includes('Failed to fetch') || errorMsg.includes('timeout') ? 'Problema de conexión. Reintentando...' : errorMsg}`);
+      // No retornar, dejar que continúe para que el polling pueda reintentar
+    }
+    
     // Detectar y destacar cambios después del polling
     if (partidosAnteriores && resultado.ok) {
       detectarYDestacarCambios(partidosAnteriores, resultado.partidos);
@@ -201,9 +209,8 @@ async function init(mostrarSkeleton = true) {
     // Guardar estado actual para próxima comparación
     if (resultado.ok) {
       partidosAnteriores = resultado.partidos;
+      setStatus(`Actualizado ${nowStr()}`);
     }
-    
-    setStatus(`Actualizado ${nowStr()}`);
   } catch (e) {
     console.error('Error en init:', e);
     setStatus('❌ Error (ver consola)');
