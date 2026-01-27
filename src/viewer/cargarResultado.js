@@ -1016,8 +1016,7 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   };
 
   document.getElementById('modal-submit').addEventListener('click', () => {
-    if (usarModoSets) {
-      // Modo sets - obtener valores de los inputs visibles
+    // Modo sets - obtener valores de los inputs visibles
       const set1Mis = document.getElementById('input-set1-mis')?.value;
       const set1Rival = document.getElementById('input-set1-rival')?.value;
       const set2Mis = document.getElementById('input-set2-mis')?.value;
