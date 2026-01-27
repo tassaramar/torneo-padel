@@ -581,9 +581,16 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   const tieneSet3 = (partido.set3_a !== null && partido.set3_a !== undefined && partido.set3_a !== '') ||
                      (partido.set3_b !== null && partido.set3_b !== undefined && partido.set3_b !== '');
   
+  // Determinar si el partido está empatado 1-1 en sets (necesita Set 3)
+  const set1GanadoA = tieneSet1 && partido.set1_a !== null && partido.set1_b !== null && partido.set1_a > partido.set1_b;
+  const set1GanadoB = tieneSet1 && partido.set1_a !== null && partido.set1_b !== null && partido.set1_b > partido.set1_a;
+  const set2GanadoA = tieneSet2 && partido.set2_a !== null && partido.set2_b !== null && partido.set2_a > partido.set2_b;
+  const set2GanadoB = tieneSet2 && partido.set2_a !== null && partido.set2_b !== null && partido.set2_b > partido.set2_a;
+  const setsGanadosA = (set1GanadoA ? 1 : 0) + (set2GanadoA ? 1 : 0);
+  const setsGanadosB = (set1GanadoB ? 1 : 0) + (set2GanadoB ? 1 : 0);
+  const estaEmpatado1a1 = tieneSet1 && tieneSet2 && setsGanadosA === 1 && setsGanadosB === 1;
+  
   // Determinar cuántos sets mostrar en la UI
-  // Si num_sets está definido explícitamente, usarlo
-  // Si no está definido, mostrar solo los sets que están cargados + opción para agregar el siguiente
   let numSetsParaUI = 3;
   let mostrarSet1 = false;
   let mostrarSet2 = false;
@@ -598,18 +605,24 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
       mostrarSet1 = true;
       mostrarSet2 = true;
       mostrarSet3 = numSets === 3;
-    } else if (esPartidoCopa) {
-      // Partido de copa sin num_sets: mostrar 2 sets
-      numSetsParaUI = 2;
-      mostrarSet1 = true;
-      mostrarSet2 = true;
     } else {
-      // Partido de grupo sin num_sets definido: mostrar progresivamente
+      // num_sets es undefined/null: mostrar progresivamente
+      // Siempre mostrar Set 1
       mostrarSet1 = true;
-      mostrarSet2 = tieneSet2; // Solo mostrar Set 2 si ya está cargado
-      mostrarSet3 = tieneSet3; // Solo mostrar Set 3 si ya está cargado
-      mostrarBotonSet2 = tieneSet1 && !tieneSet2; // Mostrar botón si hay Set 1 pero no Set 2
-      mostrarBotonSet3 = tieneSet1 && tieneSet2 && !tieneSet3; // Mostrar botón si hay Set 1 y 2 pero no Set 3
+      
+      // Mostrar Set 2 solo si ya está cargado
+      mostrarSet2 = tieneSet2;
+      
+      // Mostrar botón "Agregar Set 2" si hay Set 1 pero no Set 2
+      mostrarBotonSet2 = tieneSet1 && !tieneSet2;
+      
+      // Mostrar Set 3 solo si:
+      // - Hay 2 sets cargados
+      // - Y cada pareja ganó 1 set (1-1)
+      mostrarSet3 = estaEmpatado1a1 || tieneSet3;
+      
+      // Mostrar botón "Agregar Set 3" si hay Set 1 y 2, están empatados 1-1, pero no hay Set 3
+      mostrarBotonSet3 = tieneSet1 && tieneSet2 && estaEmpatado1a1 && !tieneSet3;
     }
   }
   
