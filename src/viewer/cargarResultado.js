@@ -39,10 +39,10 @@ export async function cargarResultadoConSets(supabase, partidoId, sets, numSets,
     // Mapear sets según si soy pareja A o B
     const set1A = soyA ? sets.set1?.setA : sets.set1?.setB;
     const set1B = soyA ? sets.set1?.setB : sets.set1?.setA;
-    const set2A = soyA ? sets.set2?.setA : sets.set2?.setB;
-    const set2B = soyA ? sets.set2?.setB : sets.set2?.setA;
-    const set3A = sets.set3 ? (soyA ? sets.set3?.setA : sets.set3?.setB) : null;
-    const set3B = sets.set3 ? (soyA ? sets.set3?.setB : sets.set3?.setA) : null;
+    const set2A = sets.set2 ? (soyA ? sets.set2.setA : sets.set2.setB) : null;
+    const set2B = sets.set2 ? (soyA ? sets.set2.setB : sets.set2.setA) : null;
+    const set3A = sets.set3 ? (soyA ? sets.set3.setA : sets.set3.setB) : null;
+    const set3B = sets.set3 ? (soyA ? sets.set3.setB : sets.set3.setA) : null;
 
     // Preparar objeto de actualización
     const updateData = {
@@ -50,11 +50,11 @@ export async function cargarResultadoConSets(supabase, partidoId, sets, numSets,
       set1_b: set1B,
       set2_a: set2A,
       set2_b: set2B,
-      num_sets: numSets || 3,
+      num_sets: numSets,
       updated_at: new Date().toISOString()
     };
 
-    if (numSets === 3 && set3A !== null && set3B !== null) {
+    if (set3A !== null && set3B !== null) {
       updateData.set3_a = set3A;
       updateData.set3_b = set3B;
     } else {
@@ -1390,9 +1390,11 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit, supaba
 
       // Preparar objeto de sets para onSubmit
       const setsObj = {
-        set1: { setA: sets[0].setA, setB: sets[0].setB },
-        set2: { setA: sets[1].setA, setB: sets[1].setB }
+        set1: { setA: sets[0].setA, setB: sets[0].setB }
       };
+      if (sets.length > 1) {
+        setsObj.set2 = { setA: sets[1].setA, setB: sets[1].setB };
+      }
       if (sets.length > 2) {
         setsObj.set3 = { setA: sets[2].setA, setB: sets[2].setB };
       }
