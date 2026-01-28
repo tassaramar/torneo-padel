@@ -24,6 +24,16 @@
       <div id="fixture-status" class="fixture-status"></div>
     </div>
 
+    <!-- Tabs para alternar vistas -->
+    <div class="fixture-tabs">
+      <button class="fixture-tab is-active" data-vista="tabla" onclick="window.cambiarVista('tabla')">
+        Tabla por grupos
+      </button>
+      <button class="fixture-tab" data-vista="cola" onclick="window.cambiarVista('cola')">
+        Cola por orden sugerido
+      </button>
+    </div>
+
     <!-- Leyenda (solo desktop) -->
     <div class="fixture-legend fixture-legend-desktop">
       <span class="legend-item">

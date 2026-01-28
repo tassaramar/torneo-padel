@@ -2847,6 +2847,227 @@ tbody td:first-child{
   margin-right: 6px;
 }
 
+/* Tabs para alternar vistas */
+.fixture-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  justify-content: center;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 8px;
+}
+
+.fixture-tab {
+  padding: 10px 20px;
+  border: none;
+  background: transparent;
+  color: #666;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s;
+}
+
+.fixture-tab:hover {
+  color: #1976d2;
+  background: #f5f5f5;
+  border-radius: 4px 4px 0 0;
+}
+
+.fixture-tab.is-active {
+  color: #1976d2;
+  border-bottom-color: #1976d2;
+  font-weight: 600;
+}
+
+/* Vista de cola sugerida */
+.fixture-cola-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.fixture-cola-resumen {
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+  border: 1px solid #e0e0e0;
+}
+
+.fixture-cola-resumen-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: #333;
+}
+
+.fixture-cola-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.fixture-cola-stat-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+}
+
+.fixture-cola-stat-numbers {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 500;
+}
+
+.fixture-cola-stat-numbers .stat-pendiente {
+  color: #2196f3;
+}
+
+.fixture-cola-stat-numbers .stat-en-juego {
+  color: #ff9800;
+}
+
+.fixture-cola-stat-numbers .stat-finalizado {
+  color: #4caf50;
+}
+
+/* Pills de grupo (reutilizables) */
+.fixture-pill-grupo {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+  line-height: 1.3;
+}
+
+.fixture-pill-grupo-0 {
+  background: #e3f2fd;
+  border-color: #1976d2;
+  color: #0d47a1;
+}
+
+.fixture-pill-grupo-1 {
+  background: #e8f5e9;
+  border-color: #2e7d32;
+  color: #1b5e20;
+}
+
+.fixture-pill-grupo-2 {
+  background: #fff3e0;
+  border-color: #ef6c00;
+  color: #e65100;
+}
+
+.fixture-pill-grupo-3 {
+  background: #f3e5f5;
+  border-color: #8e24aa;
+  color: #6a1b9a;
+}
+
+/* Lista de cola */
+.fixture-cola-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fixture-cola-item {
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.2s;
+}
+
+.fixture-cola-item:hover {
+  border-color: #1976d2;
+  box-shadow: 0 2px 8px rgba(25, 118, 210, 0.1);
+}
+
+.fixture-cola-item-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.fixture-cola-posicion {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #1976d2;
+  color: white;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.fixture-cola-ronda {
+  font-size: 0.85rem;
+  color: #666;
+  font-weight: 500;
+  margin-left: auto;
+}
+
+.fixture-cola-item-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 8px 0;
+}
+
+.fixture-cola-equipo {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #333;
+  flex: 1;
+}
+
+.fixture-cola-vs {
+  font-size: 0.85rem;
+  color: #999;
+  font-weight: 500;
+  margin: 0 8px;
+  flex-shrink: 0;
+}
+
+.fixture-cola-btn-en-juego {
+  width: 100%;
+  padding: 10px 16px;
+  background: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.fixture-cola-btn-en-juego:hover {
+  background: #1565c0;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(25, 118, 210, 0.3);
+}
+
+.fixture-cola-btn-en-juego:active {
+  transform: translateY(0);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .fixture-container {
@@ -2874,54 +3095,7 @@ tbody td:first-child{
   
   /* Mantener tabla pero optimizada para scroll horizontal */
   .fixture-grid {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
     margin-top: 12px;
-  }
-
-  .fixture-table {
-    min-width: 500px;
-    font-size: 0.75rem;
-  }
-  
-  .fixture-table th {
-    padding: 8px 4px;
-    font-size: 0.8rem;
-    position: sticky;
-    top: 0;
-  }
-  
-  .fixture-table td {
-    padding: 5px;
-    min-width: 150px;
-  }
-  
-  .fixture-table th {
-    font-size: 0.75rem !important;
-  }
-  
-  /* Columna Ronda ULTRA compacta - solo número */
-  .fixture-ronda-header {
-    min-width: 30px !important;
-    max-width: 30px !important;
-    padding: 8px 2px !important;
-    font-size: 1rem !important;
-    font-weight: 700 !important;
-    writing-mode: horizontal-tb !important;
-    background: #1976d2 !important;
-    color: white !important;
-  }
-  
-  .fixture-cell {
-    min-height: 50px;
-    gap: 5px;
-  }
-  
-  /* Cards más compactas */
-  .fixture-partido-card {
-    padding: 6px;
-    font-size: 0.75rem;
-    border-width: 2px;
   }
   
   /* Ocultar iconos en móvil */
@@ -2987,6 +3161,54 @@ tbody td:first-child{
     font-size: 0.7rem;
     margin-top: 2px;
     line-height: 1.2;
+  }
+
+  /* Vista de cola responsive */
+  .fixture-cola-container {
+    max-width: 100%;
+    padding: 0 8px;
+  }
+
+  .fixture-cola-resumen {
+    padding: 12px;
+  }
+
+  .fixture-cola-stats {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .fixture-cola-item {
+    padding: 12px;
+  }
+
+  .fixture-cola-item-header {
+    gap: 8px;
+  }
+
+  .fixture-cola-posicion {
+    width: 28px;
+    height: 28px;
+    font-size: 0.8rem;
+  }
+
+  .fixture-cola-equipo {
+    font-size: 0.9rem;
+  }
+
+  .fixture-cola-btn-en-juego {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+
+  .fixture-tabs {
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+
+  .fixture-tab {
+    padding: 8px 12px;
+    font-size: 0.9rem;
   }
 
   /* Fix para topnav */

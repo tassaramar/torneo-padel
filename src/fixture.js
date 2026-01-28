@@ -10,6 +10,10 @@ const TORNEO_ID = 'ad58a855-fa74-4c2e-825e-32c20f972136';
 const statusEl = document.getElementById('fixture-status');
 const gridEl = document.getElementById('fixture-grid');
 
+// Estado de la vista actual
+let vistaActual = 'tabla'; // 'tabla' | 'cola'
+let cacheDatos = null;
+
 // Auto-refresh cada 30s
 let pollingInterval = null;
 const POLLING_INTERVAL_MS = 30000;
@@ -69,9 +73,21 @@ async function init(mostrarSkeleton = true) {
 
     // Agrupar por ronda y grupo
     const data = agruparPorRondaYGrupo(partidos, grupos, parejasConGrupo);
+    
+    // Guardar en cache para uso en ambas vistas
+    cacheDatos = {
+      partidos,
+      grupos,
+      parejas: parejasConGrupo,
+      data
+    };
 
-    // Renderizar
-    renderFixtureGrid(data);
+    // Renderizar según la vista actual
+    if (vistaActual === 'cola') {
+      renderColaFixture(partidos, grupos, parejasConGrupo);
+    } else {
+      renderFixtureGrid(data);
+    }
 
     setStatus(`Actualizado ${nowStr()}`);
   } catch (error) {
@@ -292,6 +308,230 @@ function renderFechaLibreCard(pareja) {
     </div>
   `;
 }
+
+/**
+ * Determina si un partido está finalizado (tiene resultado cargado)
+ */
+function esPartidoFinalizado(partido) {
+  return partido.games_a !== null && partido.games_b !== null;
+}
+
+/**
+ * Determina si un partido está pendiente (no finalizado y no en juego)
+ */
+function esPartidoPendiente(partido) {
+  return !esPartidoFinalizado(partido) && partido.estado !== 'en_juego';
+}
+
+/**
+ * Calcula la cola sugerida de partidos pendientes
+ * Orden: por ronda ascendente, intercalando grupos dentro de cada ronda
+ */
+function calcularColaSugerida(partidos, grupos) {
+  // Filtrar solo partidos pendientes
+  const pendientes = partidos.filter(p => esPartidoPendiente(p));
+  
+  // Grupos ordenados alfabéticamente
+  const gruposOrdenados = grupos.map(g => g.nombre).sort();
+  
+  // Crear mapa de partidos por ronda y grupo
+  const porRondaYGrupo = {};
+  pendientes.forEach(p => {
+    const ronda = p.ronda || 999;
+    const grupo = p.grupos?.nombre || 'Sin Grupo';
+    const key = `${ronda}-${grupo}`;
+    if (!porRondaYGrupo[key]) {
+      porRondaYGrupo[key] = [];
+    }
+    porRondaYGrupo[key].push(p);
+  });
+  
+  // Obtener rondas únicas y ordenarlas
+  const rondasSet = new Set();
+  pendientes.forEach(p => {
+    if (p.ronda) rondasSet.add(p.ronda);
+  });
+  const rondas = Array.from(rondasSet).sort((a, b) => a - b);
+  
+  // Construir cola intercalando grupos por ronda
+  const cola = [];
+  rondas.forEach(ronda => {
+    // Para cada grupo en orden, agregar sus partidos de esta ronda
+    gruposOrdenados.forEach(grupo => {
+      const key = `${ronda}-${grupo}`;
+      const partidosDelGrupo = porRondaYGrupo[key] || [];
+      cola.push(...partidosDelGrupo);
+    });
+  });
+  
+  return cola;
+}
+
+/**
+ * Calcula estadísticas por grupo para el resumen
+ */
+function calcularEstadisticasPorGrupo(partidos, grupos) {
+  const gruposOrdenados = grupos.map(g => g.nombre).sort();
+  const stats = {};
+  
+  gruposOrdenados.forEach(grupo => {
+    const partidosDelGrupo = partidos.filter(p => p.grupos?.nombre === grupo);
+    stats[grupo] = {
+      pendiente: partidosDelGrupo.filter(p => esPartidoPendiente(p)).length,
+      enJuego: partidosDelGrupo.filter(p => p.estado === 'en_juego').length,
+      finalizado: partidosDelGrupo.filter(p => esPartidoFinalizado(p)).length,
+      total: partidosDelGrupo.length
+    };
+  });
+  
+  return stats;
+}
+
+/**
+ * Marca un partido como "en juego"
+ */
+async function marcarEnJuego(partidoId) {
+  try {
+    const { error } = await supabase
+      .from('partidos')
+      .update({ estado: 'en_juego' })
+      .eq('id', partidoId);
+    
+    if (error) throw error;
+    
+    // Recargar datos y re-renderizar
+    if (cacheDatos) {
+      const partidosRes = await supabase
+        .from('partidos')
+        .select(`
+          id, games_a, games_b, estado, ronda,
+          grupos ( nombre ),
+          pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
+          pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
+        `)
+        .eq('torneo_id', TORNEO_ID)
+        .is('copa_id', null);
+      
+      if (partidosRes.error) throw partidosRes.error;
+      
+      const partidosActualizados = partidosRes.data || [];
+      cacheDatos.partidos = partidosActualizados;
+      
+      // Re-agrupar datos
+      const data = agruparPorRondaYGrupo(partidosActualizados, cacheDatos.grupos, cacheDatos.parejas);
+      cacheDatos.data = data;
+      
+      // Re-renderizar según vista actual
+      if (vistaActual === 'cola') {
+        renderColaFixture(
+          partidosActualizados,
+          cacheDatos.grupos,
+          cacheDatos.parejas
+        );
+      } else {
+        renderFixtureGrid(data);
+      }
+    }
+  } catch (error) {
+    console.error('Error marcando partido como en juego:', error);
+    alert('Error al marcar el partido como en juego');
+  }
+}
+
+/**
+ * Renderiza la vista de cola sugerida
+ */
+function renderColaFixture(partidos, grupos, parejas) {
+  const cola = calcularColaSugerida(partidos, grupos);
+  const stats = calcularEstadisticasPorGrupo(partidos, grupos);
+  const gruposOrdenados = grupos.map(g => g.nombre).sort();
+  
+  if (!cola.length) {
+    gridEl.innerHTML = '<p style="text-align: center; padding: 40px; color: #999;">No hay partidos pendientes</p>';
+    return;
+  }
+  
+  let html = '<div class="fixture-cola-container">';
+  
+  // Panel de resumen
+  html += '<div class="fixture-cola-resumen">';
+  html += '<h3 class="fixture-cola-resumen-title">Resumen por grupo</h3>';
+  html += '<div class="fixture-cola-stats">';
+  gruposOrdenados.forEach((grupo, idx) => {
+    const s = stats[grupo] || { pendiente: 0, enJuego: 0, finalizado: 0, total: 0 };
+    const pillClass = `fixture-pill-grupo fixture-pill-grupo-${Math.min(idx, 3)}`;
+    html += `<div class="fixture-cola-stat-item">`;
+    html += `<span class="${pillClass}">Grupo ${escapeHtml(grupo)}</span>`;
+    html += `<span class="fixture-cola-stat-numbers">`;
+    html += `<span class="stat-pendiente">${s.pendiente}</span> / `;
+    html += `<span class="stat-en-juego">${s.enJuego}</span> / `;
+    html += `<span class="stat-finalizado">${s.finalizado}</span>`;
+    html += `</span>`;
+    html += `</div>`;
+  });
+  html += '</div>';
+  html += '</div>';
+  
+  // Lista de cola
+  html += '<div class="fixture-cola-lista">';
+  cola.forEach((partido, index) => {
+    const grupo = partido.grupos?.nombre || 'Sin Grupo';
+    const grupoIndex = gruposOrdenados.indexOf(grupo);
+    const pillClass = `fixture-pill-grupo fixture-pill-grupo-${Math.min(grupoIndex >= 0 ? grupoIndex : 0, 3)}`;
+    const nombreA = partido.pareja_a?.nombre || '—';
+    const nombreB = partido.pareja_b?.nombre || '—';
+    const ronda = partido.ronda || '?';
+    
+    html += `<div class="fixture-cola-item">`;
+    html += `<div class="fixture-cola-item-header">`;
+    html += `<span class="fixture-cola-posicion">${index + 1}</span>`;
+    html += `<span class="${pillClass}">Grupo ${escapeHtml(grupo)}</span>`;
+    html += `<span class="fixture-cola-ronda">R${ronda}</span>`;
+    html += `</div>`;
+    html += `<div class="fixture-cola-item-content">`;
+    html += `<span class="fixture-cola-equipo">${escapeHtml(nombreA)}</span>`;
+    html += `<span class="fixture-cola-vs">vs</span>`;
+    html += `<span class="fixture-cola-equipo">${escapeHtml(nombreB)}</span>`;
+    html += `</div>`;
+    html += `<button class="fixture-cola-btn-en-juego" onclick="window.marcarEnJuego('${partido.id}')">Marcar en juego</button>`;
+    html += `</div>`;
+  });
+  html += '</div>';
+  html += '</div>';
+  
+  gridEl.innerHTML = html;
+  
+  // Exponer función globalmente para los botones
+  window.marcarEnJuego = marcarEnJuego;
+}
+
+/**
+ * Cambia entre vista de tabla y cola
+ */
+function cambiarVista(nuevaVista) {
+  vistaActual = nuevaVista;
+  
+  // Actualizar tabs
+  document.querySelectorAll('.fixture-tab').forEach(tab => {
+    tab.classList.toggle('is-active', tab.dataset.vista === nuevaVista);
+  });
+  
+  // Re-renderizar con datos en cache
+  if (cacheDatos) {
+    if (vistaActual === 'cola') {
+      renderColaFixture(
+        cacheDatos.partidos,
+        cacheDatos.grupos,
+        cacheDatos.parejas
+      );
+    } else {
+      renderFixtureGrid(cacheDatos.data);
+    }
+  }
+}
+
+// Exponer función globalmente
+window.cambiarVista = cambiarVista;
 
 /**
  * Escapa HTML
