@@ -1051,17 +1051,14 @@ function escapeHtml(unsafe) {
 }
 
 /**
- * Agrega el botón "Ver todos los grupos" al header
+ * Agrega el botón "Ver todos los grupos" y el link "Ver fixture" al header
  */
 function agregarBotonVerTodos(onVerTodos) {
-  // Buscar el contenedor de navegación
   const navContainer = document.getElementById('viewer-nav-buttons');
   if (!navContainer) return;
-  
-  // Limpiar contenedor
+
   navContainer.innerHTML = '';
-  
-  // Crear el botón GRANDE para +40
+
   const btnVerTodos = document.createElement('button');
   btnVerTodos.id = 'btn-ver-todos-header';
   btnVerTodos.className = 'btn-action-secondary';
@@ -1071,6 +1068,14 @@ function agregarBotonVerTodos(onVerTodos) {
     <span class="btn-text">Ver Todos los Grupos</span>
   `;
   btnVerTodos.addEventListener('click', onVerTodos);
-  
   navContainer.appendChild(btnVerTodos);
+
+  const linkFixture = document.createElement('a');
+  linkFixture.href = '/fixture';
+  linkFixture.className = 'btn-action-secondary viewer-link-fixture';
+  linkFixture.innerHTML = `
+    <span class="btn-icon">📋</span>
+    <span class="btn-text">Ver Fixture</span>
+  `;
+  navContainer.appendChild(linkFixture);
 }

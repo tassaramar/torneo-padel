@@ -712,6 +712,16 @@ tbody td:first-child{
   background: rgba(15, 23, 42, 0.04);
 }
 
+a.btn-action-secondary {
+  text-decoration: none;
+  color: inherit;
+  box-sizing: border-box;
+}
+
+a.btn-action-secondary:hover {
+  background: rgba(15, 23, 42, 0.04);
+}
+
 .btn-icon {
   font-size: 24px;
   line-height: 1;
