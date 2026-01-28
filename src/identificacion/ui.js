@@ -243,7 +243,7 @@ function mostrarPantallaExito(identidad) {
         <div class="success-message">
           <div class="success-title">¡Perfecto! Ya estás dentro del torneo 🎾</div>
           <div class="success-details" style="font-size: 15px; font-weight: 600; color: var(--primary-900); margin: 8px 0;">
-            Swing Padel: Segundo Saque
+            Torneo de Padel
           </div>
           <div class="success-details">Identificado como:</div>
           <div class="pareja-name">${escapeHtml(identidad.parejaNombre)}</div>

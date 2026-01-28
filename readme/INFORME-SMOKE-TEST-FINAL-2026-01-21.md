@@ -422,7 +422,7 @@ Todos los tests ejecutados pasaron exitosamente sin errores.
 
 ### Estado del Torneo
 
-- **Nombre**: "Swing Padel: Segundo Saque"
+- **Nombre**: "Torneo de Padel"
 - **Estado**: Torneo iniciado, partidos pendientes
 - **Grupos Activos**: Al menos "Realidad" confirmado, probablemente más
 - **Parejas**: Al menos 5 en Grupo Realidad

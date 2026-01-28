@@ -177,7 +177,7 @@ function renderMainTabs() {
     tabsMainEl,
     [
       { id: 'grupos', label: 'Grupos' },
-      { id: 'copas', label: 'Último Saque' }
+      { id: 'copas', label: 'Copas' }
     ],
     mainTab,
     (id) => {
