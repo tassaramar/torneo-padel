@@ -144,7 +144,7 @@ async function fetchEstadoActual() {
 
   const { data: parejas, error: ep } = await supabase
     .from('parejas')
-    .select('id, nombre, orden')
+    .select('id, nombre, orden, grupo_id')
     .eq('torneo_id', TORNEO_ID)
     .order('orden');
 
@@ -167,23 +167,46 @@ function renderEstadoActual(outEl, estado) {
 
   if (!estado.grupos.length || !estado.parejas.length) return;
 
-  const parejasPorGrupo =
-    estado.grupos.length ? (estado.parejas.length / estado.grupos.length) : 0;
+  const hayGrupoId = (estado.parejas || []).some(p => p.grupo_id);
 
-  if (!Number.isInteger(parejasPorGrupo)) {
-    outEl.appendChild(el('div', { style: 'color:#f88;' },
-      `⚠️ No se puede “cortar” parejas por grupo: ${estado.parejas.length}/${estado.grupos.length} no da entero`
-    ));
+  if (!hayGrupoId) {
+    // Modo legacy: se "cortan" parejas por orden en partes iguales
+    const parejasPorGrupo =
+      estado.grupos.length ? (estado.parejas.length / estado.grupos.length) : 0;
+
+    if (!Number.isInteger(parejasPorGrupo)) {
+      outEl.appendChild(el('div', { style: 'color:#f88;' },
+        `⚠️ No se puede “cortar” parejas por grupo: ${estado.parejas.length}/${estado.grupos.length} no da entero`
+      ));
+      return;
+    }
+
+    let cursor = 0;
+    for (const g of estado.grupos) {
+      const slice = estado.parejas.slice(cursor, cursor + parejasPorGrupo);
+      cursor += parejasPorGrupo;
+
+      const card = el('div', { style: 'margin-top:10px; padding:10px; border:1px solid #333; border-radius:10px;' });
+      card.appendChild(el('div', { style: 'font-weight:700; margin-bottom:6px;' }, `Grupo ${g.nombre}`));
+
+      const ul = el('ul', { style: 'margin:0; padding-left:18px;' });
+      slice.forEach(p => ul.appendChild(el('li', {}, `${p.orden}. ${p.nombre}`)));
+      card.appendChild(ul);
+      outEl.appendChild(card);
+    }
     return;
   }
 
-  let cursor = 0;
+  // Modo nuevo: si hay grupo_id usamos la asignación real, permite grupos desparejos (ej: 5+6)
   for (const g of estado.grupos) {
-    const slice = estado.parejas.slice(cursor, cursor + parejasPorGrupo);
-    cursor += parejasPorGrupo;
+    const slice = (estado.parejas || [])
+      .filter(p => p.grupo_id === g.id)
+      .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+
+    if (!slice.length) continue;
 
     const card = el('div', { style: 'margin-top:10px; padding:10px; border:1px solid #333; border-radius:10px;' });
-    card.appendChild(el('div', { style: 'font-weight:700; margin-bottom:6px;' }, `Grupo ${g.nombre}`));
+    card.appendChild(el('div', { style: 'font-weight:700; margin-bottom:6px;' }, `Grupo ${g.nombre} (${slice.length} parejas)`));
 
     const ul = el('ul', { style: 'margin:0; padding-left:18px;' });
     slice.forEach(p => ul.appendChild(el('li', {}, `${p.orden}. ${p.nombre}`)));
@@ -220,15 +243,21 @@ async function crearGruposYparejas(parsed) {
   const groups = [...new Set(parsed.rows.map(r => r.grupo))].sort(groupSort);
 
   logMsg(`➕ Creando grupos: ${groups.join(', ')}`);
-  const { error: eg } = await supabase
+  const { data: gruposIns, error: eg } = await supabase
     .from('grupos')
-    .insert(groups.map(nombre => ({ torneo_id: TORNEO_ID, nombre })));
+    .insert(groups.map(nombre => ({ torneo_id: TORNEO_ID, nombre })))
+    .select('id, nombre');
 
   if (eg) {
     console.error(eg);
     logMsg('❌ Error creando grupos (ver consola)');
     return false;
   }
+
+  const grupoIdByNombre = {};
+  (gruposIns || []).forEach(g => {
+    if (g?.nombre) grupoIdByNombre[String(g.nombre).toUpperCase()] = g.id;
+  });
 
   // parejas en orden determinístico: A..D, respetando orden dentro del grupo
   const ordered = [];
@@ -239,7 +268,8 @@ async function crearGruposYparejas(parsed) {
   const payload = ordered.map((r, i) => ({
     torneo_id: TORNEO_ID,
     nombre: r.nombre,
-    orden: i + 1
+    orden: i + 1,
+    grupo_id: grupoIdByNombre[String(r.grupo).toUpperCase()] ?? null
   }));
 
   logMsg(`➕ Creando parejas: ${payload.length}`);

@@ -88,7 +88,7 @@ export async function generarPartidosGrupos() {
 
   const { data: parejas, error: errParejas } = await supabase
     .from('parejas')
-    .select('id, nombre')
+    .select('id, nombre, grupo_id, orden')
     .eq('torneo_id', TORNEO_ID)
     .order('orden');
 
@@ -98,18 +98,31 @@ export async function generarPartidosGrupos() {
     return false;
   }
 
-  if (parejas.length % grupos.length !== 0) {
-    logMsg(`❌ Formato inválido: ${parejas.length} parejas / ${grupos.length} grupos`);
-    return false;
-  }
+  // Soporta 2 modos:
+  // 1) Nuevo: parejas.grupo_id seteado (permite grupos desparejos, ej: 5+6)
+  // 2) Legacy: si NO hay grupo_id en ninguna pareja, se sigue usando "split" parejo por orden.
+  const hayGrupoId = (parejas || []).some(p => p.grupo_id);
 
-  const parejasPorGrupo = parejas.length / grupos.length;
-
-  let cursor = 0;
   const gruposMap = {};
-  for (const grupo of grupos) {
-    gruposMap[grupo.id] = parejas.slice(cursor, cursor + parejasPorGrupo);
-    cursor += parejasPorGrupo;
+  if (hayGrupoId) {
+    for (const g of grupos) {
+      gruposMap[g.id] = (parejas || [])
+        .filter(p => p.grupo_id === g.id)
+        .sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0));
+    }
+  } else {
+    if (parejas.length % grupos.length !== 0) {
+      logMsg(`❌ Formato inválido (legacy): ${parejas.length} parejas / ${grupos.length} grupos`);
+      logMsg('💡 Solución: asegurate de tener parejas.grupo_id (import nuevo) para soportar grupos desparejos.');
+      return false;
+    }
+
+    const parejasPorGrupo = parejas.length / grupos.length;
+    let cursor = 0;
+    for (const g of grupos) {
+      gruposMap[g.id] = parejas.slice(cursor, cursor + parejasPorGrupo);
+      cursor += parejasPorGrupo;
+    }
   }
 
   let total = 0;
@@ -117,6 +130,10 @@ export async function generarPartidosGrupos() {
 
   for (const grupo of grupos) {
     const ps = gruposMap[grupo.id];
+    if (!ps || ps.length < 2) {
+      logMsg(`⚠️ Grupo ${grupo.nombre}: tiene ${ps?.length ?? 0} pareja(s). Se saltea.`);
+      continue;
+    }
     console.log(`Generando partidos para grupo ${grupo.nombre}:`, ps.map(p => p.nombre));
     
     // Usar Circle Method para generar pairings con rondas

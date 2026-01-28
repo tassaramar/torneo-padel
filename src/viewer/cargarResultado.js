@@ -780,7 +780,6 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit, supaba
                         id="input-set2-mis" 
                         class="input-score-modal input-set"
                         min="0" 
-                        max="7"
                         value=""
                         placeholder=""
                       />

@@ -1262,29 +1262,7 @@ async function obtenerPosicionesFinales(grupoId, grupoNombre) {
 export async function generarCrucesDirectos2x5() {
   logMsg('🎯 Generar Cruces Directos (2x5): validando…');
   
-  // 1. Detectar formato
-  const formato = await detectarFormatoTorneo();
-  
-  if (formato.numGrupos !== 2 || formato.parejasPorGrupo !== 5) {
-    logMsg(`❌ Esta función es solo para 2 grupos × 5 parejas`);
-    logMsg(`ℹ️ Formato actual: ${formato.numGrupos} grupos × ${formato.parejasPorGrupo} parejas`);
-    return;
-  }
-  
-  // 2. Validar que existan 5 copas
-  const { data: copas } = await supabase
-    .from('copas')
-    .select('id, nombre, orden')
-    .eq('torneo_id', TORNEO_ID)
-    .order('orden');
-    
-  if (!copas || copas.length !== 5) {
-    logMsg(`❌ Necesitás 5 copas creadas (hay ${copas?.length || 0})`);
-    logMsg(`💡 Ejecutá el SQL en Supabase para crear las copas primero`);
-    return;
-  }
-  
-  // 3. Obtener los 2 grupos
+  // 1. Validar 2 grupos (soporta 2x5 y también 5+6 si hay parejas.grupo_id)
   const { data: grupos } = await supabase
     .from('grupos')
     .select('id, nombre')
@@ -1296,6 +1274,58 @@ export async function generarCrucesDirectos2x5() {
     return;
   }
   
+  // 2. Asegurarse de que existan exactamente 5 copas.
+  //    Si no hay ninguna, las creamos automáticamente con los nombres pedidos.
+  let { data: copas, error: errCopas } = await supabase
+    .from('copas')
+    .select('id, nombre, orden')
+    .eq('torneo_id', TORNEO_ID)
+    .order('orden');
+
+  if (errCopas) {
+    console.error(errCopas);
+    logMsg('❌ Error leyendo copas (ver consola)');
+    return;
+  }
+
+  if (!copas || copas.length === 0) {
+    logMsg('ℹ️ No hay copas creadas. Generando copas por defecto (Oro, Plata, Bronce, Carton, Papel)…');
+
+    const definiciones = [
+      { nombre: 'Oro', orden: 1 },
+      { nombre: 'Plata', orden: 2 },
+      { nombre: 'Bronce', orden: 3 },
+      { nombre: 'Carton', orden: 4 },
+      { nombre: 'Papel', orden: 5 }
+    ];
+
+    const { data: nuevasCopas, error: errInsert } = await supabase
+      .from('copas')
+      .insert(definiciones.map(c => ({
+        torneo_id: TORNEO_ID,
+        nombre: c.nombre,
+        orden: c.orden
+      })))
+      .select('id, nombre, orden')
+      .order('orden');
+
+    if (errInsert) {
+      console.error(errInsert);
+      logMsg('❌ Error creando copas por defecto (ver consola)');
+      return;
+    }
+
+    copas = nuevasCopas || [];
+    logMsg(`✅ Copas creadas: ${copas.length}`);
+  }
+
+  if (!copas || copas.length !== 5) {
+    logMsg(`❌ Necesitás exactamente 5 copas creadas (hay ${copas?.length || 0})`);
+    logMsg('💡 Formato esperado: Oro, Plata, Bronce, Carton, Papel');
+    return;
+  }
+  
+  // 3. Obtener los 2 grupos (A/B por orden alfabético)
   const grupoA = grupos[0];
   const grupoB = grupos[1];
   
@@ -1308,11 +1338,18 @@ export async function generarCrucesDirectos2x5() {
     return;
   }
   
+  // Soporta 2x5 y 5+6: solo necesitamos top 5 de cada grupo para cruces 1..5
   if (posicionesA.length < 5 || posicionesB.length < 5) {
-    logMsg(`❌ Cada grupo debe tener 5 parejas con posiciones definidas`);
+    logMsg(`❌ Cada grupo debe tener al menos 5 parejas con posiciones definidas`);
     logMsg(`   Grupo ${grupoA.nombre}: ${posicionesA.length} parejas`);
     logMsg(`   Grupo ${grupoB.nombre}: ${posicionesB.length} parejas`);
     return;
+  }
+  
+  if (posicionesA.length > 5 || posicionesB.length > 5) {
+    const gGrande = posicionesA.length > posicionesB.length ? grupoA.nombre : grupoB.nombre;
+    const nGrande = Math.max(posicionesA.length, posicionesB.length);
+    logMsg(`ℹ️ Detectado grupo desparejo: ${gGrande} tiene ${nGrande}. El/los puesto(s) extra quedan fuera de copas.`);
   }
   
   // 5. Generar los 5 partidos
