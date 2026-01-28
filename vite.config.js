@@ -14,6 +14,7 @@ export default defineConfig({
         carga: resolve(__dirname, 'carga.html'),
         admin: resolve(__dirname, 'admin.html'),
         analytics: resolve(__dirname, 'analytics.html'),
+        fixture: resolve(__dirname, 'fixture.html'),
       },
     },
   },
