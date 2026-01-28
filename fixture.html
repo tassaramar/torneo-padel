@@ -24,13 +24,13 @@
       <div id="fixture-status" class="fixture-status"></div>
     </div>
 
-    <!-- Tabs para alternar vistas -->
+    <!-- Tabs para alternar vistas (Cola por defecto) -->
     <div class="fixture-tabs">
-      <button class="fixture-tab is-active" data-vista="tabla" onclick="window.cambiarVista('tabla')">
-        Tabla por grupos
-      </button>
-      <button class="fixture-tab" data-vista="cola" onclick="window.cambiarVista('cola')">
+      <button class="fixture-tab is-active" data-vista="cola" onclick="window.cambiarVista('cola')">
         Cola por orden sugerido
+      </button>
+      <button class="fixture-tab" data-vista="tabla" onclick="window.cambiarVista('tabla')">
+        Tabla por grupos
       </button>
     </div>
 
@@ -45,6 +45,19 @@
       <span class="legend-item">
         <span class="legend-badge badge-fecha-libre">☕</span> Fecha libre
       </span>
+    </div>
+
+    <!-- Buscador (solo vista cola) -->
+    <div id="fixture-cola-search" class="fixture-cola-search" style="display: none;">
+      <input
+        id="fixture-search-input"
+        class="fixture-search-input"
+        type="text"
+        autocomplete="off"
+        inputmode="search"
+        placeholder="Buscar jugador o grupo…"
+      />
+      <button id="fixture-search-clear" class="fixture-search-clear" type="button" aria-label="Limpiar búsqueda">✖</button>
     </div>
 
     <!-- Grid de fixture -->

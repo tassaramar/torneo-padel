@@ -11,8 +11,9 @@ const statusEl = document.getElementById('fixture-status');
 const gridEl = document.getElementById('fixture-grid');
 
 // Estado de la vista actual
-let vistaActual = 'tabla'; // 'tabla' | 'cola'
+let vistaActual = 'cola'; // 'tabla' | 'cola'
 let cacheDatos = null;
+let colaSearch = '';
 
 // Auto-refresh cada 30s
 let pollingInterval = null;
@@ -317,10 +318,17 @@ function esPartidoFinalizado(partido) {
 }
 
 /**
- * Determina si un partido está pendiente (no finalizado y no en juego)
+ * Determina si un partido está pendiente (no finalizado, no en juego, no terminado)
  */
 function esPartidoPendiente(partido) {
-  return !esPartidoFinalizado(partido) && partido.estado !== 'en_juego';
+  return !esPartidoFinalizado(partido) && partido.estado !== 'en_juego' && partido.estado !== 'terminado';
+}
+
+/**
+ * Determina si un partido va en "Ya jugados" (tiene resultado o fue marcado terminado)
+ */
+function esPartidoYaJugado(partido) {
+  return esPartidoFinalizado(partido) || partido.estado === 'terminado';
 }
 
 /**
@@ -369,6 +377,7 @@ function calcularColaSugerida(partidos, grupos) {
 
 /**
  * Calcula estadísticas por grupo para el resumen
+ * finalizado = con resultado + terminado (ya jugados)
  */
 function calcularEstadisticasPorGrupo(partidos, grupos) {
   const gruposOrdenados = grupos.map(g => g.nombre).sort();
@@ -379,7 +388,7 @@ function calcularEstadisticasPorGrupo(partidos, grupos) {
     stats[grupo] = {
       pendiente: partidosDelGrupo.filter(p => esPartidoPendiente(p)).length,
       enJuego: partidosDelGrupo.filter(p => p.estado === 'en_juego').length,
-      finalizado: partidosDelGrupo.filter(p => esPartidoFinalizado(p)).length,
+      finalizado: partidosDelGrupo.filter(p => esPartidoYaJugado(p)).length,
       total: partidosDelGrupo.length
     };
   });
@@ -388,50 +397,44 @@ function calcularEstadisticasPorGrupo(partidos, grupos) {
 }
 
 /**
+ * Recarga partidos, actualiza cache y re-renderiza según vista actual
+ */
+async function refrescarYRenderizar() {
+  if (!cacheDatos) return;
+  try {
+    const partidosRes = await supabase
+      .from('partidos')
+      .select(`
+        id, games_a, games_b, estado, ronda,
+        grupos ( nombre ),
+        pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
+        pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
+      `)
+      .eq('torneo_id', TORNEO_ID)
+      .is('copa_id', null);
+    if (partidosRes.error) throw partidosRes.error;
+    const partidosActualizados = partidosRes.data || [];
+    cacheDatos.partidos = partidosActualizados;
+    const data = agruparPorRondaYGrupo(partidosActualizados, cacheDatos.grupos, cacheDatos.parejas);
+    cacheDatos.data = data;
+    if (vistaActual === 'cola') {
+      renderColaFixture(partidosActualizados, cacheDatos.grupos, cacheDatos.parejas);
+    } else {
+      renderFixtureGrid(data);
+    }
+  } catch (e) {
+    console.error('Error refrescando fixture:', e);
+  }
+}
+
+/**
  * Marca un partido como "en juego"
  */
 async function marcarEnJuego(partidoId) {
   try {
-    const { error } = await supabase
-      .from('partidos')
-      .update({ estado: 'en_juego' })
-      .eq('id', partidoId);
-    
+    const { error } = await supabase.from('partidos').update({ estado: 'en_juego' }).eq('id', partidoId);
     if (error) throw error;
-    
-    // Recargar datos y re-renderizar
-    if (cacheDatos) {
-      const partidosRes = await supabase
-        .from('partidos')
-        .select(`
-          id, games_a, games_b, estado, ronda,
-          grupos ( nombre ),
-          pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
-          pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
-        `)
-        .eq('torneo_id', TORNEO_ID)
-        .is('copa_id', null);
-      
-      if (partidosRes.error) throw partidosRes.error;
-      
-      const partidosActualizados = partidosRes.data || [];
-      cacheDatos.partidos = partidosActualizados;
-      
-      // Re-agrupar datos
-      const data = agruparPorRondaYGrupo(partidosActualizados, cacheDatos.grupos, cacheDatos.parejas);
-      cacheDatos.data = data;
-      
-      // Re-renderizar según vista actual
-      if (vistaActual === 'cola') {
-        renderColaFixture(
-          partidosActualizados,
-          cacheDatos.grupos,
-          cacheDatos.parejas
-        );
-      } else {
-        renderFixtureGrid(data);
-      }
-    }
+    await refrescarYRenderizar();
   } catch (error) {
     console.error('Error marcando partido como en juego:', error);
     alert('Error al marcar el partido como en juego');
@@ -439,70 +442,213 @@ async function marcarEnJuego(partidoId) {
 }
 
 /**
- * Renderiza la vista de cola sugerida
+ * Desmarca "en juego" -> vuelve a pendiente
+ */
+async function desmarcarEnJuego(partidoId) {
+  try {
+    const { error } = await supabase.from('partidos').update({ estado: 'pendiente' }).eq('id', partidoId);
+    if (error) throw error;
+    await refrescarYRenderizar();
+  } catch (error) {
+    console.error('Error desmarcando en juego:', error);
+    alert('Error al desmarcar en juego');
+  }
+}
+
+/**
+ * Marca "en juego" como finalizado (va a Ya jugados, estado terminado)
+ */
+async function marcarComoFinalizado(partidoId) {
+  try {
+    const { error } = await supabase.from('partidos').update({ estado: 'terminado' }).eq('id', partidoId);
+    if (error) throw error;
+    await refrescarYRenderizar();
+  } catch (error) {
+    console.error('Error marcando como finalizado:', error);
+    alert('Error al marcar como finalizado');
+  }
+}
+
+/**
+ * Vuelve a "en juego" un partido en Ya jugados sin resultado (terminado)
+ */
+async function siguenJugando(partidoId) {
+  try {
+    const { error } = await supabase.from('partidos').update({ estado: 'en_juego' }).eq('id', partidoId);
+    if (error) throw error;
+    await refrescarYRenderizar();
+  } catch (error) {
+    console.error('Error en siguen jugando:', error);
+    alert('Error al marcar siguen jugando');
+  }
+}
+
+function normSearch(s) {
+  return String(s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Renderiza una card de partido para la cola (header + equipos + acciones opcionales)
+ */
+function renderColaItem(partido, gruposOrdenados, opts = {}) {
+  const grupo = partido.grupos?.nombre || 'Sin Grupo';
+  const grupoIndex = Math.min(Math.max(0, gruposOrdenados.indexOf(grupo)), 3);
+  const pillClass = `fixture-pill-grupo fixture-pill-grupo-${grupoIndex}`;
+  const nombreA = partido.pareja_a?.nombre || '—';
+  const nombreB = partido.pareja_b?.nombre || '—';
+  const ronda = partido.ronda ?? '?';
+  const posicion = opts.posicion != null ? opts.posicion : null;
+  const resultado = esPartidoFinalizado(partido) ? `${partido.games_a}-${partido.games_b}` : null;
+  const searchable = `${grupo} ${nombreA} ${nombreB} R${ronda}`;
+
+  let html = `<div class="fixture-cola-item" data-search="${escapeHtml(searchable)}">`;
+  html += '<div class="fixture-cola-item-header">';
+  if (posicion != null) html += `<span class="fixture-cola-posicion">${posicion}</span>`;
+  html += `<span class="${pillClass}">Grupo ${escapeHtml(grupo)}</span>`;
+  html += `<span class="fixture-cola-ronda">R${ronda}</span>`;
+  html += '</div>';
+  html += '<div class="fixture-cola-item-content">';
+  html += `<span class="fixture-cola-equipo">${escapeHtml(nombreA)}</span>`;
+  html += '<span class="fixture-cola-vs">vs</span>';
+  html += `<span class="fixture-cola-equipo">${escapeHtml(nombreB)}</span>`;
+  if (resultado) html += `<span class="fixture-cola-resultado">${resultado}</span>`;
+  html += '</div>';
+
+  if (opts.acciones === 'en_juego') {
+    html += '<div class="fixture-cola-acciones">';
+    html += `<button type="button" class="fixture-cola-btn-link" onclick="window.desmarcarEnJuego('${partido.id}')">Desmarcar en juego</button>`;
+    html += `<button type="button" class="fixture-cola-btn-finalizado" onclick="window.marcarComoFinalizado('${partido.id}')">Finalizar</button>`;
+    html += '</div>';
+  } else if (opts.acciones === 'pendiente') {
+    html += `<button type="button" class="fixture-cola-btn-en-juego" onclick="window.marcarEnJuego('${partido.id}')">Marcar en juego</button>`;
+  } else if (opts.acciones === 'siguen_jugando') {
+    html += `<button type="button" class="fixture-cola-btn-link" onclick="window.siguenJugando('${partido.id}')">Siguen jugando</button>`;
+  }
+
+  html += '</div>';
+  return html;
+}
+
+/**
+ * Renderiza la vista de cola sugerida (secciones: En juego | Pendientes | Ya jugados)
  */
 function renderColaFixture(partidos, grupos, parejas) {
+  const enJuego = partidos.filter(p => p.estado === 'en_juego');
   const cola = calcularColaSugerida(partidos, grupos);
+  const yaJugados = partidos.filter(p => esPartidoYaJugado(p));
   const stats = calcularEstadisticasPorGrupo(partidos, grupos);
   const gruposOrdenados = grupos.map(g => g.nombre).sort();
-  
-  if (!cola.length) {
-    gridEl.innerHTML = '<p style="text-align: center; padding: 40px; color: #999;">No hay partidos pendientes</p>';
-    return;
-  }
-  
+
   let html = '<div class="fixture-cola-container">';
-  
-  // Panel de resumen
+
+  // Resumen por grupo
   html += '<div class="fixture-cola-resumen">';
   html += '<h3 class="fixture-cola-resumen-title">Resumen por grupo</h3>';
   html += '<div class="fixture-cola-stats">';
   gruposOrdenados.forEach((grupo, idx) => {
     const s = stats[grupo] || { pendiente: 0, enJuego: 0, finalizado: 0, total: 0 };
     const pillClass = `fixture-pill-grupo fixture-pill-grupo-${Math.min(idx, 3)}`;
-    html += `<div class="fixture-cola-stat-item">`;
+    html += '<div class="fixture-cola-stat-item">';
     html += `<span class="${pillClass}">Grupo ${escapeHtml(grupo)}</span>`;
-    html += `<span class="fixture-cola-stat-numbers">`;
+    html += '<span class="fixture-cola-stat-numbers">';
     html += `<span class="stat-pendiente">${s.pendiente}</span> / `;
     html += `<span class="stat-en-juego">${s.enJuego}</span> / `;
     html += `<span class="stat-finalizado">${s.finalizado}</span>`;
-    html += `</span>`;
-    html += `</div>`;
+    html += '</span></div>';
   });
-  html += '</div>';
-  html += '</div>';
-  
-  // Lista de cola
+  html += '</div></div>';
+
+  // Sección: En juego (arriba) – colapsable, acento naranja
+  html += '<details class="fixture-cola-seccion fixture-cola-seccion-en-juego" open>';
+  html += '<summary class="fixture-cola-seccion-titulo">En juego</summary>';
   html += '<div class="fixture-cola-lista">';
-  cola.forEach((partido, index) => {
-    const grupo = partido.grupos?.nombre || 'Sin Grupo';
-    const grupoIndex = gruposOrdenados.indexOf(grupo);
-    const pillClass = `fixture-pill-grupo fixture-pill-grupo-${Math.min(grupoIndex >= 0 ? grupoIndex : 0, 3)}`;
-    const nombreA = partido.pareja_a?.nombre || '—';
-    const nombreB = partido.pareja_b?.nombre || '—';
-    const ronda = partido.ronda || '?';
-    
-    html += `<div class="fixture-cola-item">`;
-    html += `<div class="fixture-cola-item-header">`;
-    html += `<span class="fixture-cola-posicion">${index + 1}</span>`;
-    html += `<span class="${pillClass}">Grupo ${escapeHtml(grupo)}</span>`;
-    html += `<span class="fixture-cola-ronda">R${ronda}</span>`;
-    html += `</div>`;
-    html += `<div class="fixture-cola-item-content">`;
-    html += `<span class="fixture-cola-equipo">${escapeHtml(nombreA)}</span>`;
-    html += `<span class="fixture-cola-vs">vs</span>`;
-    html += `<span class="fixture-cola-equipo">${escapeHtml(nombreB)}</span>`;
-    html += `</div>`;
-    html += `<button class="fixture-cola-btn-en-juego" onclick="window.marcarEnJuego('${partido.id}')">Marcar en juego</button>`;
-    html += `</div>`;
-  });
+  if (enJuego.length) {
+    enJuego.forEach(p => { html += renderColaItem(p, gruposOrdenados, { acciones: 'en_juego' }); });
+  } else {
+    html += '<p class="fixture-cola-vacio">Ninguno</p>';
+  }
+  html += '</div></details>';
+
+  // Sección: Pendientes (medio) – colapsable, acento azul
+  html += '<details class="fixture-cola-seccion fixture-cola-seccion-pendientes" open>';
+  html += '<summary class="fixture-cola-seccion-titulo">Pendientes</summary>';
+  html += '<div class="fixture-cola-lista">';
+  if (cola.length) {
+    cola.forEach((p, i) => { html += renderColaItem(p, gruposOrdenados, { posicion: i + 1, acciones: 'pendiente' }); });
+  } else {
+    html += '<p class="fixture-cola-vacio">Ninguno</p>';
+  }
+  html += '</div></details>';
+
+  // Sección: Ya jugados (abajo) – colapsable, acento verde
+  html += '<details class="fixture-cola-seccion fixture-cola-seccion-ya-jugados" open>';
+  html += '<summary class="fixture-cola-seccion-titulo">Ya jugados</summary>';
+  html += '<div class="fixture-cola-lista">';
+  if (yaJugados.length) {
+    yaJugados.forEach(p => {
+      const sinResultado = p.estado === 'terminado';
+      html += renderColaItem(p, gruposOrdenados, { acciones: sinResultado ? 'siguen_jugando' : undefined });
+    });
+  } else {
+    html += '<p class="fixture-cola-vacio">Ninguno</p>';
+  }
+  html += '</div></details>';
+
   html += '</div>';
-  html += '</div>';
-  
   gridEl.innerHTML = html;
-  
-  // Exponer función globalmente para los botones
+
   window.marcarEnJuego = marcarEnJuego;
+  window.desmarcarEnJuego = desmarcarEnJuego;
+  window.marcarComoFinalizado = marcarComoFinalizado;
+  window.siguenJugando = siguenJugando;
+
+  aplicarBusquedaCola();
+  wireSearchUI();
+}
+
+function aplicarBusquedaCola() {
+  const listCont = gridEl.querySelector('.fixture-cola-container');
+  if (!listCont) return;
+  const items = listCont.querySelectorAll('.fixture-cola-item');
+  const q = normSearch(colaSearch);
+  const puedeFiltrar = q.length >= 2;
+  for (const el of items) {
+    const hay = normSearch(el.dataset.search || '');
+    el.style.display = !puedeFiltrar || hay.includes(q) ? '' : 'none';
+  }
+}
+
+function wireSearchUI() {
+  const searchRow = document.getElementById('fixture-cola-search');
+  const input = document.getElementById('fixture-search-input');
+  const clearBtn = document.getElementById('fixture-search-clear');
+  if (!searchRow || !input) return;
+  if (vistaActual !== 'cola') return;
+  searchRow.style.display = '';
+  input.value = colaSearch;
+  input.oninput = () => {
+    colaSearch = input.value || '';
+    aplicarBusquedaCola();
+  };
+  if (clearBtn) {
+    clearBtn.onclick = () => {
+      colaSearch = '';
+      input.value = '';
+      input.focus();
+      aplicarBusquedaCola();
+    };
+  }
+}
+
+function hideSearchRow() {
+  const searchRow = document.getElementById('fixture-cola-search');
+  if (searchRow) searchRow.style.display = 'none';
 }
 
 /**
@@ -510,12 +656,14 @@ function renderColaFixture(partidos, grupos, parejas) {
  */
 function cambiarVista(nuevaVista) {
   vistaActual = nuevaVista;
-  
+
+  if (vistaActual === 'tabla') hideSearchRow();
+
   // Actualizar tabs
   document.querySelectorAll('.fixture-tab').forEach(tab => {
     tab.classList.toggle('is-active', tab.dataset.vista === nuevaVista);
   });
-  
+
   // Re-renderizar con datos en cache
   if (cacheDatos) {
     if (vistaActual === 'cola') {

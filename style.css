@@ -3068,6 +3068,207 @@ tbody td:first-child{
   transform: translateY(0);
 }
 
+/* Secciones En juego | Pendientes | Ya jugados (colapsables) */
+.fixture-cola-seccion {
+  margin-top: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.fixture-cola-seccion-titulo {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+  padding: 12px 16px;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid transparent;
+  user-select: none;
+}
+
+.fixture-cola-seccion-titulo::-webkit-details-marker {
+  display: none;
+}
+
+.fixture-cola-seccion-titulo::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 20px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.fixture-cola-seccion-titulo::after {
+  content: '▼';
+  font-size: 0.7rem;
+  opacity: 0.6;
+  margin-left: auto;
+  transition: transform 0.2s;
+}
+
+.fixture-cola-seccion:not([open]) .fixture-cola-seccion-titulo::after {
+  content: '▶';
+}
+
+/* En juego: naranja */
+.fixture-cola-seccion-en-juego .fixture-cola-seccion-titulo {
+  color: #e65100;
+  background: #fff8f0;
+}
+
+.fixture-cola-seccion-en-juego .fixture-cola-seccion-titulo::before {
+  background: #ff9800;
+}
+
+.fixture-cola-seccion-en-juego[open] .fixture-cola-seccion-titulo {
+  border-bottom-color: #ffe0b2;
+}
+
+/* Pendientes: azul */
+.fixture-cola-seccion-pendientes .fixture-cola-seccion-titulo {
+  color: #1565c0;
+  background: #e3f2fd;
+}
+
+.fixture-cola-seccion-pendientes .fixture-cola-seccion-titulo::before {
+  background: #1976d2;
+}
+
+.fixture-cola-seccion-pendientes[open] .fixture-cola-seccion-titulo {
+  border-bottom-color: #bbdefb;
+}
+
+/* Ya jugados: verde */
+.fixture-cola-seccion-ya-jugados .fixture-cola-seccion-titulo {
+  color: #2e7d32;
+  background: #e8f5e9;
+}
+
+.fixture-cola-seccion-ya-jugados .fixture-cola-seccion-titulo::before {
+  background: #4caf50;
+}
+
+.fixture-cola-seccion-ya-jugados[open] .fixture-cola-seccion-titulo {
+  border-bottom-color: #c8e6c9;
+}
+
+.fixture-cola-seccion .fixture-cola-lista {
+  padding: 12px 16px 16px;
+  background: #fff;
+}
+
+.fixture-cola-vacio {
+  color: #999;
+  font-size: 0.9rem;
+  margin: 0;
+  padding: 12px 0;
+}
+
+.fixture-cola-acciones {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.fixture-cola-btn-link {
+  padding: 6px 12px;
+  background: transparent;
+  color: #666;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.fixture-cola-btn-link:hover {
+  color: #1976d2;
+  border-color: #1976d2;
+  background: #f5f5f5;
+}
+
+.fixture-cola-acciones .fixture-cola-btn-en-juego,
+.fixture-cola-acciones .fixture-cola-btn-finalizado {
+  flex: 1;
+  margin: 0;
+}
+
+/* Marcar como finalizado: naranja (distinto de pendientes) */
+.fixture-cola-btn-finalizado {
+  width: 100%;
+  padding: 10px 16px;
+  background: #ff9800;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.fixture-cola-btn-finalizado:hover {
+  background: #f57c00;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(255, 152, 0, 0.3);
+}
+
+.fixture-cola-btn-finalizado:active {
+  transform: translateY(0);
+}
+
+.fixture-cola-resultado {
+  font-weight: 700;
+  color: #2e7d32;
+  font-size: 0.95rem;
+  margin-left: auto;
+}
+
+/* Buscador cola */
+.fixture-cola-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.fixture-search-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.fixture-search-input:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.15);
+}
+
+.fixture-search-clear {
+  padding: 8px 12px;
+  background: #f5f5f5;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.fixture-search-clear:hover {
+  background: #eee;
+  border-color: #ccc;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .fixture-container {
@@ -3199,6 +3400,29 @@ tbody td:first-child{
   .fixture-cola-btn-en-juego {
     padding: 8px 12px;
     font-size: 0.9rem;
+  }
+
+  .fixture-cola-seccion {
+    margin-top: 14px;
+  }
+
+  .fixture-cola-seccion-titulo {
+    font-size: 0.95rem;
+    padding: 10px 12px;
+  }
+
+  .fixture-cola-seccion .fixture-cola-lista {
+    padding: 10px 12px 12px;
+  }
+
+  .fixture-cola-acciones {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .fixture-cola-btn-link {
+    padding: 6px 10px;
+    font-size: 0.8rem;
   }
 
   .fixture-tabs {

@@ -4,6 +4,7 @@
  */
 
 import { getMensajeResultado } from '../utils/mensajesResultado.js';
+import { getMensajeModalCarga } from '../utils/mensajesModalCarga.js';
 import { trackCargaResultado } from '../tracking/trackingService.js';
 import { validarSet } from '../carga/scores.js';
 
@@ -62,7 +63,8 @@ export async function cargarResultadoConSets(supabase, partidoId, sets, numSets,
     }
 
     // 2. Lógica según estado actual
-    if (estado === 'pendiente') {
+    // terminado = org marcó "finalizó" sin resultado; en_juego = en cancha. Ambos permiten primera carga.
+    if (estado === 'pendiente' || estado === 'terminado' || estado === 'en_juego') {
       updateData.estado = 'a_confirmar';
       updateData.cargado_por_pareja_id = identidad.parejaId;
 
@@ -535,33 +537,55 @@ export async function pedirAyudaAdmin(supabase, partidoId, identidad, nota = '')
 }
 
 /**
- * Muestra modal/UI para cargar resultado con sets
+ * Verifica si Set 1 es válido para mostrar el botón "Agregar Set 2"
+ * Un set es válido si ambos valores son numéricos, >= 0, no nulos y no iguales
+ * @param {Object} partido - Objeto del partido
+ * @returns {boolean} true si Set 1 es válido
  */
-export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
-  const oponente = partido.pareja_a?.id === identidad.parejaId 
-    ? (partido.pareja_b?.nombre || 'Oponente')
-    : (partido.pareja_a?.nombre || 'Oponente');
+function esSet1Valido(partido) {
+  const set1A = partido.set1_a;
+  const set1B = partido.set1_b;
+  
+  // Verificar que no sean null o undefined
+  if (set1A === null || set1B === null || set1A === undefined || set1B === undefined || set1A === '' || set1B === '') {
+    return false;
+  }
+  
+  const a = Number(set1A);
+  const b = Number(set1B);
+  
+  // Verificar que sean numéricos
+  if (Number.isNaN(a) || Number.isNaN(b)) {
+    return false;
+  }
+  
+  // Verificar que sean enteros
+  if (!Number.isInteger(a) || !Number.isInteger(b)) {
+    return false;
+  }
+  
+  // Verificar que sean >= 0
+  if (a < 0 || b < 0) {
+    return false;
+  }
+  
+  // Verificar que no sean iguales
+  if (a === b) {
+    return false;
+  }
+  
+  return true;
+}
 
-  const miNombre = identidad.parejaNombre || 'Tu pareja';
-  const soyA = partido.pareja_a?.id === identidad.parejaId;
-  
-  // Obtener valores previos de sets (si existen)
-  // Verificar que realmente hay valores numéricos, no solo que no sean null
-  const tieneSets = (partido.set1_a !== null && partido.set1_a !== undefined && partido.set1_a !== '') ||
-                    (partido.set1_b !== null && partido.set1_b !== undefined && partido.set1_b !== '');
-  
-  // Determinar si el partido es de copa (las copas típicamente usan sets)
-  const esPartidoCopa = partido.copa_id !== null && partido.copa_id !== undefined;
-  
-  // Determinar número de sets
-  // Si num_sets está explícitamente definido (2 o 3), usarlo
-  // Si es NULL, el frontend decide qué mostrar progresivamente
-  const numSets = (partido.num_sets !== null && partido.num_sets !== undefined && (partido.num_sets === 2 || partido.num_sets === 3)) 
+/**
+ * Determina qué sets y botones mostrar según el modo del partido
+ * @param {Object} partido - Objeto del partido
+ * @returns {Object} Objeto con flags de visualización: { mostrarSet1, mostrarSet2, mostrarSet3, mostrarBotonSet2, numSetsParaUI }
+ */
+function determinarVisualizacionSets(partido) {
+  const numSets = partido.num_sets !== null && partido.num_sets !== undefined 
     ? partido.num_sets 
     : null;
-  
-  // Todos los partidos usan modo sets (sin modo legacy)
-  const usarModoSets = true;
   
   // Detectar cuántos sets están realmente cargados
   const tieneSet1 = (partido.set1_a !== null && partido.set1_a !== undefined && partido.set1_a !== '') ||
@@ -571,7 +595,7 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   const tieneSet3 = (partido.set3_a !== null && partido.set3_a !== undefined && partido.set3_a !== '') ||
                      (partido.set3_b !== null && partido.set3_b !== undefined && partido.set3_b !== '');
   
-  // Determinar si el partido está empatado 1-1 en sets (necesita Set 3)
+  // Determinar si el partido está empatado 1-1 en sets
   const set1GanadoA = tieneSet1 && partido.set1_a !== null && partido.set1_b !== null && partido.set1_a > partido.set1_b;
   const set1GanadoB = tieneSet1 && partido.set1_a !== null && partido.set1_b !== null && partido.set1_b > partido.set1_a;
   const set2GanadoA = tieneSet2 && partido.set2_a !== null && partido.set2_b !== null && partido.set2_a > partido.set2_b;
@@ -580,60 +604,63 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   const setsGanadosB = (set1GanadoB ? 1 : 0) + (set2GanadoB ? 1 : 0);
   const estaEmpatado1a1 = tieneSet1 && tieneSet2 && setsGanadosA === 1 && setsGanadosB === 1;
   
-  // Debug
-  console.log('[Modal] Partido:', {
-    num_sets: partido.num_sets,
-    tieneSets,
-    esPartidoCopa,
-    tieneSet1,
-    tieneSet2,
-    tieneSet3,
-    estaEmpatado1a1
-  });
+  const set1Valido = esSet1Valido(partido);
   
-  // Determinar cuántos sets mostrar en la UI
-  let numSetsParaUI = 3;
   let mostrarSet1 = false;
   let mostrarSet2 = false;
   let mostrarSet3 = false;
   let mostrarBotonSet2 = false;
-  let mostrarBotonSet3 = false;
+  let numSetsParaUI = 3;
   
-  if (numSets !== null && (numSets === 2 || numSets === 3)) {
-    // num_sets está definido: mostrar todos los sets según num_sets
-    numSetsParaUI = numSets;
+  if (numSets === 1) {
+    // Modo B: 1 Set
+    mostrarSet1 = true;
+    mostrarSet2 = false;
+    mostrarSet3 = false;
+    mostrarBotonSet2 = false;
+    numSetsParaUI = 1;
+  } else if (numSets === 3) {
+    // Modo C: 3 Sets
     mostrarSet1 = true;
     mostrarSet2 = true;
-    mostrarSet3 = numSets === 3;
-  } else {
-    // num_sets es undefined/null: mostrar progresivamente
-    // Siempre mostrar Set 1
-    mostrarSet1 = true;
-    
-    // Mostrar Set 2 solo si ya está cargado
-    mostrarSet2 = tieneSet2;
-    
-    // Mostrar botón "Agregar Set 2" si no hay Set 2 cargado
-    mostrarBotonSet2 = !tieneSet2;
-    
-    // Mostrar Set 3 solo si:
-    // - Hay 2 sets cargados
-    // - Y cada pareja ganó 1 set (1-1)
+    // Set 3 se muestra automáticamente si hay empate 1-1 o si ya está cargado
     mostrarSet3 = estaEmpatado1a1 || tieneSet3;
-    
-    // Mostrar botón "Agregar Set 3" si hay Set 1 y 2, están empatados 1-1, pero no hay Set 3
-    mostrarBotonSet3 = tieneSet1 && tieneSet2 && estaEmpatado1a1 && !tieneSet3;
+    mostrarBotonSet2 = false;
+    numSetsParaUI = 3;
+  } else {
+    // Modo A: Indefinido (NULL)
+    mostrarSet1 = true;
+    mostrarSet2 = tieneSet2; // Solo mostrar Set 2 si ya está cargado
+    // En modo indefinido, Set 3 se muestra según reglas del Modo 3 sets (si hay empate 1-1)
+    mostrarSet3 = tieneSet2 && (estaEmpatado1a1 || tieneSet3);
+    mostrarBotonSet2 = set1Valido && !tieneSet2; // Solo mostrar botón si Set 1 es válido y no hay Set 2
+    numSetsParaUI = 3; // Cuando se agregue Set 2, pasará a modo 3 sets
   }
   
-  // Debug de visualización
-  console.log('[Modal] Visualización:', {
+  return {
     mostrarSet1,
     mostrarSet2,
     mostrarSet3,
     mostrarBotonSet2,
-    mostrarBotonSet3,
-    numSetsParaUI
-  });
+    numSetsParaUI,
+    estaEmpatado1a1
+  };
+}
+
+/**
+ * Muestra modal/UI para cargar resultado con sets
+ */
+export function mostrarModalCargarResultado(partido, identidad, onSubmit, supabase) {
+  const oponente = partido.pareja_a?.id === identidad.parejaId 
+    ? (partido.pareja_b?.nombre || 'Oponente')
+    : (partido.pareja_a?.nombre || 'Oponente');
+
+  const miNombre = identidad.parejaNombre || 'Tu pareja';
+  const soyA = partido.pareja_a?.id === identidad.parejaId;
+  
+  // Determinar visualización usando función extraída
+  const visualizacion = determinarVisualizacionSets(partido);
+  const { mostrarSet1, mostrarSet2, mostrarSet3, mostrarBotonSet2, numSetsParaUI, estaEmpatado1a1 } = visualizacion;
   
   // Valores iniciales para cada set
   const getSetValue = (setNum, isA) => {
@@ -656,6 +683,11 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   const set3Mis = mostrarSet3 ? (soyA ? getSetValue(3, true) : getSetValue(3, false)) : '';
   const set3Rival = mostrarSet3 ? (soyA ? getSetValue(3, false) : getSetValue(3, true)) : '';
   
+  // Declarar funciones auxiliares que se usarán más adelante
+  let actualizarPreview;
+  let manejarAgregarSet2;
+  let manejarEliminarSet2;
+  let actualizarSet3SegunEmpate;
 
   const modal = document.createElement('div');
   modal.className = 'modal-overlay';
@@ -693,7 +725,6 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
                       id="input-set1-mis" 
                       class="input-score-modal input-set"
                       min="0" 
-                      max="7"
                       value="${set1Mis}"
                       placeholder=""
                     />
@@ -705,7 +736,6 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
                       id="input-set1-rival" 
                       class="input-score-modal input-set"
                       min="0" 
-                      max="7"
                       value="${set1Rival}"
                       placeholder=""
                     />
@@ -723,7 +753,6 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
                         id="input-set2-mis" 
                         class="input-score-modal input-set"
                         min="0" 
-                        max="7"
                         value="${set2Mis}"
                         placeholder=""
                       />
@@ -735,7 +764,6 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
                         id="input-set2-rival" 
                         class="input-score-modal input-set"
                         min="0" 
-                        max="7"
                         value="${set2Rival}"
                         placeholder=""
                       />
@@ -764,7 +792,6 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
                         id="input-set2-rival" 
                         class="input-score-modal input-set"
                         min="0" 
-                        max="7"
                         value=""
                         placeholder=""
                       />
@@ -783,7 +810,7 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
               
               ${mostrarSet3 ? `
                 <div class="set-input-group" id="set3-group">
-                  <label class="set-label">Set 3 <span class="set-optional">(opcional si ya ganaron 2)</span></label>
+                  <label class="set-label">Set 3 (Super Tiebreak) <span class="set-optional">(solo si hay empate 1-1)</span></label>
                   <div class="set-inputs-row">
                     <div class="set-input-wrapper">
                       <input 
@@ -791,7 +818,6 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
                         id="input-set3-mis" 
                         class="input-score-modal input-set"
                         min="0" 
-                        max="7"
                         value="${set3Mis}"
                         placeholder=""
                       />
@@ -803,7 +829,6 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
                         id="input-set3-rival" 
                         class="input-score-modal input-set"
                         min="0" 
-                        max="7"
                         value="${set3Rival}"
                         placeholder=""
                       />
@@ -812,7 +837,7 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
                 </div>
               ` : `
                 <div class="set-input-group" id="set3-group" style="display: none;">
-                  <label class="set-label">Set 3 <span class="set-optional">(opcional si ya ganaron 2)</span></label>
+                  <label class="set-label">Set 3 (Super Tiebreak) <span class="set-optional">(solo si hay empate 1-1)</span></label>
                   <div class="set-inputs-row">
                     <div class="set-input-wrapper">
                       <input 
@@ -820,7 +845,6 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
                         id="input-set3-mis" 
                         class="input-score-modal input-set"
                         min="0" 
-                        max="7"
                         value=""
                         placeholder=""
                       />
@@ -832,7 +856,6 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
                         id="input-set3-rival" 
                         class="input-score-modal input-set"
                         min="0" 
-                        max="7"
                         value=""
                         placeholder=""
                       />
@@ -841,13 +864,6 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
                 </div>
               `}
               
-              ${mostrarBotonSet3 ? `
-                <div class="set-add-button-container">
-                  <button type="button" class="btn-add-set" id="btn-agregar-set3">
-                    + Agregar Set 3 (opcional)
-                  </button>
-                </div>
-              ` : ''}
             </div>
         </div>
         
@@ -873,14 +889,73 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
   document.getElementById('modal-close').addEventListener('click', close);
   document.getElementById('modal-cancel').addEventListener('click', close);
   
+  // Función auxiliar para determinar mensaje según contexto
+  const determinarMensaje = (contexto) => {
+    const { nivel, categoria } = contexto;
+    return getMensajeModalCarga(nivel, categoria);
+  };
+
   // Actualizar preview cuando cambien los valores
-  const actualizarPreview = () => {
+  actualizarPreview = () => {
     const mensajeDiv = document.getElementById('mensaje-preview');
     mensajeDiv.innerHTML = '';
 
     // Modo sets (siempre activo)
     const set1Mis = parseInt(document.getElementById('input-set1-mis')?.value || '');
     const set1Rival = parseInt(document.getElementById('input-set1-rival')?.value || '');
+    
+    // Verificar si Set 1 es válido según los inputs (no la BD)
+    const set1ValidoDesdeInputs = !isNaN(set1Mis) && !isNaN(set1Rival) && 
+                                    set1Mis >= 0 && set1Rival >= 0 && 
+                                    set1Mis !== set1Rival;
+    
+    // Actualizar visibilidad del botón "Agregar Set 2" dinámicamente (solo en modo indefinido)
+    const numSets = partido.num_sets !== null && partido.num_sets !== undefined ? partido.num_sets : null;
+    const tieneSet2 = (partido.set2_a !== null && partido.set2_a !== undefined && partido.set2_a !== '') ||
+                      (partido.set2_b !== null && partido.set2_b !== undefined && partido.set2_b !== '');
+    const set2GroupVisible = document.getElementById('set2-group')?.style.display !== 'none';
+    
+    if (numSets === null) {
+      // Modo indefinido: mostrar/ocultar botón según si Set 1 es válido y no hay Set 2 visible
+      const btnContainer = document.querySelector('.set-add-button-container');
+      const btnAgregarSet2 = document.getElementById('btn-agregar-set2');
+      const btnEliminarSet2 = document.getElementById('btn-eliminar-set2');
+      
+      const debeMostrarBoton = set1ValidoDesdeInputs && !tieneSet2 && !set2GroupVisible;
+      
+      if (debeMostrarBoton && !btnAgregarSet2 && !btnEliminarSet2) {
+        // Crear el botón si no existe
+        const container = document.createElement('div');
+        container.className = 'set-add-button-container';
+        container.innerHTML = `
+          <button type="button" class="btn-add-set" id="btn-agregar-set2">
+            + Agregar Set 2
+          </button>
+        `;
+        // Insertar después del Set 1
+        const set1Group = document.querySelector('.set-input-group');
+        if (set1Group && set1Group.nextSibling) {
+          set1Group.parentNode.insertBefore(container, set1Group.nextSibling);
+        } else if (set1Group) {
+          set1Group.parentNode.appendChild(container);
+        }
+        // Agregar event listener (la función se definirá después)
+        const nuevoBoton = document.getElementById('btn-agregar-set2');
+        if (nuevoBoton && manejarAgregarSet2) {
+          nuevoBoton.addEventListener('click', manejarAgregarSet2);
+        } else if (nuevoBoton) {
+          // Si la función aún no está definida, agregar el listener después
+          setTimeout(() => {
+            if (manejarAgregarSet2) {
+              nuevoBoton.addEventListener('click', manejarAgregarSet2);
+            }
+          }, 0);
+        }
+      } else if (!debeMostrarBoton && btnAgregarSet2) {
+        // Ocultar el botón si Set 1 deja de ser válido
+        btnAgregarSet2.parentElement.remove();
+      }
+    }
     const set2Mis = parseInt(document.getElementById('input-set2-mis')?.value || '');
     const set2Rival = parseInt(document.getElementById('input-set2-rival')?.value || '');
     const set3Mis = mostrarSet3 ? parseInt(document.getElementById('input-set3-mis')?.value || '') : null;
@@ -891,78 +966,171 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
     const set2Completo = !isNaN(set2Mis) && !isNaN(set2Rival) && set2Mis >= 0 && set2Rival >= 0;
     const set3Completo = mostrarSet3 && !isNaN(set3Mis) && !isNaN(set3Rival) && set3Mis >= 0 && set3Rival >= 0;
 
-    // Validar cada set individualmente y mostrar feedback
-    let mensajesSets = [];
+    // Validar cada set individualmente
     let hayErrores = false;
     const sets = [];
+    const set1Valido = set1Completo && validarSet(set1Mis, set1Rival).ok;
+    const set2Valido = set2Completo && validarSet(set2Mis, set2Rival).ok;
+    const set3Valido = set3Completo && validarSet(set3Mis, set3Rival).ok;
 
     if (set1Completo) {
       const validacion = validarSet(set1Mis, set1Rival);
-      sets.push({ setA: set1Mis, setB: set1Rival });
-      if (!validacion.ok) {
-        mensajesSets.push(`<strong>Set 1:</strong> ${validacion.msg}`);
-        hayErrores = true;
+      if (validacion.ok) {
+        sets.push({ setA: set1Mis, setB: set1Rival });
       } else {
-        const ganador = set1Mis > set1Rival ? 'Vos' : oponente;
-        const resultado = `${set1Mis > set1Rival ? set1Mis : set1Rival}-${set1Mis > set1Rival ? set1Rival : set1Mis}`;
-        mensajesSets.push(`<strong>Set 1:</strong> ${ganador} ganaste ${resultado}`);
+        hayErrores = true;
       }
     }
 
     if (set2Completo) {
       const validacion = validarSet(set2Mis, set2Rival);
-      sets.push({ setA: set2Mis, setB: set2Rival });
-      if (!validacion.ok) {
-        mensajesSets.push(`<strong>Set 2:</strong> ${validacion.msg}`);
-        hayErrores = true;
+      if (validacion.ok) {
+        sets.push({ setA: set2Mis, setB: set2Rival });
       } else {
-        const ganador = set2Mis > set2Rival ? 'Vos' : oponente;
-        const resultado = `${set2Mis > set2Rival ? set2Mis : set2Rival}-${set2Mis > set2Rival ? set2Rival : set2Mis}`;
-        mensajesSets.push(`<strong>Set 2:</strong> ${ganador} ganaste ${resultado}`);
+        hayErrores = true;
       }
     }
 
     if (set3Completo) {
       const validacion = validarSet(set3Mis, set3Rival);
-      sets.push({ setA: set3Mis, setB: set3Rival });
-      if (!validacion.ok) {
-        mensajesSets.push(`<strong>Set 3:</strong> ${validacion.msg}`);
-        hayErrores = true;
+      if (validacion.ok) {
+        sets.push({ setA: set3Mis, setB: set3Rival });
       } else {
-        const ganador = set3Mis > set3Rival ? 'Vos' : oponente;
-        const resultado = `${set3Mis > set3Rival ? set3Mis : set3Rival}-${set3Mis > set3Rival ? set3Rival : set3Mis}`;
-        mensajesSets.push(`<strong>Set 3:</strong> ${ganador} ganaste ${resultado}`);
+        hayErrores = true;
       }
     }
 
-    // Mostrar mensajes de sets individuales
-    if (mensajesSets.length > 0) {
-      const claseMensaje = hayErrores ? 'mensaje-empate' : 'mensaje-victoria';
-      mensajeDiv.innerHTML = `<div class="${claseMensaje}" style="font-size: 13px; text-align: left; padding: 8px 12px;">${mensajesSets.join('<br>')}</div>`;
-    }
-
-    // Calcular sets ganados y mostrar resultado final si está completo
+    // Calcular sets ganados
     let setsGanadosMis = 0;
     let setsGanadosRival = 0;
-
     for (const set of sets) {
       if (set.setA > set.setB) setsGanadosMis++;
       else if (set.setB > set.setA) setsGanadosRival++;
     }
 
-    const setsNecesarios = numSetsParaUI === 2 ? 2 : 2;
+    // Determinar si hay empate 1-1
+    const hayEmpate1a1 = sets.length >= 2 && setsGanadosMis === 1 && setsGanadosRival === 1;
+    
+    // Determinar si el partido está completo
+    const setsNecesarios = numSetsParaUI === 1 ? 1 : 2;
     const partidoCompleto = sets.length >= setsNecesarios && (setsGanadosMis >= setsNecesarios || setsGanadosRival >= setsNecesarios);
     
-    if (partidoCompleto && !hayErrores) {
+    // Determinar nivel y categoría según el contexto
+    let nivel = 'PARTIDO';
+    let categoria = 'EMPATE';
+    let mensaje = '';
+
+    // Si hay errores de validación, mostrar mensaje de error
+    if (hayErrores) {
+      // Buscar el primer error y usar mensaje de validación (más técnico/informativo)
+      if (set1Completo && !set1Valido) {
+        const validacion = validarSet(set1Mis, set1Rival);
+        mensaje = validacion.msg;
+        // Para errores, usar mensaje de validación directamente (más informativo)
+        // pero también podríamos usar getMensajeModalCarga si queremos mensajes más divertidos
+        nivel = numSets === 1 ? 'PARTIDO' : 'SET';
+        categoria = 'EMPATE';
+        // Si el error es por empate, usar mensaje divertido
+        if (set1Mis === set1Rival) {
+          mensaje = determinarMensaje({ nivel, categoria });
+        }
+      } else if (set2Completo && !set2Valido) {
+        const validacion = validarSet(set2Mis, set2Rival);
+        mensaje = validacion.msg;
+        nivel = 'SET';
+        categoria = 'EMPATE';
+        if (set2Mis === set2Rival) {
+          mensaje = determinarMensaje({ nivel, categoria });
+        }
+      } else if (set3Completo && !set3Valido) {
+        const validacion = validarSet(set3Mis, set3Rival);
+        mensaje = validacion.msg;
+        nivel = 'SET';
+        categoria = 'EMPATE';
+        if (set3Mis === set3Rival) {
+          mensaje = determinarMensaje({ nivel, categoria });
+        }
+      }
+    } else if (partidoCompleto) {
+      // Partido completo: Nivel PARTIDO
+      nivel = 'PARTIDO';
       const yoGano = setsGanadosMis >= setsNecesarios;
-      const resultado = getMensajeResultado(yoGano ? 2 : 0, yoGano ? 0 : 2, true);
-      const clase = resultado.tipo === 'victoria' ? 'mensaje-victoria' : 'mensaje-derrota';
-      const mensajeFinal = mensajesSets.length > 0 
-        ? `<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.1); font-weight: 800;">${resultado.mensaje}</div>`
-        : `<div class="${clase}" style="font-weight: 800;">${resultado.mensaje}</div>`;
-      mensajeDiv.innerHTML = mensajesSets.length > 0 
-        ? `<div class="${claseMensaje}" style="font-size: 13px; text-align: left; padding: 8px 12px;">${mensajesSets.join('<br>')}${mensajeFinal}</div>`
-        : mensajeFinal;
+      categoria = yoGano ? 'GANAR' : 'PERDER';
+      mensaje = determinarMensaje({ nivel, categoria });
+    } else if (numSets === 1 && set1Valido) {
+      // Modo 1 Set: Set 1 válido = Nivel PARTIDO
+      nivel = 'PARTIDO';
+      const yoGano = set1Mis > set1Rival;
+      categoria = yoGano ? 'GANAR' : 'PERDER';
+      mensaje = determinarMensaje({ nivel, categoria });
+    } else if (numSets === null && set1Valido && !set2GroupVisible) {
+      // Modo Indefinido: Set 1 válido sin Set 2 = Nivel PARTIDO
+      nivel = 'PARTIDO';
+      const yoGano = set1Mis > set1Rival;
+      categoria = yoGano ? 'GANAR' : 'PERDER';
+      mensaje = determinarMensaje({ nivel, categoria });
+    } else if (numSets === null && set1Valido && set2GroupVisible && !set2Valido) {
+      // Modo Indefinido: Set 1 válido, Set 2 visible pero no completo = Nivel SET
+      nivel = 'SET';
+      const yoGanoSet1 = set1Mis > set1Rival;
+      categoria = yoGanoSet1 ? 'GANAR' : 'PERDER';
+      mensaje = determinarMensaje({ nivel, categoria });
+    } else if (set2Valido && hayEmpate1a1) {
+      // Set 2 completo con empate 1-1
+      if (set3Valido) {
+        // Set 3 válido = Nivel PARTIDO
+        nivel = 'PARTIDO';
+        const yoGano = setsGanadosMis >= 2;
+        categoria = yoGano ? 'GANAR' : 'PERDER';
+        mensaje = determinarMensaje({ nivel, categoria });
+      } else {
+        // Set 3 no válido = Nivel SET (EMPATE)
+        nivel = 'SET';
+        categoria = 'EMPATE';
+        mensaje = determinarMensaje({ nivel, categoria });
+      }
+    } else if (set2Valido && !hayEmpate1a1) {
+      // Set 2 completo sin empate = Nivel PARTIDO
+      nivel = 'PARTIDO';
+      const yoGano = setsGanadosMis >= 2;
+      categoria = yoGano ? 'GANAR' : 'PERDER';
+      mensaje = determinarMensaje({ nivel, categoria });
+    } else if (set1Valido && !set2Completo && numSets === 3) {
+      // Modo 3 Sets: Set 1 válido, Set 2 no completo = Nivel SET
+      nivel = 'SET';
+      const yoGano = set1Mis > set1Rival;
+      categoria = yoGano ? 'GANAR' : 'PERDER';
+      mensaje = determinarMensaje({ nivel, categoria });
+    } else if (set2Valido && !partidoCompleto && numSets === 3) {
+      // Modo 3 Sets: Set 2 válido pero partido no completo = Nivel SET
+      if (hayEmpate1a1) {
+        nivel = 'SET';
+        categoria = 'EMPATE';
+        mensaje = determinarMensaje({ nivel, categoria });
+      } else {
+        nivel = 'SET';
+        const yoGano = set2Mis > set2Rival;
+        categoria = yoGano ? 'GANAR' : 'PERDER';
+        mensaje = determinarMensaje({ nivel, categoria });
+      }
+    } else if (set3Valido && partidoCompleto) {
+      // Set 3 válido y partido completo = Nivel PARTIDO
+      nivel = 'PARTIDO';
+      const yoGano = setsGanadosMis >= setsNecesarios;
+      categoria = yoGano ? 'GANAR' : 'PERDER';
+      mensaje = determinarMensaje({ nivel, categoria });
+    } else if (set1Valido && !set2Completo) {
+      // Set 1 válido, Set 2 no completo = Nivel SET
+      nivel = 'SET';
+      const yoGano = set1Mis > set1Rival;
+      categoria = yoGano ? 'GANAR' : 'PERDER';
+      mensaje = determinarMensaje({ nivel, categoria });
+    }
+
+    // Mostrar mensaje
+    if (mensaje) {
+      const claseMensaje = categoria === 'EMPATE' ? 'mensaje-empate' : (categoria === 'GANAR' ? 'mensaje-victoria' : 'mensaje-derrota');
+      mensajeDiv.innerHTML = `<div class="${claseMensaje}" style="font-size: 13px; text-align: left; padding: 8px 12px;">${mensaje}</div>`;
     }
   };
 
@@ -983,32 +1151,181 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
     document.getElementById('input-set3-rival')?.addEventListener('input', actualizarPreview);
   }
   
-  // Botones para agregar sets
-  document.getElementById('btn-agregar-set2')?.addEventListener('click', () => {
+  // Función auxiliar para mostrar/ocultar Set 3 según empate 1-1
+  // IMPORTANTE: Set 3 solo se muestra si Set 2 está COMPLETO (ambos valores válidos) y hay empate 1-1
+  actualizarSet3SegunEmpate = () => {
+    const set1Mis = parseInt(document.getElementById('input-set1-mis')?.value || '');
+    const set1Rival = parseInt(document.getElementById('input-set1-rival')?.value || '');
+    const set2Mis = parseInt(document.getElementById('input-set2-mis')?.value || '');
+    const set2Rival = parseInt(document.getElementById('input-set2-rival')?.value || '');
+    
+    // Verificar que Set 1 y Set 2 estén completos (ambos valores válidos)
+    const set1Completo = !isNaN(set1Mis) && !isNaN(set1Rival) && set1Mis >= 0 && set1Rival >= 0 && set1Mis !== set1Rival;
+    const set2Completo = !isNaN(set2Mis) && !isNaN(set2Rival) && set2Mis >= 0 && set2Rival >= 0 && set2Mis !== set2Rival;
+    
+    // Solo proceder si ambos sets están completos
+    if (set1Completo && set2Completo) {
+      const set1GanadoA = set1Mis > set1Rival;
+      const set1GanadoB = set1Rival > set1Mis;
+      const set2GanadoA = set2Mis > set2Rival;
+      const set2GanadoB = set2Rival > set2Mis;
+      const setsGanadosA = (set1GanadoA ? 1 : 0) + (set2GanadoA ? 1 : 0);
+      const setsGanadosB = (set1GanadoB ? 1 : 0) + (set2GanadoB ? 1 : 0);
+      const hayEmpate1a1 = setsGanadosA === 1 && setsGanadosB === 1;
+      
+      const set3Group = document.getElementById('set3-group');
+      if (hayEmpate1a1) {
+        if (set3Group) {
+          set3Group.style.display = 'block';
+          // Restaurar valores guardados si existen
+          const set3MisGuardado = set3Group.getAttribute('data-set3-mis');
+          const set3RivalGuardado = set3Group.getAttribute('data-set3-rival');
+          if (set3MisGuardado) {
+            document.getElementById('input-set3-mis').value = set3MisGuardado;
+          }
+          if (set3RivalGuardado) {
+            document.getElementById('input-set3-rival').value = set3RivalGuardado;
+          }
+          // Asegurar que los event listeners estén activos
+          const inputSet3Mis = document.getElementById('input-set3-mis');
+          const inputSet3Rival = document.getElementById('input-set3-rival');
+          if (inputSet3Mis && !inputSet3Mis.hasAttribute('data-listener-set')) {
+            inputSet3Mis.addEventListener('input', actualizarPreview);
+            inputSet3Mis.setAttribute('data-listener-set', 'true');
+          }
+          if (inputSet3Rival && !inputSet3Rival.hasAttribute('data-listener-set')) {
+            inputSet3Rival.addEventListener('input', actualizarPreview);
+            inputSet3Rival.setAttribute('data-listener-set', 'true');
+          }
+        }
+      } else {
+        if (set3Group) {
+          // Guardar valores antes de ocultar
+          const set3Mis = document.getElementById('input-set3-mis')?.value || '';
+          const set3Rival = document.getElementById('input-set3-rival')?.value || '';
+          if (set3Mis || set3Rival) {
+            set3Group.setAttribute('data-set3-mis', set3Mis);
+            set3Group.setAttribute('data-set3-rival', set3Rival);
+          }
+          set3Group.style.display = 'none';
+        }
+      }
+    } else {
+      // Si Set 2 no está completo, ocultar Set 3
+      const set3Group = document.getElementById('set3-group');
+      if (set3Group) {
+        // Guardar valores antes de ocultar
+        const set3Mis = document.getElementById('input-set3-mis')?.value || '';
+        const set3Rival = document.getElementById('input-set3-rival')?.value || '';
+        if (set3Mis || set3Rival) {
+          set3Group.setAttribute('data-set3-mis', set3Mis);
+          set3Group.setAttribute('data-set3-rival', set3Rival);
+        }
+        set3Group.style.display = 'none';
+      }
+    }
+  };
+  
+  // Función para manejar el botón "Agregar Set 2"
+  manejarAgregarSet2 = () => {
     const set2Group = document.getElementById('set2-group');
     const btnSet2 = document.getElementById('btn-agregar-set2');
     if (set2Group && btnSet2) {
+      // Mostrar Set 2
       set2Group.style.display = 'block';
-      btnSet2.parentElement.remove();
-      // Agregar event listeners a los nuevos inputs
-      document.getElementById('input-set2-mis')?.addEventListener('input', actualizarPreview);
-      document.getElementById('input-set2-rival')?.addEventListener('input', actualizarPreview);
+      
+      // Reemplazar botón "Agregar Set 2" por "Eliminar 2do set"
+      const container = btnSet2.parentElement;
+      container.innerHTML = `
+        <button type="button" class="btn-add-set" id="btn-eliminar-set2">
+          - Eliminar 2do set
+        </button>
+      `;
+      
+      // Agregar event listener al nuevo botón
+      document.getElementById('btn-eliminar-set2')?.addEventListener('click', manejarEliminarSet2);
+      
+      // Asegurar que Set 3 esté oculto inicialmente (solo se mostrará cuando Set 2 esté completo y haya empate)
+      const set3Group = document.getElementById('set3-group');
+      if (set3Group) {
+        set3Group.style.display = 'none';
+      }
+      
+      // Agregar event listeners a los inputs de Set 2
+      document.getElementById('input-set2-mis')?.addEventListener('input', () => {
+        actualizarPreview();
+        actualizarSet3SegunEmpate();
+      });
+      document.getElementById('input-set2-rival')?.addEventListener('input', () => {
+        actualizarPreview();
+        actualizarSet3SegunEmpate();
+      });
+      
       actualizarPreview();
     }
-  });
+  };
   
-  document.getElementById('btn-agregar-set3')?.addEventListener('click', () => {
-    const set3Group = document.getElementById('set3-group');
-    const btnSet3 = document.getElementById('btn-agregar-set3');
-    if (set3Group && btnSet3) {
-      set3Group.style.display = 'block';
-      btnSet3.parentElement.remove();
-      // Agregar event listeners a los nuevos inputs
-      document.getElementById('input-set3-mis')?.addEventListener('input', actualizarPreview);
-      document.getElementById('input-set3-rival')?.addEventListener('input', actualizarPreview);
+  // Función para manejar el botón "Eliminar 2do set"
+  manejarEliminarSet2 = () => {
+    const set2GroupToHide = document.getElementById('set2-group');
+    const set3GroupToHide = document.getElementById('set3-group');
+    const btnEliminar = document.getElementById('btn-eliminar-set2');
+    
+    if (set2GroupToHide && btnEliminar) {
+      // Ocultar Set 2 y Set 3
+      set2GroupToHide.style.display = 'none';
+      if (set3GroupToHide) {
+        set3GroupToHide.style.display = 'none';
+      }
+      
+      // Limpiar valores de Set 2 y Set 3 en los inputs
+      document.getElementById('input-set2-mis').value = '';
+      document.getElementById('input-set2-rival').value = '';
+      if (set3GroupToHide) {
+        // Guardar valores del Set 3 antes de ocultarlo (para restaurarlos después)
+        const set3Mis = document.getElementById('input-set3-mis')?.value || '';
+        const set3Rival = document.getElementById('input-set3-rival')?.value || '';
+        if (set3Mis || set3Rival) {
+          set3GroupToHide.setAttribute('data-set3-mis', set3Mis);
+          set3GroupToHide.setAttribute('data-set3-rival', set3Rival);
+        }
+        document.getElementById('input-set3-mis').value = '';
+        document.getElementById('input-set3-rival').value = '';
+      }
+      
+      // Reemplazar botón "Eliminar 2do set" por "Agregar Set 2"
+      const container = btnEliminar.parentElement;
+      container.innerHTML = `
+        <button type="button" class="btn-add-set" id="btn-agregar-set2">
+          + Agregar Set 2
+        </button>
+      `;
+      
+      // Agregar event listener al nuevo botón
+      document.getElementById('btn-agregar-set2')?.addEventListener('click', manejarAgregarSet2);
+      
       actualizarPreview();
     }
-  });
+  };
+  
+  // Botones para agregar/eliminar sets
+  document.getElementById('btn-agregar-set2')?.addEventListener('click', manejarAgregarSet2);
+  
+  // Asegurar que cualquier botón "Agregar Set 2" creado dinámicamente tenga su event listener
+  // (esto es necesario porque el botón puede crearse en actualizarPreview() antes de que manejarAgregarSet2 esté definida)
+  const asegurarListeners = () => {
+    const botonesAgregar = document.querySelectorAll('#btn-agregar-set2');
+    botonesAgregar.forEach(btn => {
+      // Verificar si ya tiene el listener
+      if (!btn.hasAttribute('data-listener-agregado')) {
+        btn.addEventListener('click', manejarAgregarSet2);
+        btn.setAttribute('data-listener-agregado', 'true');
+      }
+    });
+  };
+  
+  // Ejecutar después de un pequeño delay para asegurar que todas las funciones estén definidas
+  setTimeout(asegurarListeners, 100);
 
   const mostrarError = (mensaje) => {
     const errorDiv = document.getElementById('error-validation');
@@ -1046,10 +1363,23 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit) {
       sets.push({ setA: parseInt(set3Mis), setB: parseInt(set3Rival) });
     }
     
-    // Determinar numSets: si está definido en partido, usarlo; si no, usar cantidad de sets cargados
-    const numSetsFinal = numSets !== null && (numSets === 2 || numSets === 3) 
-      ? numSets 
-      : (sets.length >= 2 ? sets.length : 2); // Mínimo 2 sets
+    // Obtener numSets del partido
+    const numSets = partido.num_sets !== null && partido.num_sets !== undefined 
+      ? partido.num_sets 
+      : null;
+    
+    // Determinar numSets: si está definido en partido (1 o 3), usarlo; si es NULL, inferir de sets cargados
+    let numSetsFinal;
+    if (numSets !== null && (numSets === 1 || numSets === 3)) {
+      numSetsFinal = numSets;
+    } else {
+      // Modo indefinido: inferir del número de sets cargados
+      if (sets.length === 1) {
+        numSetsFinal = 1;
+      } else {
+        numSetsFinal = 3; // Si hay 2 o más sets, es partido a 3 sets
+      }
+    }
     
     // Validar sets
     import('../carga/scores.js').then(({ validarSets }) => {
