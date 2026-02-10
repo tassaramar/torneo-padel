@@ -101,7 +101,7 @@ function renderPosiciones(posicionesCont, grupos, overrides) {
     const thead = document.createElement('thead');
     thead.innerHTML = `
       <tr>
-        <th colspan="8" style="text-align:left; padding:6px 0;">
+        <th colspan="11" style="text-align:left; padding:6px 0;">
           Grupo ${g.nombre}
           ${hayOv ? '<span style="font-size:12px; opacity:0.7; margin-left:6px;">(orden manual)</span>' : ''}
         </th>
@@ -111,6 +111,9 @@ function renderPosiciones(posicionesCont, grupos, overrides) {
         <th title="Partidos jugados" style="border-bottom:1px solid #ddd;">PJ</th>
         <th title="Partidos ganados" style="border-bottom:1px solid #ddd;">PG</th>
         <th title="Partidos perdidos" style="border-bottom:1px solid #ddd;">PP</th>
+        <th title="Sets a favor" style="border-bottom:1px solid #ddd; color: #6366f1;">SF</th>
+        <th title="Sets en contra" style="border-bottom:1px solid #ddd; color: #6366f1;">SC</th>
+        <th title="Diferencia de sets" style="border-bottom:1px solid #ddd; color: #6366f1;">DS</th>
         <th title="Games a favor" style="border-bottom:1px solid #ddd;">GF</th>
         <th title="Games en contra" style="border-bottom:1px solid #ddd;">GC</th>
         <th title="Diferencia de games" style="border-bottom:1px solid #ddd;">DG</th>
@@ -143,11 +146,14 @@ function renderPosiciones(posicionesCont, grupos, overrides) {
       }
       tr.appendChild(tdNombre);
 
-      // Resto de columnas
+      // Resto de columnas (orden: PJ, PG, PP, SF, SC, DS, GF, GC, DG, P)
       const cols = [
         { val: p.PJ },
         { val: p.PG },
         { val: p.PP },
+        { val: p.SF, color: '#6366f1' },
+        { val: p.SC, color: '#6366f1' },
+        { val: p.DS, color: '#6366f1' },
         { val: p.GF },
         { val: p.GC },
         { val: p.DG },
@@ -157,6 +163,9 @@ function renderPosiciones(posicionesCont, grupos, overrides) {
       cols.forEach(col => {
         const td = document.createElement('td');
         td.style.cssText = 'text-align:center; border-bottom:1px solid #f0f0f0;';
+        if (col.color) {
+          td.style.color = col.color;
+        }
         if (col.strong) {
           const strong = document.createElement('strong');
           strong.textContent = col.val;
@@ -183,11 +192,12 @@ export async function cargarPosiciones({ supabase, torneoId, posicionesCont }) {
       .from('partidos')
       .select(`
         id,
-        games_a,
-        games_b,
         estado,
         pareja_a_id,
         pareja_b_id,
+        set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
+        sets_a, sets_b,
+        games_totales_a, games_totales_b,
         grupos ( id, nombre ),
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )

@@ -82,11 +82,11 @@ export async function resetearResultados() {
   logMsg('🧹 Reseteando resultados de partidos...');
   
   // Reset de partidos de GRUPOS
+  // NOTA: games_totales_* y sets_* son derivados calculados por trigger,
+  // se resetean automáticamente cuando se limpian los sets
   const { error: errorGrupos, count: countGrupos } = await supabase
     .from('partidos')
     .update({ 
-      games_a: null, 
-      games_b: null,
       set1_a: null,
       set1_b: null,
       set2_a: null,
@@ -99,8 +99,6 @@ export async function resetearResultados() {
       set2_temp_b: null,
       set3_temp_a: null,
       set3_temp_b: null,
-      resultado_temp_a: null,
-      resultado_temp_b: null,
       estado: 'pendiente',
       cargado_por_pareja_id: null,
       notas_revision: null,

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { agruparEnRondas } from './carga/partidosGrupos.js';
 import { obtenerFrasesUnicas } from './utils/frasesFechaLibre.js';
+import { tieneResultado, formatearResultado, calcularSetsGanados } from './utils/formatoResultado.js';
 import {
   calcularTablaGrupo,
   ordenarConOverrides,
@@ -116,8 +117,11 @@ async function fetchAll() {
     await Promise.all([
       supabase.from('grupos').select('id, nombre').eq('torneo_id', TORNEO_ID).order('nombre'),
       supabase.from('partidos').select(`
-        id, games_a, games_b, estado, ronda,
+        id, estado, ronda,
         set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
+        sets_a, sets_b,
+        games_totales_a, games_totales_b,
+        stb_puntos_a, stb_puntos_b,
         pareja_a_id, pareja_b_id,
         grupos ( id, nombre ),
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
@@ -125,8 +129,11 @@ async function fetchAll() {
       `).eq('torneo_id', TORNEO_ID).is('copa_id', null),
       supabase.from('copas').select('id, nombre, orden').eq('torneo_id', TORNEO_ID).order('orden'),
       supabase.from('partidos').select(`
-        id, games_a, games_b, ronda_copa, orden_copa, copa_id,
+        id, ronda_copa, orden_copa, copa_id,
         set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
+        sets_a, sets_b,
+        games_totales_a, games_totales_b,
+        stb_puntos_a, stb_puntos_b,
         copas ( id, nombre, orden ),
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
@@ -243,7 +250,7 @@ function renderPartidosConRondas(partidos) {
   }
   
   // Detectar si hay fechas libres calculando con Circle Method
-  const partidosConFecha = partidos.filter(p => p.games_a !== null || p.games_b !== null);
+  const partidosConFecha = partidos.filter(p => p.sets_a !== null);
   const rondas = partidosConFecha.length > 0 ? agruparEnRondas(partidosConFecha) : [];
   const totalParejasLibres = rondas.reduce((sum, r) => sum + r.parejasLibres.length, 0);
   const frases = obtenerFrasesUnicas(totalParejasLibres);
@@ -277,7 +284,7 @@ function renderPartidosConRondas(partidos) {
     const ronda = p.ronda || '?';
     const a = p.pareja_a?.nombre ?? '—';
     const b = p.pareja_b?.nombre ?? '—';
-    const jugado = p.games_a !== null && p.games_b !== null;
+    const jugado = tieneResultado(p);
     const esperandoConfirmacion = p.estado === 'a_confirmar';
     const enRevision = p.estado === 'en_revision';
     
@@ -299,7 +306,7 @@ function renderPartidosConRondas(partidos) {
     
     // Renderizar partido
     if (jugado) {
-      const res = `${p.games_a} - ${p.games_b}`;
+      const res = formatearResultado(p);
       html += `
         <div class="viewer-match ${esperandoConfirmacion ? 'viewer-match-esperando' : ''} ${enRevision ? 'viewer-match-revision' : ''}">
           <div class="viewer-match-ronda">R${ronda}</div>
@@ -368,14 +375,14 @@ async function renderGrupos() {
   const partidosDelGrupo = partidosGrupo
     .filter(p => p.grupos?.id === activeGrupoId)
     .sort((a, b) => {
-      const aj = (a.games_a !== null && a.games_b !== null) ? 1 : 0;
-      const bj = (b.games_a !== null && b.games_b !== null) ? 1 : 0;
+      const aj = tieneResultado(a) ? 1 : 0;
+      const bj = tieneResultado(b) ? 1 : 0;
       // pendientes primero
       if (aj !== bj) return aj - bj;
       return (a.id || '').localeCompare(b.id || '');
     });
 
-  const jugados = partidosDelGrupo.filter(p => p.games_a !== null && p.games_b !== null).length;
+  const jugados = partidosDelGrupo.filter(p => tieneResultado(p)).length;
   const total = partidosDelGrupo.length;
 
   const tabla = await computeTablaGrupoConOverrides(activeGrupoId, partidosDelGrupo);
@@ -467,8 +474,8 @@ function renderCopaDirecta(copa, partidos) {
       ${partidos.map(p => {
         const a = p.pareja_a?.nombre ?? '—';
         const b = p.pareja_b?.nombre ?? '—';
-        const jugado = p.games_a !== null && p.games_b !== null;
-        const res = jugado ? `${p.games_a} - ${p.games_b}` : 'Pendiente';
+        const jugado = tieneResultado(p);
+        const res = jugado ? formatearResultado(p) : 'Pendiente';
         const pending = !jugado;
         
         return `
@@ -503,16 +510,16 @@ function renderBracketTradicional(partidos) {
             title: 'Semi 1',
             aName: sf1.pareja_a?.nombre,
             bName: sf1.pareja_b?.nombre,
-            aScore: sf1.games_a,
-            bScore: sf1.games_b
+            aScore: sf1.sets_a,
+            bScore: sf1.sets_b
           }) : `<div class="bracket-empty">Sin Semi 1</div>`}
 
           ${sf2 ? matchCard({
             title: 'Semi 2',
             aName: sf2.pareja_a?.nombre,
             bName: sf2.pareja_b?.nombre,
-            aScore: sf2.games_a,
-            bScore: sf2.games_b
+            aScore: sf2.sets_a,
+            bScore: sf2.sets_b
           }) : `<div class="bracket-empty">Sin Semi 2</div>`}
         </div>
 
@@ -522,8 +529,8 @@ function renderBracketTradicional(partidos) {
             title: 'Final',
             aName: fin.pareja_a?.nombre,
             bName: fin.pareja_b?.nombre,
-            aScore: fin.games_a,
-            bScore: fin.games_b
+            aScore: fin.sets_a,
+            bScore: fin.sets_b
           }) : `<div class="bracket-empty">Todavía no hay Final</div>`}
         </div>
 
@@ -533,8 +540,8 @@ function renderBracketTradicional(partidos) {
             title: '3° Puesto',
             aName: p3.pareja_a?.nombre,
             bName: p3.pareja_b?.nombre,
-            aScore: p3.games_a,
-            bScore: p3.games_b
+            aScore: p3.sets_a,
+            bScore: p3.sets_b
           }) : `<div class="bracket-empty">Todavía no hay 3° Puesto</div>`}
         </div>
       </div>
@@ -546,7 +553,7 @@ function renderBracketTradicional(partidos) {
         ${partidos.length ? partidos.map(p => {
           const a = p.pareja_a?.nombre ?? '—';
           const b = p.pareja_b?.nombre ?? '—';
-          const res = (p.games_a === null || p.games_b === null) ? 'Pendiente' : `${p.games_a} - ${p.games_b}`;
+          const res = tieneResultado(p) ? formatearResultado(p) : 'Pendiente';
           return `
             <div class="viewer-match">
               <div class="viewer-match-names">${labelRonda(p.ronda_copa)} · ${a} <span class="vs">vs</span> ${b}</div>

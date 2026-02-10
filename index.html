@@ -2,34 +2,44 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Torneo de Padel - Mis Partidos</title>
+  <title>Torneo de Padel</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
   <link rel="stylesheet" href="/style.css" />
 </head>
 
 <body>
-  <div class="viewer-shell">
-    <!-- Header -->
-    <div class="viewer-header">
-      <h1 class="viewer-title">Torneo de Padel</h1>
-      <div class="viewer-subtitle">Mis Partidos</div>
+  <!-- Home Único: todo se renderiza dinámicamente -->
+  <div class="home-shell" id="home-shell">
+    <div id="home-content">
+      <!-- Se inyecta dinámicamente:
+        1. Quién soy (header + presentismo)
+        2. Mis partidos pendientes
+        3. Dashboard
+        4. Acciones con contador
+        5. Botón consulta (abre modal)
+      -->
     </div>
-
-    <!-- Contenedor para card de identidad (se inyecta dinámicamente) -->
-    <div id="viewer-identity-container"></div>
-
-    <!-- Botones de acción principales (grandes, táctiles) -->
-    <div class="viewer-main-actions">
-      <div id="viewer-nav-buttons" class="viewer-nav-slot">
-        <!-- Botón "Ver todos los grupos" dinámico -->
-      </div>
-      <div id="viewer-status" class="viewer-status-text"></div>
-    </div>
-
-    <div class="tabs" id="tabs-main"></div>
-    <div id="viewer-content"></div>
   </div>
+
+  <!-- Modal full-screen para consultas (Tablas/Grupos/Fixture) -->
+  <div id="modal-consulta" class="modal-fullscreen" style="display: none;">
+    <div class="modal-fullscreen-content">
+      <div class="modal-fullscreen-header">
+        <h2 class="modal-fullscreen-title">Consultar</h2>
+        <button type="button" class="modal-fullscreen-close" id="modal-close-btn" aria-label="Cerrar">✕</button>
+      </div>
+      <div class="modal-fullscreen-tabs" id="modal-tabs">
+        <!-- Tabs: Mi grupo | Otros grupos | Fixture -->
+      </div>
+      <div class="modal-fullscreen-body" id="modal-body">
+        <!-- Contenido dinámico -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Estado de actualización -->
+  <div id="home-status" class="home-status"></div>
 
   <script type="module" src="/src/personal.js"></script>
 </body>

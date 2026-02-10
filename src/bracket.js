@@ -67,8 +67,10 @@ async function fetchData() {
       copa_id,
       ronda_copa,
       orden_copa,
-      games_a,
-      games_b,
+      sets_a,
+      sets_b,
+      games_totales_a,
+      games_totales_b,
       pareja_a:parejas!partidos_pareja_a_id_fkey ( nombre ),
       pareja_b:parejas!partidos_pareja_b_id_fkey ( nombre )
     `)
@@ -124,9 +126,9 @@ function render({ copas, partidos }) {
                     title: `Semi 1`,
                     aName: sf1.pareja_a?.nombre,
                     bName: sf1.pareja_b?.nombre,
-                    aScore: sf1.games_a,
-                    bScore: sf1.games_b,
-                    winnerSide: winnerSideFromScores(sf1.games_a, sf1.games_b),
+                    aScore: sf1.sets_a,
+                    bScore: sf1.sets_b,
+                    winnerSide: winnerSideFromScores(sf1.sets_a, sf1.sets_b),
                   })
                 : `<div class="bracket-empty">Sin Semi 1</div>`
             }
@@ -136,9 +138,9 @@ function render({ copas, partidos }) {
                     title: `Semi 2`,
                     aName: sf2.pareja_a?.nombre,
                     bName: sf2.pareja_b?.nombre,
-                    aScore: sf2.games_a,
-                    bScore: sf2.games_b,
-                    winnerSide: winnerSideFromScores(sf2.games_a, sf2.games_b),
+                    aScore: sf2.sets_a,
+                    bScore: sf2.sets_b,
+                    winnerSide: winnerSideFromScores(sf2.sets_a, sf2.sets_b),
                   })
                 : `<div class="bracket-empty">Sin Semi 2</div>`
             }
@@ -152,9 +154,9 @@ function render({ copas, partidos }) {
                     title: `Final`,
                     aName: fin.pareja_a?.nombre,
                     bName: fin.pareja_b?.nombre,
-                    aScore: fin.games_a,
-                    bScore: fin.games_b,
-                    winnerSide: winnerSideFromScores(fin.games_a, fin.games_b),
+                    aScore: fin.sets_a,
+                    bScore: fin.sets_b,
+                    winnerSide: winnerSideFromScores(fin.sets_a, fin.sets_b),
                   })
                 : `<div class="bracket-empty">Todavía no hay Final</div>`
             }
@@ -168,9 +170,9 @@ function render({ copas, partidos }) {
                     title: `3/4`,
                     aName: p3.pareja_a?.nombre,
                     bName: p3.pareja_b?.nombre,
-                    aScore: p3.games_a,
-                    bScore: p3.games_b,
-                    winnerSide: winnerSideFromScores(p3.games_a, p3.games_b),
+                    aScore: p3.sets_a,
+                    bScore: p3.sets_b,
+                    winnerSide: winnerSideFromScores(p3.sets_a, p3.sets_b),
                   })
                 : `<div class="bracket-empty">Todavía no hay 3° Puesto</div>`
             }

@@ -1,38 +1,58 @@
 /**
  * Módulo centralizado para cálculo de tablas de posiciones
  * 
+ * MODELO DE DATOS (nuevo):
+ * - Fuente de verdad: set1_*, set2_*, set3_*, num_sets
+ * - Derivados (BD): sets_a/sets_b, games_totales_a/games_totales_b
+ * 
+ * Estadísticas por pareja:
+ * - PJ: Partidos jugados
+ * - PG: Partidos ganados
+ * - PP: Partidos perdidos
+ * - SF: Sets a favor
+ * - SC: Sets en contra
+ * - DS: Diferencia de sets (SF - SC)
+ * - GF: Games a favor (totales)
+ * - GC: Games en contra (totales)
+ * - DG: Diferencia de games (GF - GC)
+ * - P: Puntos
+ * 
  * Criterios de ordenamiento:
  * 1. Puntos (P) - descendente
- * 2. Diferencia de games (DG) - descendente
- * 3. Games a favor (GF) - descendente
- * 4. Enfrentamiento directo - si se enfrentaron, la ganadora primero
- * 5. Nombre alfabético - desempate final
+ * 2. Diferencia de sets (DS) - descendente
+ * 3. Diferencia de games (DG) - descendente
+ * 4. Games a favor (GF) - descendente
+ * 5. Enfrentamiento directo - si se enfrentaron, la ganadora primero
+ * 6. Nombre alfabético - desempate final
  * 
- * Overrides manuales: Solo se aplican cuando hay empate real (mismo P, DG, GF, sin enfrentamiento directo)
- * 
- * Puntos configurables:
- * - PUNTOS_POR_VICTORIA: Puntos que se otorgan al ganador (por defecto: 2)
- * - PUNTOS_POR_DERROTA: Puntos que se otorgan al perdedor (por defecto: 1)
- * 
- * TODO: En el futuro, estos valores se leerán de la configuración del torneo en la BD
+ * Overrides manuales: Solo se aplican cuando hay empate real
  */
 
+import { 
+  tieneResultado, 
+  calcularSetsGanados, 
+  calcularGamesTotales,
+  determinarGanador 
+} from './formatoResultado.js';
+
 // Configuración de puntos (por defecto)
-// TODO: En el futuro, estos valores se leerán de la tabla torneos o una tabla de configuración
 export const PUNTOS_POR_VICTORIA = 2;
 export const PUNTOS_POR_DERROTA = 1;
 
 /**
  * Valida si un partido cuenta para la tabla de posiciones
+ * @param {Object} partido - Objeto del partido
+ * @returns {boolean}
  */
 export function esPartidoValido(partido) {
-  return (partido.estado === 'confirmado' || partido.estado === 'a_confirmar') &&
-         partido.games_a !== null && 
-         partido.games_b !== null;
+  // Estado válido + tiene resultado cargado
+  const estadoValido = partido.estado === 'confirmado' || partido.estado === 'a_confirmar';
+  return estadoValido && tieneResultado(partido);
 }
 
 /**
- * Calcula las estadísticas básicas de una pareja desde los partidos
+ * Calcula las estadísticas de una pareja desde los partidos
+ * Incluye Sets (SF/SC/DS) y Games (GF/GC/DG)
  * @param {string} parejaId - ID de la pareja
  * @param {Array} partidos - Array de partidos
  * @param {Object} configPuntos - Configuración de puntos { victoria: number, derrota: number }
@@ -43,14 +63,17 @@ function calcularEstadisticasPareja(parejaId, partidos, configPuntos = {}) {
 
   const stats = {
     pareja_id: parejaId,
-    nombre: null, // Se completa después
-    PJ: 0,
-    PG: 0,
-    PP: 0,
-    GF: 0,
-    GC: 0,
-    DG: 0,
-    P: 0
+    nombre: null,
+    PJ: 0,   // Partidos jugados
+    PG: 0,   // Partidos ganados
+    PP: 0,   // Partidos perdidos
+    SF: 0,   // Sets a favor
+    SC: 0,   // Sets en contra
+    DS: 0,   // Diferencia de sets
+    GF: 0,   // Games a favor (totales)
+    GC: 0,   // Games en contra (totales)
+    DG: 0,   // Diferencia de games
+    P: 0     // Puntos
   };
 
   for (const p of partidos) {
@@ -61,34 +84,47 @@ function calcularEstadisticasPareja(parejaId, partidos, configPuntos = {}) {
 
     if (!esParejaA && !esParejaB) continue;
 
-    const ga = Number(p.games_a);
-    const gb = Number(p.games_b);
+    // Obtener sets y games (desde derivados o calculados)
+    const { setsA, setsB } = calcularSetsGanados(p);
+    const { gamesTotalesA, gamesTotalesB } = calcularGamesTotales(p);
 
     stats.PJ += 1;
 
     if (esParejaA) {
-      stats.GF += ga;
-      stats.GC += gb;
-      if (ga > gb) {
+      // Soy pareja A
+      stats.SF += setsA;
+      stats.SC += setsB;
+      stats.GF += gamesTotalesA;
+      stats.GC += gamesTotalesB;
+      
+      // Determinar ganador para puntos
+      const ganador = determinarGanador(p);
+      if (ganador === 'a') {
         stats.P += puntosVictoria;
         stats.PG += 1;
-      } else if (gb > ga) {
+      } else if (ganador === 'b') {
         stats.P += puntosDerrota;
         stats.PP += 1;
       }
     } else {
-      stats.GF += gb;
-      stats.GC += ga;
-      if (gb > ga) {
+      // Soy pareja B
+      stats.SF += setsB;
+      stats.SC += setsA;
+      stats.GF += gamesTotalesB;
+      stats.GC += gamesTotalesA;
+      
+      const ganador = determinarGanador(p);
+      if (ganador === 'b') {
         stats.P += puntosVictoria;
         stats.PG += 1;
-      } else if (ga > gb) {
+      } else if (ganador === 'a') {
         stats.P += puntosDerrota;
         stats.PP += 1;
       }
     }
   }
 
+  stats.DS = stats.SF - stats.SC;
   stats.DG = stats.GF - stats.GC;
   return stats;
 }
@@ -110,45 +146,50 @@ export function obtenerEnfrentamientoDirecto(parejaAId, parejaBId, partidos) {
 
     if (!esEnfrentamiento) continue;
 
-    const ga = Number(p.games_a);
-    const gb = Number(p.games_b);
-
-    // Determinar quién ganó según el orden del partido
-    if (idA === parejaAId && idB === parejaBId) {
-      if (ga > gb) return 'ganaA';
-      if (gb > ga) return 'ganaB';
-    } else {
-      if (gb > ga) return 'ganaA';
-      if (ga > gb) return 'ganaB';
+    // Usar determinarGanador que trabaja con sets
+    const ganador = determinarGanador(p);
+    
+    if (ganador === 'a') {
+      // Ganó pareja A del partido
+      if (idA === parejaAId) return 'ganaA';
+      return 'ganaB';
+    } else if (ganador === 'b') {
+      // Ganó pareja B del partido
+      if (idB === parejaAId) return 'ganaA';
+      return 'ganaB';
     }
 
-    return null; // Empate en games (no debería pasar)
+    return null; // Empate (no debería pasar)
   }
 
   return null; // No se enfrentaron
 }
 
 /**
- * Compara dos parejas considerando enfrentamiento directo
+ * Compara dos parejas para ordenamiento
+ * Orden: P → DS → DG → GF → H2H → Nombre
  */
 function compararParejas(a, b, partidos) {
   // 1. Puntos (P) - descendente
   if (b.P !== a.P) return b.P - a.P;
 
-  // 2. Diferencia de games (DG) - descendente
+  // 2. Diferencia de sets (DS) - descendente
+  if (b.DS !== a.DS) return b.DS - a.DS;
+
+  // 3. Diferencia de games (DG) - descendente
   if (b.DG !== a.DG) return b.DG - a.DG;
 
-  // 3. Games a favor (GF) - descendente
+  // 4. Games a favor (GF) - descendente
   if (b.GF !== a.GF) return b.GF - a.GF;
 
-  // 4. Enfrentamiento directo
+  // 5. Enfrentamiento directo
   if (partidos) {
     const enfrentamiento = obtenerEnfrentamientoDirecto(a.pareja_id, b.pareja_id, partidos);
     if (enfrentamiento === 'ganaA') return -1; // A antes que B
     if (enfrentamiento === 'ganaB') return 1;  // B antes que A
   }
 
-  // 5. Nombre alfabético - desempate final
+  // 6. Nombre alfabético - desempate final
   return String(a.nombre || '').localeCompare(String(b.nombre || ''));
 }
 
@@ -239,15 +280,16 @@ export async function cargarOverrides(supabase, torneoId, grupoId) {
 }
 
 /**
- * Detecta si dos parejas están en empate real (mismo P, DG, GF, sin enfrentamiento directo)
+ * Detecta si dos parejas están en empate real
+ * Empate real = mismo P, DS, DG, GF, sin enfrentamiento directo
  */
 function esEmpateReal(a, b, partidos) {
-  if (a.P !== b.P || a.DG !== b.DG || a.GF !== b.GF) return false;
+  if (a.P !== b.P || a.DS !== b.DS || a.DG !== b.DG || a.GF !== b.GF) return false;
   
-  // Si se enfrentaron, no es empate real (el enfrentamiento ya desempata)
+  // Si se enfrentaron, no es empate real
   if (partidos) {
     const enfrentamiento = obtenerEnfrentamientoDirecto(a.pareja_id, b.pareja_id, partidos);
-    if (enfrentamiento !== null) return false; // Hay enfrentamiento, no es empate
+    if (enfrentamiento !== null) return false;
   }
   
   return true;
@@ -255,7 +297,6 @@ function esEmpateReal(a, b, partidos) {
 
 /**
  * Aplica overrides SOLO en caso de empate real
- * Overrides solo se aplican cuando hay empate (mismo P, DG, GF, sin enfrentamiento directo)
  */
 export function ordenarConOverrides(tabla, overridesMap, partidos) {
   if (!overridesMap || Object.keys(overridesMap).length === 0) {
@@ -275,13 +316,11 @@ export function ordenarConOverrides(tabla, overridesMap, partidos) {
     const grupo = [i];
     const parejaActual = tablaOrdenada[i];
 
-    // Buscar otras parejas en empate real con esta
     for (let j = i + 1; j < tablaOrdenada.length; j++) {
       if (procesados.has(j)) continue;
 
       const parejaComparar = tablaOrdenada[j];
       
-      // Si no están empatadas, no puede haber más en el grupo
       if (!esEmpateReal(parejaActual, parejaComparar, partidos)) {
         break;
       }
@@ -302,7 +341,6 @@ export function ordenarConOverrides(tabla, overridesMap, partidos) {
   gruposEmpate.forEach(grupo => {
     const parejasEnGrupo = grupo.map(idx => tablaOrdenada[idx]);
     
-    // Separar las que tienen override de las que no
     const conOverride = [];
     const sinOverride = [];
 
@@ -314,22 +352,18 @@ export function ordenarConOverrides(tabla, overridesMap, partidos) {
       }
     });
 
-    // Ordenar las que tienen override por orden_manual
     conOverride.sort((a, b) => a.orden - b.orden);
 
-    // Reconstruir el grupo: primero las con override, luego las sin override
     const grupoOrdenado = [
       ...conOverride.map(x => x.pareja),
       ...sinOverride
     ];
 
-    // Aplicar el nuevo orden en el resultado
     grupo.forEach((idxOriginal, posEnGrupo) => {
       const nuevaPareja = grupoOrdenado[posEnGrupo];
       const idxNuevo = resultado.findIndex(p => p.pareja_id === nuevaPareja.pareja_id);
       
       if (idxNuevo !== -1 && idxNuevo !== idxOriginal) {
-        // Intercambiar posiciones
         [resultado[idxOriginal], resultado[idxNuevo]] = 
           [resultado[idxNuevo], resultado[idxOriginal]];
       }
@@ -340,30 +374,28 @@ export function ordenarConOverrides(tabla, overridesMap, partidos) {
 }
 
 /**
- * Detecta empates reales considerando enfrentamiento directo y overrides
+ * Detecta empates reales considerando todos los criterios
  */
 export function detectarEmpatesReales(tabla, partidos, overridesMap = {}) {
-  // Asegurar que overridesMap sea un objeto, no null
   const ovMap = overridesMap || {};
   
   const buckets = new Map();
   
   for (const r of tabla) {
-    // Clave: P|DG|GF
-    const key = `${r.P}|${r.DG}|${r.GF}`;
+    // Clave: P|DS|DG|GF (todos los criterios antes de H2H)
+    const key = `${r.P}|${r.DS}|${r.DG}|${r.GF}`;
     
     if (!buckets.has(key)) buckets.set(key, []);
     buckets.get(key).push(r);
   }
 
-  // Colores para diferentes grupos de empate
   const colors = [
-    { bg: '#fff3cd', border: '#d39e00' }, // Amarillo
-    { bg: '#e3f2fd', border: '#1976d2' }, // Azul
-    { bg: '#e8f5e9', border: '#43a047' }, // Verde
-    { bg: '#fce4ec', border: '#c2185b' }, // Rosa
-    { bg: '#f3e5f5', border: '#7b1fa2' }, // Púrpura
-    { bg: '#fff8e1', border: '#f57c00' }, // Naranja claro
+    { bg: '#fff3cd', border: '#d39e00' },
+    { bg: '#e3f2fd', border: '#1976d2' },
+    { bg: '#e8f5e9', border: '#43a047' },
+    { bg: '#fce4ec', border: '#c2185b' },
+    { bg: '#f3e5f5', border: '#7b1fa2' },
+    { bg: '#fff8e1', border: '#f57c00' },
   ];
 
   const tieGroups = [];
@@ -374,12 +406,10 @@ export function detectarEmpatesReales(tabla, partidos, overridesMap = {}) {
   for (const arr of buckets.values()) {
     if (arr.length < 2) continue;
 
-    // Filtrar: solo considerar empates reales (sin enfrentamiento directo)
     const empatesReales = [];
     for (let i = 0; i < arr.length; i++) {
-      let esEmpateReal = true;
+      let esEmpate = true;
       
-      // Verificar si tiene enfrentamiento directo con alguna otra del grupo
       for (let j = 0; j < arr.length; j++) {
         if (i === j) continue;
         
@@ -390,17 +420,16 @@ export function detectarEmpatesReales(tabla, partidos, overridesMap = {}) {
         );
         
         if (enfrentamiento !== null) {
-          esEmpateReal = false;
+          esEmpate = false;
           break;
         }
       }
       
-      // Verificar si tiene override aplicado (ya está resuelto)
       if (ovMap[arr[i].pareja_id] !== undefined) {
-        esEmpateReal = false;
+        esEmpate = false;
       }
       
-      if (esEmpateReal) {
+      if (esEmpate) {
         empatesReales.push(arr[i]);
       }
     }

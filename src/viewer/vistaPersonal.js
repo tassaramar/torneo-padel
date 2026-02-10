@@ -1,11 +1,24 @@
 /**
  * Vista personalizada para parejas identificadas
- * Muestra partidos filtrados por pareja con estados de confirmación
+ * HOME ÚNICO: Todo se opera desde un solo lugar
+ * 
+ * Layout:
+ * 1. Quién soy (header + presentismo)
+ * 2. Mis partidos pendientes
+ * 3. Dashboard
+ * 4. Acciones con contador (disputas/confirmaciones)
+ * 5. Botón consulta (abre modal)
  */
 
 import { getMensajeResultado } from '../utils/mensajesResultado.js';
 import { obtenerFrasesUnicas } from '../utils/frasesFechaLibre.js';
-import { formatearResultado, tieneResultado } from '../utils/formatoResultado.js';
+import { 
+  formatearResultado, 
+  tieneResultado, 
+  calcularSetsGanados,
+  determinarGanador,
+  determinarGanadorParaPareja 
+} from '../utils/formatoResultado.js';
 import {
   calcularTablaGrupo as calcularTablaGrupoCentral,
   ordenarConOverrides,
@@ -14,6 +27,22 @@ import {
   agregarMetadataOverrides,
   ordenarTabla
 } from '../utils/tablaPosiciones.js';
+import {
+  calcularColaSugerida,
+  crearMapaPosiciones
+} from '../utils/colaFixture.js';
+import { 
+  initPresentismo,
+  obtenerPresentes,
+  marcarPresente,
+  desmarcarPresente,
+  marcarAmbosPresentes,
+  desmarcarTodos,
+  estadoPresentismo,
+  parejaCompleta,
+  toastYaVisto,
+  marcarToastVisto
+} from './presentismo.js';
 
 export async function cargarVistaPersonalizada(supabase, torneoId, identidad, onChangePareja, onVerTodos) {
   try {
@@ -22,6 +51,15 @@ export async function cargarVistaPersonalizada(supabase, torneoId, identidad, on
       console.warn('Identidad sin grupo, usando grupo por defecto');
       identidad.grupo = '?';
     }
+
+    // Cargar configuración del torneo (presentismo_activo)
+    const { data: torneo, error: torneoError } = await supabase
+      .from('torneos')
+      .select('presentismo_activo')
+      .eq('id', torneoId)
+      .single();
+    
+    const presentismoActivo = torneo?.presentismo_activo ?? true; // Default true si no existe
 
     // Fetch grupos del torneo
     const { data: grupos, error: gruposError } = await supabase
@@ -65,6 +103,43 @@ export async function cargarVistaPersonalizada(supabase, torneoId, identidad, on
       };
     }
     
+    // === PRESENTISMO ===
+    // Solo procesar si el presentismo está activo para este torneo
+    let mostrarToast = false;
+    let toastMensaje = '';
+    let estadoPresentes = { estado: 'completo', yoPresente: true, companeroPresente: true };
+    
+    if (presentismoActivo) {
+      // Inicializar módulo y cargar estado
+      initPresentismo(supabase);
+      
+      // Obtener presentes actuales de la BD
+      const presentes = await obtenerPresentes(identidad.parejaId);
+      estadoPresentes = estadoPresentismo(presentes, identidad.miNombre, identidad.companero);
+      
+      // Auto-marcar SOLO si:
+      // 1. No está presente
+      // 2. Nunca fue auto-marcado antes (toast no visto)
+      // Si ya vio el toast pero no está presente = se desmarcó voluntariamente, respetar
+      const yaFueAutoMarcado = toastYaVisto(torneoId, identidad.parejaId);
+      
+      if (!estadoPresentes.yoPresente && !yaFueAutoMarcado) {
+        // Primera vez: marcar automáticamente
+        await marcarPresente(identidad.parejaId, identidad.miNombre);
+        mostrarToast = true;
+        
+        if (estadoPresentes.companeroPresente) {
+          toastMensaje = `✅ ¡Ya diste el presente! ${identidad.companero} también llegó.`;
+        } else {
+          toastMensaje = `✅ ¡Ya diste el presente! ¿${identidad.companero} ya llegó?`;
+        }
+        
+        // Actualizar estado después de marcarse
+        estadoPresentes.yoPresente = true;
+        estadoPresentes.estado = estadoPresentes.companeroPresente ? 'completo' : 'solo_yo';
+      }
+    }
+    
     // Filtrar parejas del mismo grupo
     const miGrupo = identidad.grupo;
     const parejasDelGrupo = parejasConGrupo.filter(p => p.grupo === miGrupo);
@@ -74,15 +149,17 @@ export async function cargarVistaPersonalizada(supabase, torneoId, identidad, on
     const { data: misPartidos, error } = await supabase
       .from('partidos')
       .select(`
-        id, games_a, games_b, estado, updated_at, ronda,
+        id, estado, updated_at, ronda,
         cargado_por_pareja_id,
-        resultado_temp_a, resultado_temp_b,
         notas_revision,
         grupo_id,
         pareja_a_id,
         pareja_b_id,
         set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
         set1_temp_a, set1_temp_b, set2_temp_a, set2_temp_b, set3_temp_a, set3_temp_b,
+        sets_a, sets_b,
+        games_totales_a, games_totales_b,
+        stb_puntos_a, stb_puntos_b,
         grupos ( id, nombre ),
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre ),
@@ -100,8 +177,8 @@ export async function cargarVistaPersonalizada(supabase, torneoId, identidad, on
         pareja_a_id: misPartidos[0].pareja_a_id,
         pareja_b_id: misPartidos[0].pareja_b_id,
         estado: misPartidos[0].estado,
-        games_a: misPartidos[0].games_a,
-        games_b: misPartidos[0].games_b
+        sets_a: misPartidos[0].sets_a,
+        sets_b: misPartidos[0].sets_b
       });
     }
     
@@ -110,25 +187,33 @@ export async function cargarVistaPersonalizada(supabase, torneoId, identidad, on
       throw error;
     }
     
+    // Fetch TODOS los partidos del torneo para calcular la cola global
+    const { data: todosPartidosTorneo } = await supabase
+      .from('partidos')
+      .select(`
+        id, ronda, estado,
+        grupo_id,
+        pareja_a_id,
+        pareja_b_id,
+        set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
+        sets_a, sets_b,
+        games_totales_a, games_totales_b,
+        grupos ( id, nombre ),
+        pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
+        pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
+      `)
+      .eq('torneo_id', torneoId)
+      .is('copa_id', null);
+    
+    // Calcular cola global y mapa de posiciones
+    const colaGlobal = calcularColaSugerida(todosPartidosTorneo || [], grupos || []);
+    const mapaPosiciones = crearMapaPosiciones(colaGlobal);
+    console.log('[vistaPersonal] Cola global calculada:', colaGlobal.length, 'partidos pendientes');
+    
     // Fetch TODOS los partidos del grupo para calcular fechas libres
     const grupoId = grupos?.find(g => g.nombre === miGrupo)?.id;
     console.log('[vistaPersonal] Grupo encontrado:', miGrupo, 'grupoId:', grupoId);
-    const { data: todosPartidosGrupo } = grupoId
-      ? await supabase
-          .from('partidos')
-          .select(`
-            id, games_a, games_b, ronda, estado,
-            grupo_id,
-            pareja_a_id,
-            pareja_b_id,
-            grupos ( nombre ),
-            pareja_a:parejas!partidos_pareja_a_id_fkey ( nombre ),
-            pareja_b:parejas!partidos_pareja_b_id_fkey ( nombre )
-          `)
-          .eq('torneo_id', torneoId)
-          .is('copa_id', null)
-          .eq('grupo_id', grupoId)
-      : { data: [] };
+    const todosPartidosGrupo = (todosPartidosTorneo || []).filter(p => p.grupo_id === grupoId);
     
     console.log('[vistaPersonal] Partidos del grupo:', todosPartidosGrupo?.length || 0);
 
@@ -148,8 +233,21 @@ export async function cargarVistaPersonalizada(supabase, torneoId, identidad, on
       confirmados: partidos.confirmados.length
     });
 
+    // Datos de presentismo para la vista
+    const presentismoData = {
+      activo: presentismoActivo,
+      presentes: estadoPresentes.yoPresente ? 
+        (estadoPresentes.companeroPresente ? [identidad.miNombre, identidad.companero] : [identidad.miNombre]) :
+        (estadoPresentes.companeroPresente ? [identidad.companero] : []),
+      estado: estadoPresentes.estado,
+      yoPresente: estadoPresentes.yoPresente,
+      companeroPresente: estadoPresentes.companeroPresente,
+      mostrarToast,
+      toastMensaje
+    };
+
     // Renderizar vista
-    renderVistaPersonal(identidad, partidos, await estadisticas, tablaGrupo, todosPartidosGrupo || [], onChangePareja, onVerTodos);
+    renderVistaPersonal(identidad, partidos, await estadisticas, tablaGrupo, todosPartidosGrupo || [], onChangePareja, onVerTodos, torneoId, presentismoData, mapaPosiciones);
 
     return { ok: true, partidos };
   } catch (error) {
@@ -189,14 +287,14 @@ async function calcularEstadisticas(partidos, identidad, supabase, torneoId) {
   // Partidos jugados (confirmados o a_confirmar, NO en_revision)
   const partidosContabilizados = partidos.filter(p => 
     (p.estado === 'confirmado' || p.estado === 'a_confirmar') && 
-    p.games_a !== null && p.games_b !== null
+    tieneResultado(p)
   );
 
   const partidosJugados = partidosContabilizados.length;
 
   // Partidos por jugar (pendientes)
   const partidosPorJugar = partidos.filter(p => 
-    p.estado === 'pendiente' || p.games_a === null || p.games_b === null
+    p.estado === 'pendiente' || !tieneResultado(p)
   ).length;
 
   // Calcular posición en la tabla
@@ -235,8 +333,11 @@ async function calcularPosicionEnTabla(supabase, torneoId, identidad) {
     const { data: todosPartidos } = await supabase
       .from('partidos')
       .select(`
-        id, games_a, games_b, estado,
+        id, estado,
         pareja_a_id, pareja_b_id,
+        set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
+        sets_a, sets_b,
+        games_totales_a, games_totales_b,
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
       `)
@@ -325,8 +426,11 @@ async function calcularTablaGrupo(supabase, torneoId, identidad, parejasDelGrupo
     const { data: partidosGrupo } = await supabase
       .from('partidos')
       .select(`
-        id, games_a, games_b, estado,
+        id, estado,
         pareja_a_id, pareja_b_id,
+        set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
+        sets_a, sets_b,
+        games_totales_a, games_totales_b,
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre ),
         grupos ( nombre )
@@ -399,173 +503,554 @@ async function calcularTablaGrupo(supabase, torneoId, identidad, parejasDelGrupo
 }
 
 /**
- * Renderiza la vista personalizada completa
+ * Renderiza el Home Único completo
+ * Layout: Quién soy → Partidos pendientes → Dashboard → Acciones con contador → Botón consulta
  */
-function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todosPartidosGrupo, onChangePareja, onVerTodos) {
-  const contentEl = document.getElementById('viewer-content');
+function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todosPartidosGrupo, onChangePareja, onVerTodos, torneoId, presentismoData, mapaPosiciones) {
+  const contentEl = document.getElementById('home-content');
   if (!contentEl) {
-    console.error('[vistaPersonal] No se encontró #viewer-content en el DOM');
+    console.error('[vistaPersonal] No se encontró #home-content en el DOM');
     return;
   }
-  console.log('[vistaPersonal] Renderizando vista para:', identidad.parejaNombre);
+  console.log('[vistaPersonal] Renderizando Home Único para:', identidad.parejaNombre);
 
-  const totalPendientes = partidos.enRevision.length + partidos.porConfirmar.length;
-  
-  // Guardar todosPartidosGrupo en un lugar accesible para renderPartidosCargar
+  // Guardar datos para uso interno
   renderVistaPersonal._todosPartidosGrupo = todosPartidosGrupo;
+  renderVistaPersonal._torneoId = torneoId;
+  renderVistaPersonal._identidad = identidad;
+  renderVistaPersonal._mapaPosiciones = mapaPosiciones;
+  
+  // Calcular contadores
+  const countDisputas = partidos.enRevision.length;
+  const countConfirmaciones = partidos.porConfirmar.length;
+  
+  // Estado de presentismo (desde BD)
+  const { activo: presentismoActivo, yoPresente, companeroPresente, mostrarToast, toastMensaje } = presentismoData;
+  // Si presentismo está desactivado, consideramos pareja completa (no bloquea partidos)
+  const parejaEstaCompleta = !presentismoActivo || (yoPresente && companeroPresente);
+  
+  // Preservar estado del panel si el usuario lo abrió manualmente
+  const panelKey = `presentismo_panel_${torneoId}_${identidad.parejaId}`;
+  const usuarioAbrioPanel = sessionStorage.getItem(panelKey) === 'open';
+  // Por defecto: cerrado si pareja completa, abierto si falta alguien
+  // Pero si el usuario lo abrió manualmente, respetar eso
+  const panelAbierto = usuarioAbrioPanel || (!parejaEstaCompleta && presentismoActivo);
+  
+  // Ordenar partidos pendientes por orden global del fixture (ronda)
+  const partidosPendientesOrdenados = [
+    ...partidos.porCargar
+  ].sort((a, b) => (a.ronda || 999) - (b.ronda || 999));
   
   contentEl.innerHTML = `
-    <div class="vista-personal">
-      <!-- Header personalizado - GRANDE para +40 -->
-      <div class="personal-header">
-        <div class="personal-info">
-          <h1 class="personal-title">${escapeHtml(identidad.parejaNombre)}</h1>
-          <div class="personal-meta">Grupo ${escapeHtml(identidad.grupo)}</div>
-          <button class="personal-change-link" id="btn-change-pareja" type="button">
-            ¿No sos vos?
+    <!-- Toast de presentismo (aparece y se anima hacia el header) -->
+    ${mostrarToast && presentismoActivo ? `
+      <div class="presentismo-toast" id="presentismo-toast">
+        <span class="toast-mensaje">${toastMensaje}</span>
+        ${!companeroPresente ? `
+          <button type="button" class="toast-btn" id="toast-marcar-companero">
+            Marcalo →
           </button>
-        </div>
+        ` : ''}
       </div>
-
-      <!-- Dashboard de estadísticas -->
-      <div class="dashboard">
-        ${estadisticas.posicion ? `
-          <div class="stat-card stat-position">
-            <div class="stat-value">${estadisticas.posicion}°</div>
-            <div class="stat-label">Posición en tabla</div>
+    ` : ''}
+    
+    <!-- 1) QUIÉN SOY (header colapsable) -->
+    <div class="home-quien-soy ${!panelAbierto ? 'collapsed' : ''}" data-panel-key="${panelKey}">
+      <div class="quien-soy-header" id="quien-soy-toggle">
+        <div class="quien-soy-info">
+          <h1 class="quien-soy-title">${escapeHtml(identidad.parejaNombre)}</h1>
+          <div class="quien-soy-meta">
+            <span class="quien-soy-grupo">Grupo ${escapeHtml(identidad.grupo)}</span>
+            ${presentismoActivo ? `
+              <span class="quien-soy-estado-texto">
+                ${parejaEstaCompleta ? '✅ Presentes' : `⏳ Falta ${escapeHtml(identidad.companero)}`}
+              </span>
+            ` : ''}
+          </div>
+        </div>
+        <button class="quien-soy-expand-btn" type="button" aria-label="Expandir">
+          ${panelAbierto ? '▲' : '▼'}
+        </button>
+      </div>
+      
+      <!-- Panel expandible -->
+      <div class="quien-soy-panel" id="quien-soy-panel" ${!panelAbierto ? 'style="display:none"' : ''}>
+        ${presentismoActivo ? `
+          <div class="presentismo-container">
+            <p class="presentismo-hint">Tocá para marcar o desmarcar</p>
+            
+            <div class="presentismo-checks">
+              <button type="button" class="presentismo-toggle ${yoPresente ? 'presente' : ''}" id="toggle-yo" data-nombre="${escapeHtml(identidad.miNombre)}">
+                <span class="toggle-check">${yoPresente ? '✅' : '⬜'}</span>
+                <span class="toggle-info">
+                  <span class="toggle-nombre">${escapeHtml(identidad.miNombre)} <span class="toggle-rol">(vos)</span></span>
+                  <span class="toggle-hint">${yoPresente ? 'tocá para desmarcar' : '¡tocá para dar presente!'}</span>
+                </span>
+              </button>
+              
+              <button type="button" class="presentismo-toggle ${companeroPresente ? 'presente' : ''}" id="toggle-companero" data-nombre="${escapeHtml(identidad.companero)}">
+                <span class="toggle-check">${companeroPresente ? '✅' : '⬜'}</span>
+                <span class="toggle-info">
+                  <span class="toggle-nombre">${escapeHtml(identidad.companero)}</span>
+                  <span class="toggle-hint">${companeroPresente ? 'tocá para desmarcar' : '¿ya llegó? ¡Marcalo!'}</span>
+                </span>
+              </button>
+            </div>
+            
+            ${parejaEstaCompleta ? `
+              <p class="presentismo-mensaje-listo">🎾 ¡Están los dos! A romperla</p>
+            ` : ''}
           </div>
         ` : ''}
-        <div class="stat-card">
-          <div class="stat-value">${estadisticas.partidosPorJugar}</div>
-          <div class="stat-label">Por jugar</div>
-        </div>
-        <div class="stat-card stat-highlight">
-          <div class="stat-value">${estadisticas.partidosJugados}</div>
-          <div class="stat-label">Partidos jugados</div>
-        </div>
+        
+        <button class="quien-soy-change" type="button" id="btn-change-pareja">
+          ¿No sos vos?
+        </button>
       </div>
+    </div>
 
-      <!-- Alerta de pendientes (si hay) -->
-      ${totalPendientes > 0 ? `
-        <div class="alert alert-warning">
-          <strong>⚠️ ${totalPendientes} resultado${totalPendientes > 1 ? 's' : ''} requiere${totalPendientes > 1 ? 'n' : ''} tu atención</strong>
+    <!-- 2) DASHBOARD (resumen) -->
+    <div class="home-dashboard">
+      ${estadisticas.posicion ? `
+        <div class="dash-card dash-posicion">
+          <div class="dash-value">${estadisticas.posicion}°</div>
+          <div class="dash-label">Posición</div>
         </div>
       ` : ''}
-
-      <!-- Partidos en revisión (máxima prioridad) -->
-      ${partidos.enRevision.length > 0 ? `
-        <div class="personal-section priority-high">
-          <h2 class="section-title">🔴 Partidos en revisión (${partidos.enRevision.length})</h2>
-          <div class="section-description">Hay diferencias en los resultados. Revisá y resolvé.</div>
-          <div id="partidos-revision"></div>
-        </div>
-      ` : ''}
-
-      <!-- Partidos por confirmar -->
-      ${partidos.porConfirmar.length > 0 ? `
-        <div class="personal-section priority-medium">
-          <h2 class="section-title">🟡 Por confirmar (${partidos.porConfirmar.length})</h2>
-          <div class="section-description">La otra pareja ya cargó el resultado. Confirmalo o cargá el tuyo.</div>
-          <div id="partidos-confirmar"></div>
-        </div>
-      ` : ''}
-
-      <!-- Partidos por jugar -->
-      ${partidos.porCargar.length > 0 ? `
-        <div class="personal-section priority-normal">
-          <h2 class="section-title">🟢 Por jugar (${partidos.porCargar.length})</h2>
-          <div class="section-description">Cargá el resultado cuando termines de jugar.</div>
-          <div id="partidos-cargar"></div>
-        </div>
-      ` : ''}
-
-      <!-- Partidos jugados -->
-      <div class="personal-section">
-        <details class="personal-details">
-          <summary>Ver partidos jugados (${partidos.confirmados.length})</summary>
-          <div id="partidos-confirmados"></div>
-        </details>
+      <div class="dash-card">
+        <div class="dash-value">${estadisticas.partidosPorJugar}</div>
+        <div class="dash-label">Pendientes</div>
       </div>
+      <div class="dash-card">
+        <div class="dash-value">${estadisticas.partidosJugados}</div>
+        <div class="dash-label">Jugados</div>
+      </div>
+    </div>
 
-      <!-- Tabla de posiciones del grupo -->
-      ${tablaGrupo.length > 0 ? `
-        <div class="personal-section">
-          <details class="personal-details" open>
-            <summary>Tabla de posiciones - Grupo ${escapeHtml(identidad.grupo)}</summary>
-            <div class="tabla-posiciones">
-              <table class="tabla-grupo">
-                <thead>
-                  <tr>
-                    <th class="pos-col">#</th>
-                    <th class="nombre-col">Pareja</th>
-                    <th class="stat-col">PJ</th>
-                    <th class="stat-col">G</th>
-                    <th class="stat-col">P</th>
-                    <th class="stat-col">GF</th>
-                    <th class="stat-col">GC</th>
-                    <th class="stat-col">Dif</th>
-                    <th class="pts-col">Pts</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${tablaGrupo.map((pareja, idx) => {
-                    const diferencia = pareja.gamesAFavor - pareja.gamesEnContra;
-                    const diferenciaStr = diferencia > 0 ? `+${diferencia}` : diferencia;
-                    const clases = [
-                      pareja.esMiPareja ? 'mi-pareja' : '',
-                      pareja.empatado ? 'empatado' : ''
-                    ].filter(Boolean).join(' ');
-                    
-                    // Indicador de cambio de posición (si hay override)
-                    let indicadorPosicion = '';
-                    if (pareja.delta !== 0 && pareja.tieneOverride) {
-                      const txt = pareja.delta > 0 ? `+${pareja.delta}` : `${pareja.delta}`;
-                      const color = pareja.delta > 0 ? '#1a7f37' : '#d1242f'; // Verde si bajó, rojo si subió
-                      indicadorPosicion = ` <sup style="font-size:11px; color:${color}; font-weight:700; margin-left:4px;">${txt}</sup>`;
-                    }
+    <!-- 3) ACCIONES CON CONTADOR (disputas/confirmaciones - arriba de partidos) -->
+    <div class="home-acciones">
+      ${countDisputas > 0 ? `
+        <button type="button" class="btn-accion btn-disputas" id="btn-ver-disputas">
+          <span class="btn-accion-icon">🔴</span>
+          <span class="btn-accion-text">Disputas</span>
+          <span class="btn-accion-badge">${countDisputas}</span>
+        </button>
+      ` : ''}
+      ${countConfirmaciones > 0 ? `
+        <button type="button" class="btn-accion btn-confirmaciones" id="btn-ver-confirmaciones">
+          <span class="btn-accion-icon">🔔</span>
+          <span class="btn-accion-text">Por confirmar</span>
+          <span class="btn-accion-badge">${countConfirmaciones}</span>
+        </button>
+      ` : ''}
+    </div>
 
-                    // Estilo de empate (si aplica)
-                    let styleEmpate = '';
-                    if (pareja.colorEmpate) {
-                      styleEmpate = `background: ${pareja.colorEmpate.bg}; border-left: 4px solid ${pareja.colorEmpate.border};`;
-                    }
-                    
-                    return `
-                      <tr class="${clases}" style="${styleEmpate}">
-                        <td class="pos-col">${idx + 1}</td>
-                        <td class="nombre-col">${escapeHtml(pareja.nombre)}${indicadorPosicion}</td>
-                        <td class="stat-col">${pareja.jugados}</td>
-                        <td class="stat-col">${pareja.ganados}</td>
-                        <td class="stat-col">${pareja.perdidos}</td>
-                        <td class="stat-col">${pareja.gamesAFavor}</td>
-                        <td class="stat-col">${pareja.gamesEnContra}</td>
-                        <td class="stat-col">${diferenciaStr}</td>
-                        <td class="pts-col"><strong>${pareja.puntos}</strong></td>
-                      </tr>
-                    `;
-                  }).join('')}
-                </tbody>
-              </table>
-            </div>
-          </details>
+    <!-- 4) MIS PARTIDOS PENDIENTES -->
+    <div class="home-partidos-pendientes">
+      ${!parejaEstaCompleta ? `
+        <div class="partidos-bloqueados-msg">
+          <span class="msg-icon">⏳</span>
+          <span class="msg-text">Esperando a tu compañero para habilitar tus partidos.</span>
         </div>
       ` : ''}
+      
+      ${partidosPendientesOrdenados.length === 0 && partidos.porConfirmar.length === 0 && partidos.enRevision.length === 0 ? `
+        <div class="partidos-vacio">
+          <span class="vacio-icon">🎉</span>
+          <span class="vacio-text">¡No tenés partidos pendientes!</span>
+        </div>
+      ` : `
+        <div id="partidos-pendientes-lista" class="${!parejaEstaCompleta ? 'bloqueado' : ''}">
+          <!-- Se renderiza dinámicamente -->
+        </div>
+      `}
+    </div>
+
+    <!-- 5) BOTÓN CONSULTA -->
+    <div class="home-consulta">
+      <button type="button" class="btn-consulta" id="btn-abrir-modal">
+        <span class="btn-consulta-icon">📊</span>
+        <span class="btn-consulta-text">Tablas / Grupos</span>
+      </button>
+    </div>
+
+    <!-- Secciones expandibles para disputas y confirmaciones -->
+    <div id="seccion-disputas" class="home-seccion-expandible" style="display:none">
+      <div class="seccion-header">
+        <h2>🔴 Disputas (${countDisputas})</h2>
+        <button type="button" class="btn-cerrar-seccion" data-seccion="disputas">✕</button>
+      </div>
+      <div id="partidos-revision"></div>
+    </div>
+    
+    <div id="seccion-confirmaciones" class="home-seccion-expandible" style="display:none">
+      <div class="seccion-header">
+        <h2>🔔 Por confirmar (${countConfirmaciones})</h2>
+        <button type="button" class="btn-cerrar-seccion" data-seccion="confirmaciones">✕</button>
+      </div>
+      <div id="partidos-confirmar"></div>
+    </div>
+
+    <!-- Partidos jugados (colapsados) -->
+    <div class="home-partidos-jugados">
+      <details class="home-details">
+        <summary>Ver partidos jugados (${partidos.confirmados.length})</summary>
+        <div id="partidos-confirmados"></div>
+      </details>
     </div>
   `;
 
-  // Wire events
+  // === Wire eventos ===
+  
+  // Quién soy: toggle panel (con persistencia)
+  const quienSoyToggle = document.getElementById('quien-soy-toggle');
+  const quienSoyPanel = document.getElementById('quien-soy-panel');
+  const quienSoyContainer = document.querySelector('.home-quien-soy');
+  const panelKeyAttr = quienSoyContainer?.dataset.panelKey;
+  
+  quienSoyToggle?.addEventListener('click', () => {
+    const isHidden = quienSoyPanel.style.display === 'none';
+    quienSoyPanel.style.display = isHidden ? '' : 'none';
+    quienSoyContainer?.classList.toggle('collapsed', !isHidden);
+    const expandBtn = quienSoyToggle.querySelector('.quien-soy-expand-btn');
+    if (expandBtn) expandBtn.textContent = isHidden ? '▲' : '▼';
+    
+    // Guardar estado del panel para que persista entre refreshes
+    if (panelKeyAttr) {
+      if (isHidden) {
+        sessionStorage.setItem(panelKeyAttr, 'open');
+      } else {
+        sessionStorage.removeItem(panelKeyAttr);
+      }
+    }
+  });
+  
+  // Cambiar de pareja
   document.getElementById('btn-change-pareja')?.addEventListener('click', onChangePareja);
   
-  // Agregar botón "Ver todos los grupos" al header
-  agregarBotonVerTodos(onVerTodos);
+  // === Presentismo (toggles con loading state) ===
+  
+  let presentismoLoading = false;
+  
+  // Helper: poner toggles en estado de carga
+  function setTogglesLoading(loading) {
+    presentismoLoading = loading;
+    const toggles = document.querySelectorAll('.presentismo-toggle');
+    toggles.forEach(t => {
+      if (loading) {
+        t.classList.add('loading');
+        t.setAttribute('disabled', 'true');
+      } else {
+        t.classList.remove('loading');
+        t.removeAttribute('disabled');
+      }
+    });
+  }
+  
+  // Helper: actualizar toggle visualmente
+  function actualizarToggleUI(toggleEl, nuevoEstado, esYo = false) {
+    if (!toggleEl) return;
+    
+    const checkEl = toggleEl.querySelector('.toggle-check');
+    const hintEl = toggleEl.querySelector('.toggle-hint');
+    
+    if (nuevoEstado) {
+      toggleEl.classList.add('presente');
+      if (checkEl) checkEl.textContent = '✅';
+      if (hintEl) hintEl.textContent = 'tocá para desmarcar';
+    } else {
+      toggleEl.classList.remove('presente');
+      if (checkEl) checkEl.textContent = '⬜';
+      if (hintEl) hintEl.textContent = esYo ? '¡tocá para dar presente!' : '¿ya llegó? ¡Marcalo!';
+    }
+  }
+  
+  // Helper: animación cuando se completa el presentismo
+  function animarPresentismoCompleto() {
+    // Mostrar mensaje de éxito en el panel
+    const msgListo = document.querySelector('.presentismo-mensaje-listo');
+    if (!msgListo) {
+      const container = document.querySelector('.presentismo-container');
+      if (container) {
+        const msg = document.createElement('p');
+        msg.className = 'presentismo-mensaje-listo';
+        msg.textContent = '🎾 ¡Están los dos! A romperla';
+        container.appendChild(msg);
+      }
+    }
+    
+    // Cambiar mensaje de "Esperando compañero" a "Cargando partidos"
+    const msgBloqueado = document.querySelector('.partidos-bloqueados-msg');
+    if (msgBloqueado) {
+      const iconEl = msgBloqueado.querySelector('.msg-icon');
+      const textEl = msgBloqueado.querySelector('.msg-text');
+      if (iconEl) iconEl.textContent = '🔄';
+      if (textEl) textEl.textContent = 'Cargando tus partidos...';
+      msgBloqueado.classList.add('loading');
+    }
+    
+    // Esperar un momento, luego animar el cierre
+    setTimeout(() => {
+      const panel = document.getElementById('quien-soy-panel');
+      const container = document.querySelector('.home-quien-soy');
+      
+      if (panel && container) {
+        // Animar el cierre
+        panel.classList.add('closing');
+        
+        setTimeout(() => {
+          panel.style.display = 'none';
+          container.classList.add('collapsed');
+          panel.classList.remove('closing');
+          
+          // Actualizar botón
+          const expandBtn = container.querySelector('.quien-soy-expand-btn');
+          if (expandBtn) expandBtn.textContent = '▼';
+          
+          // Actualizar estado en header
+          const estadoTexto = container.querySelector('.quien-soy-estado-texto');
+          if (estadoTexto) estadoTexto.textContent = '✅ Presentes';
+          
+          // Limpiar sessionStorage
+          if (panelKeyAttr) {
+            sessionStorage.removeItem(panelKeyAttr);
+          }
+          
+          // Mostrar toast de éxito y hacer refresh para cargar partidos
+          mostrarToastExito();
+          
+          // Refresh después de un momento para cargar los partidos
+          setTimeout(() => {
+            window.dispatchEvent(new CustomEvent('homeRefresh'));
+          }, 500);
+        }, 400);
+      }
+    }, 800);
+  }
+  
+  // Helper: mostrar toast de éxito
+  function mostrarToastExito() {
+    // Remover toast existente si hay
+    document.getElementById('presentismo-toast-exito')?.remove();
+    
+    const toast = document.createElement('div');
+    toast.id = 'presentismo-toast-exito';
+    toast.className = 'presentismo-toast presentismo-toast-exito';
+    toast.innerHTML = '<span class="toast-mensaje">🎾 ¡Listos para jugar! A romperla</span>';
+    
+    document.getElementById('home-content')?.prepend(toast);
+    
+    // Auto-remover después de 3 segundos
+    setTimeout(() => {
+      toast.classList.add('animating-out');
+      setTimeout(() => toast.remove(), 500);
+    }, 3000);
+  }
+  
+  // Toggle mi presencia
+  const toggleYoEl = document.getElementById('toggle-yo');
+  toggleYoEl?.addEventListener('click', async () => {
+    if (presentismoLoading) return;
+    
+    const nuevoEstado = !yoPresente;
+    
+    // Loading state
+    setTogglesLoading(true);
+    actualizarToggleUI(toggleYoEl, nuevoEstado, true);
+    
+    // Actualizar BD
+    if (nuevoEstado) {
+      await marcarPresente(identidad.parejaId, identidad.miNombre);
+    } else {
+      await desmarcarPresente(identidad.parejaId, identidad.miNombre);
+    }
+    
+    // Verificar si ahora están ambos presentes
+    const ahoraYoPresente = nuevoEstado;
+    const ambosPresentes = ahoraYoPresente && companeroPresente;
+    
+    if (ambosPresentes) {
+      // Animación de completado
+      setTogglesLoading(false);
+      animarPresentismoCompleto();
+    } else {
+      // Refresh normal
+      window.dispatchEvent(new CustomEvent('homeRefresh'));
+    }
+  });
+  
+  // Toggle compañero
+  const toggleCompEl = document.getElementById('toggle-companero');
+  toggleCompEl?.addEventListener('click', async () => {
+    if (presentismoLoading) return;
+    
+    const nuevoEstado = !companeroPresente;
+    
+    // Loading state
+    setTogglesLoading(true);
+    actualizarToggleUI(toggleCompEl, nuevoEstado, false);
+    
+    // Actualizar BD
+    if (nuevoEstado) {
+      await marcarPresente(identidad.parejaId, identidad.companero);
+    } else {
+      await desmarcarPresente(identidad.parejaId, identidad.companero);
+    }
+    
+    // Verificar si ahora están ambos presentes
+    const ahoraCompPresente = nuevoEstado;
+    const ambosPresentes = yoPresente && ahoraCompPresente;
+    
+    if (ambosPresentes) {
+      // Animación de completado
+      setTogglesLoading(false);
+      animarPresentismoCompleto();
+    } else {
+      // Refresh normal
+      window.dispatchEvent(new CustomEvent('homeRefresh'));
+    }
+  });
+  
+  // Marcar compañero desde el toast
+  document.getElementById('toast-marcar-companero')?.addEventListener('click', async () => {
+    if (presentismoLoading) return;
+    
+    setTogglesLoading(true);
+    const toggleComp = document.getElementById('toggle-companero');
+    actualizarToggleUI(toggleComp, true, false);
+    
+    const toast = document.getElementById('presentismo-toast');
+    if (toast) toast.remove();
+    
+    await marcarPresente(identidad.parejaId, identidad.companero);
+    window.dispatchEvent(new CustomEvent('homeRefresh'));
+  });
+  
+  // === Toast animado ===
+  if (mostrarToast) {
+    const toast = document.getElementById('presentismo-toast');
+    const header = document.getElementById('quien-soy-toggle');
+    
+    if (toast && header) {
+      // Marcar como visto
+      marcarToastVisto(torneoId, identidad.parejaId);
+      
+      // Animar toast después de 4 segundos
+      setTimeout(() => {
+        toast.classList.add('animating-out');
+        
+        // Remover después de la animación
+        setTimeout(() => {
+          toast.remove();
+        }, 500);
+      }, 4000);
+    }
+  }
+  
+  // Abrir modal de consulta
+  document.getElementById('btn-abrir-modal')?.addEventListener('click', () => {
+    window.dispatchEvent(new CustomEvent('abrirModalConsulta'));
+  });
+  
+  // Botones de disputas y confirmaciones
+  document.getElementById('btn-ver-disputas')?.addEventListener('click', () => {
+    toggleSeccion('disputas', true);
+  });
+  
+  document.getElementById('btn-ver-confirmaciones')?.addEventListener('click', () => {
+    toggleSeccion('confirmaciones', true);
+  });
+  
+  // Cerrar secciones
+  document.querySelectorAll('.btn-cerrar-seccion').forEach(btn => {
+    btn.addEventListener('click', () => {
+      toggleSeccion(btn.dataset.seccion, false);
+    });
+  });
 
-  // Renderizar cada categoría
+  // === Renderizar partidos ===
+  
+  // Renderizar disputas
   renderPartidosRevision(partidos.enRevision, identidad);
+  
+  // Renderizar confirmaciones
   renderPartidosConfirmar(partidos.porConfirmar, identidad);
-  // Pasar todos los partidos para detectar rondas correctamente
+  
+  // Renderizar partidos pendientes (en el bloque principal)
   const todosPartidos = [...partidos.enRevision, ...partidos.porConfirmar, ...partidos.porCargar, ...partidos.confirmados];
-  renderPartidosCargar(partidos.porCargar, renderVistaPersonal._todosPartidosGrupo, todosPartidos, identidad);
+  renderPartidosPendientesHome(partidosPendientesOrdenados, todosPartidosGrupo, todosPartidos, identidad, parejaEstaCompleta, mapaPosiciones);
+  
+  // Renderizar partidos jugados
   renderPartidosConfirmados(partidos.confirmados, identidad);
+}
+
+/**
+ * Renderiza los partidos pendientes para el Home Único
+ * Usa la posición global de la cola del fixture
+ */
+function renderPartidosPendientesHome(partidosPendientes, todosPartidosGrupo, todosPartidosUsuario, identidad, habilitado, mapaPosiciones) {
+  const container = document.getElementById('partidos-pendientes-lista');
+  if (!container) return;
+  
+  if (partidosPendientes.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+  
+  // Ordenar partidos por posición global
+  const partidosConPosicion = partidosPendientes.map(p => ({
+    ...p,
+    posicionGlobal: mapaPosiciones.get(p.id) || 999
+  })).sort((a, b) => a.posicionGlobal - b.posicionGlobal);
+  
+  let html = '';
+  
+  // Renderizar partidos ordenados por posición global
+  partidosConPosicion.forEach(p => {
+    const oponente = getOponenteName(p, identidad);
+    const posicion = p.posicionGlobal !== 999 ? `#${p.posicionGlobal}` : '—';
+    
+    html += `
+      <div class="partido-home ${habilitado ? '' : 'bloqueado'}" data-partido-id="${p.id}">
+        <div class="partido-home-header">
+          <span class="partido-home-posicion">${posicion}</span>
+          <span class="partido-home-vs">vs ${escapeHtml(oponente)}</span>
+        </div>
+        <div class="partido-home-estado">
+          ${habilitado ? 'Pendiente' : 'Bloqueado por presentismo'}
+        </div>
+        <div class="partido-home-accion">
+          <button 
+            type="button" 
+            class="btn-cargar-resultado ${habilitado ? '' : 'disabled'}"
+            onclick="${habilitado ? `app.cargarResultado('${p.id}')` : ''}"
+            ${habilitado ? '' : 'disabled'}
+          >
+            📝 Cargar resultado
+          </button>
+        </div>
+      </div>
+    `;
+  });
+  
+  container.innerHTML = html;
+}
+
+/**
+ * Toggle de secciones expandibles (disputas/confirmaciones)
+ */
+function toggleSeccion(nombre, mostrar) {
+  const seccion = document.getElementById(`seccion-${nombre}`);
+  if (seccion) {
+    seccion.style.display = mostrar ? '' : 'none';
+    
+    // Scroll a la sección si se abre
+    if (mostrar) {
+      setTimeout(() => {
+        seccion.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }
 }
 
 /**
@@ -580,39 +1065,21 @@ function renderPartidosRevision(partidos, identidad) {
     const oponente = getOponenteName(p, identidad);
     const soyA = p.pareja_a?.id === identidad.parejaId;
     
-    // Calcular resultados desde sets o games
-    let gamesA1, gamesB1, gamesA2, gamesB2;
+    // Calcular sets ganados desde sets originales y temporales
+    const { setsA: setsA1, setsB: setsB1 } = calcularSetsGanados(p);
     
-    if (p.set1_a !== null && p.set1_b !== null) {
-      // Calcular desde sets originales
-      let setsA = 0, setsB = 0;
-      if (p.set1_a > p.set1_b) setsA++; else if (p.set1_b > p.set1_a) setsB++;
-      if (p.set2_a !== null && p.set2_b !== null) {
-        if (p.set2_a > p.set2_b) setsA++; else if (p.set2_b > p.set2_a) setsB++;
-      }
-      if (p.set3_a !== null && p.set3_b !== null) {
-        if (p.set3_a > p.set3_b) setsA++; else if (p.set3_b > p.set3_a) setsB++;
-      }
-      gamesA1 = setsA;
-      gamesB1 = setsB;
-      
-      // Calcular desde sets temporales
-      setsA = 0; setsB = 0;
-      if (p.set1_temp_a > p.set1_temp_b) setsA++; else if (p.set1_temp_b > p.set1_temp_a) setsB++;
-      if (p.set2_temp_a !== null && p.set2_temp_b !== null) {
-        if (p.set2_temp_a > p.set2_temp_b) setsA++; else if (p.set2_temp_b > p.set2_temp_a) setsB++;
-      }
-      if (p.set3_temp_a !== null && p.set3_temp_b !== null) {
-        if (p.set3_temp_a > p.set3_temp_b) setsA++; else if (p.set3_temp_b > p.set3_temp_a) setsB++;
-      }
-      gamesA2 = setsA;
-      gamesB2 = setsB;
-    } else {
-      gamesA1 = p.games_a;
-      gamesB1 = p.games_b;
-      gamesA2 = p.resultado_temp_a;
-      gamesB2 = p.resultado_temp_b;
-    }
+    // Calcular sets ganados desde sets temporales
+    const tempPartido = { 
+      set1_a: p.set1_temp_a, set1_b: p.set1_temp_b, 
+      set2_a: p.set2_temp_a, set2_b: p.set2_temp_b, 
+      set3_a: p.set3_temp_a, set3_b: p.set3_temp_b 
+    };
+    const { setsA: setsA2, setsB: setsB2 } = calcularSetsGanados(tempPartido);
+    
+    const gamesA1 = setsA1;
+    const gamesB1 = setsB1;
+    const gamesA2 = setsA2;
+    const gamesB2 = setsB2;
     
     // Resultado 1 (original)
     const resultado1 = getMensajeResultado(gamesA1, gamesB1, soyA);
@@ -676,24 +1143,10 @@ function renderPartidosConfirmar(partidos, identidad) {
     const oponente = getOponenteName(p, identidad);
     const soyA = p.pareja_a?.id === identidad.parejaId;
     
-    // Calcular resultado desde sets o games
-    let gamesA, gamesB;
-    if (p.set1_a !== null && p.set1_b !== null) {
-      // Calcular desde sets
-      let setsA = 0, setsB = 0;
-      if (p.set1_a > p.set1_b) setsA++; else if (p.set1_b > p.set1_a) setsB++;
-      if (p.set2_a !== null && p.set2_b !== null) {
-        if (p.set2_a > p.set2_b) setsA++; else if (p.set2_b > p.set2_a) setsB++;
-      }
-      if (p.set3_a !== null && p.set3_b !== null) {
-        if (p.set3_a > p.set3_b) setsA++; else if (p.set3_b > p.set3_a) setsB++;
-      }
-      gamesA = setsA;
-      gamesB = setsB;
-    } else {
-      gamesA = p.games_a;
-      gamesB = p.games_b;
-    }
+    // Calcular sets ganados
+    const { setsA, setsB } = calcularSetsGanados(p);
+    const gamesA = setsA;
+    const gamesB = setsB;
     
     const resultado = getMensajeResultado(gamesA, gamesB, soyA);
     const mensajeResultado = resultado.ganador === 'yo' ? '🎉 Ganaste' : '😔 Perdiste';
@@ -740,7 +1193,7 @@ function calcularRondaMinimaAMostrar(misPartidosUsuario, todosPartidosGrupo) {
   if (misPartidosUsuario && misPartidosUsuario.length > 0) {
     const partidosJugados = misPartidosUsuario.filter(p => 
       (p.estado === 'confirmado' || p.estado === 'a_confirmar') &&
-      p.games_a !== null && p.games_b !== null &&
+      tieneResultado(p) &&
       p.ronda
     );
     
@@ -775,7 +1228,7 @@ function calcularRondaMinimaAMostrar(misPartidosUsuario, todosPartidosGrupo) {
       const partidos = partidosPorRonda[ronda];
       const algunoJugado = partidos.some(p => 
         (p.estado === 'confirmado' || p.estado === 'a_confirmar') &&
-        p.games_a !== null && p.games_b !== null
+        tieneResultado(p)
       );
       
       // Si ningún partido se jugó en esta ronda, esta es la mínima del grupo
@@ -792,7 +1245,7 @@ function calcularRondaMinimaAMostrar(misPartidosUsuario, todosPartidosGrupo) {
         const partidos = partidosPorRonda[ronda];
         return partidos.some(p => 
           (p.estado === 'confirmado' || p.estado === 'a_confirmar') &&
-          p.games_a !== null && p.games_b !== null
+          tieneResultado(p)
         );
       });
       
@@ -944,7 +1397,7 @@ function renderPartidosCargar(partidosPendientes, todosPartidosGrupo, todosParti
           ${esperandoConfirmacion ? `
             <div class="resultado-cargado">
               <div class="resultado-label">Tu resultado cargado:</div>
-              <div class="resultado-score">${p.games_a} - ${p.games_b}</div>
+              <div class="resultado-score">${formatearResultado(p)}</div>
             </div>
           ` : ''}
           
@@ -997,7 +1450,7 @@ function renderPartidosConfirmados(partidos, identidad) {
           <div class="partido-vs">vs ${escapeHtml(oponente)}</div>
           <div class="resultado-info">
             <div class="resultado-score ${ganador === 'yo' ? 'ganador' : ganador === 'rival' ? 'perdedor' : ''}">
-              ${p.games_a} - ${p.games_b}
+              ${formatearResultado(p)}
             </div>
             ${esperandoConfirmacion ? '<span class="badge-mini badge-waiting">⏳</span>' : ''}
           </div>
@@ -1025,17 +1478,10 @@ function getOponenteName(partido, identidad) {
 }
 
 /**
- * Determina quién ganó el partido
+ * Determina quién ganó el partido (usa función centralizada)
  */
 function getGanador(partido, identidad) {
-  if (partido.games_a === null || partido.games_b === null) return null;
-  if (partido.games_a === partido.games_b) return null;
-  
-  const ganaA = partido.games_a > partido.games_b;
-  const soyA = partido.pareja_a?.id === identidad.parejaId;
-  
-  if ((ganaA && soyA) || (!ganaA && !soyA)) return 'yo';
-  return 'rival';
+  return determinarGanadorParaPareja(partido, identidad.parejaId);
 }
 
 /**
@@ -1050,32 +1496,5 @@ function escapeHtml(unsafe) {
     .replace(/'/g, "&#039;");
 }
 
-/**
- * Agrega el botón "Ver todos los grupos" y el link "Ver fixture" al header
- */
-function agregarBotonVerTodos(onVerTodos) {
-  const navContainer = document.getElementById('viewer-nav-buttons');
-  if (!navContainer) return;
-
-  navContainer.innerHTML = '';
-
-  const btnVerTodos = document.createElement('button');
-  btnVerTodos.id = 'btn-ver-todos-header';
-  btnVerTodos.className = 'btn-action-secondary';
-  btnVerTodos.type = 'button';
-  btnVerTodos.innerHTML = `
-    <span class="btn-icon">👀</span>
-    <span class="btn-text">Ver Todos los Grupos</span>
-  `;
-  btnVerTodos.addEventListener('click', onVerTodos);
-  navContainer.appendChild(btnVerTodos);
-
-  const linkFixture = document.createElement('a');
-  linkFixture.href = '/fixture';
-  linkFixture.className = 'btn-action-secondary viewer-link-fixture';
-  linkFixture.innerHTML = `
-    <span class="btn-icon">📋</span>
-    <span class="btn-text">Ver Fixture</span>
-  `;
-  navContainer.appendChild(linkFixture);
-}
+// La función agregarBotonVerTodos fue eliminada - ahora el modal de consulta
+// reemplaza la navegación a páginas separadas (Home Único)

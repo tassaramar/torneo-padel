@@ -7,6 +7,7 @@ import {
   aceptarOtroResultado,
   mostrarModalCargarResultado 
 } from './viewer/cargarResultado.js';
+import { initModal, abrirModal, cerrarModal, invalidarCache } from './viewer/modalConsulta.js';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -15,7 +16,7 @@ const supabase = createClient(
 
 const TORNEO_ID = 'ad58a855-fa74-4c2e-825e-32c20f972136';
 
-const statusEl = document.getElementById('viewer-status');
+const statusEl = document.getElementById('home-status');
 
 // Polling automático
 let pollingInterval = null;
@@ -63,36 +64,48 @@ function nowStr() {
   return d.toLocaleTimeString();
 }
 
-function verVistaGeneral() {
-  window.location.href = '/general';
-}
-
 function cambiarDePareja() {
   clearIdentidad();
   location.reload();
 }
 
+// Event listeners para Home Único
+window.addEventListener('homeRefresh', () => {
+  init(false); // Recargar sin skeleton
+});
+
+window.addEventListener('abrirModalConsulta', () => {
+  abrirModal('mi-grupo');
+});
+
 /**
- * Agrega el grupo inferido a cada pareja (basado en bloques por orden)
+ * Agrega el grupo inferido a parejas que no lo tienen (fallback por orden)
+ * Si la pareja ya tiene grupo de la BD, lo mantiene
  */
-function agregarGrupoAParejas(parejas, grupos) {
+function agregarGrupoAParejasFallback(parejas, grupos) {
   if (!grupos.length || !parejas.length) {
-    return parejas.map(p => ({ ...p, grupo: '?' }));
+    return parejas.map(p => ({ ...p, grupo: p.grupo || '?' }));
   }
   
   const n = grupos.length;
   const per = parejas.length / n;
-  
-  if (!Number.isInteger(per)) {
-    return parejas.map(p => ({ ...p, grupo: '?' }));
-  }
-  
   const orderedGroups = [...grupos].map(g => g.nombre).sort();
   
   return parejas.map((p, idx) => {
-    const grupoIdx = Math.floor(idx / per);
-    const grupo = orderedGroups[grupoIdx] || '?';
-    return { ...p, grupo };
+    // Si ya tiene grupo de la BD, mantenerlo
+    if (p.grupo) {
+      return p;
+    }
+    
+    // Fallback: inferir por orden si el número de parejas es divisible
+    if (Number.isInteger(per)) {
+      const grupoIdx = Math.floor(idx / per);
+      const grupo = orderedGroups[grupoIdx] || '?';
+      return { ...p, grupo };
+    }
+    
+    // Si no es divisible, devolver '?'
+    return { ...p, grupo: '?' };
   });
 }
 
@@ -100,20 +113,19 @@ function agregarGrupoAParejas(parejas, grupos) {
  * Muestra skeleton loading mientras carga
  */
 function mostrarSkeletonLoading() {
-  const contentEl = document.getElementById('viewer-content');
+  const contentEl = document.getElementById('home-content');
   if (!contentEl) return;
   
   contentEl.innerHTML = `
-    <div class="vista-personal">
-      <div class="skeleton skeleton-header"></div>
+    <div class="home-skeleton">
+      <div class="skeleton skeleton-quien-soy"></div>
+      <div class="skeleton skeleton-partidos"></div>
       <div class="skeleton-dashboard">
-        <div class="skeleton skeleton-stat-card"></div>
-        <div class="skeleton skeleton-stat-card"></div>
-        <div class="skeleton skeleton-stat-card"></div>
+        <div class="skeleton skeleton-dash-card"></div>
+        <div class="skeleton skeleton-dash-card"></div>
+        <div class="skeleton skeleton-dash-card"></div>
       </div>
-      <div class="skeleton skeleton-partido"></div>
-      <div class="skeleton skeleton-partido"></div>
-      <div class="skeleton skeleton-partido"></div>
+      <div class="skeleton skeleton-consulta"></div>
     </div>
   `;
 }
@@ -130,10 +142,10 @@ async function init(mostrarSkeleton = true) {
     }
     
     if (!identidad) {
-      // No está identificado, cargar parejas y mostrar flujo de identificación
+      // No está identificado, cargar parejas con su grupo (usando JOIN)
       const { data: parejas, error: errParejas } = await supabase
         .from('parejas')
-        .select('id, nombre, orden')
+        .select('id, nombre, orden, grupo_id, grupos ( id, nombre )')
         .eq('torneo_id', TORNEO_ID)
         .order('orden');
       
@@ -143,7 +155,7 @@ async function init(mostrarSkeleton = true) {
         return;
       }
       
-      // Cargar grupos para inferir a qué grupo pertenece cada pareja
+      // Cargar grupos como fallback si las parejas no tienen grupo_id
       const { data: grupos, error: errGrupos } = await supabase
         .from('grupos')
         .select('id, nombre')
@@ -156,18 +168,27 @@ async function init(mostrarSkeleton = true) {
         return;
       }
       
-      const parejasConGrupo = agregarGrupoAParejas(parejas, grupos);
+      // Usar grupo de la BD si existe, sino inferir por orden
+      const parejasConGrupo = parejas.map(p => ({
+        ...p,
+        grupo: p.grupos?.nombre || null
+      }));
       
-      // Mostrar flujo de identificación
+      // Fallback: inferir grupo por orden si no tiene grupo_id
+      const parejasFinales = agregarGrupoAParejasFallback(parejasConGrupo, grupos);
+      
+      // Mostrar flujo de identificación en el contenedor del home
       iniciarIdentificacion(
-        parejasConGrupo,
+        parejasFinales,
         async (identidadCompleta) => {
           console.log('Identificación completa:', identidadCompleta);
+          // Inicializar modal con la identidad
+          initModal(supabase, TORNEO_ID, identidadCompleta);
           // Recargar vista con la identidad guardada
           await init();
           startPolling();
         },
-        'viewer-content',
+        'home-content',
         supabase // Pasar supabase para tracking automático
       );
       
@@ -175,13 +196,16 @@ async function init(mostrarSkeleton = true) {
       return;
     }
     
-    // Usuario identificado, cargar vista personalizada
+    // Usuario identificado, inicializar modal de consulta
+    initModal(supabase, TORNEO_ID, identidad);
+    
+    // Cargar vista personalizada (Home Único)
     const resultado = await cargarVistaPersonalizada(
       supabase,
       TORNEO_ID,
       identidad,
       cambiarDePareja,
-      verVistaGeneral
+      () => {} // onVerTodos ya no navega, ahora abre modal
     );
     
     // Si la pareja no existe, limpiar identidad y pedir reidentificación
@@ -210,12 +234,14 @@ async function init(mostrarSkeleton = true) {
     if (resultado.ok) {
       partidosAnteriores = resultado.partidos;
       setStatus(`Actualizado ${nowStr()}`);
+      // Invalidar cache del modal para que se recargue
+      invalidarCache();
     }
   } catch (e) {
     console.error('Error en init:', e);
     setStatus('❌ Error (ver consola)');
-    const contentEl = document.getElementById('viewer-content');
-    if (contentEl) contentEl.innerHTML = '<p>❌ Error cargando viewer.</p>';
+    const contentEl = document.getElementById('home-content');
+    if (contentEl) contentEl.innerHTML = '<p>❌ Error cargando.</p>';
   }
 }
 
@@ -327,9 +353,11 @@ window.app = {
     const { data: partido } = await supabase
       .from('partidos')
       .select(`
-        id, games_a, games_b, estado,
+        id, estado,
         set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
         set1_temp_a, set1_temp_b, set2_temp_a, set2_temp_b, set3_temp_a, set3_temp_b,
+        sets_a, sets_b,
+        games_totales_a, games_totales_b,
         copa_id,
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
@@ -420,8 +448,19 @@ window.app = {
         mostrarToastError(resultado.mensaje);
       }
     } else {
-      // Fallback a modo legacy
-      await this.confirmarResultado(partidoId, partido.games_a, partido.games_b);
+      // Fallback: si tiene set1 pero no set2, usar set1 como partido a 1 set
+      if (partido.set1_a !== null && partido.set1_b !== null) {
+        const { cargarResultadoConSets } = await import('./viewer/cargarResultado.js');
+        const sets = { set1: { setA: partido.set1_a, setB: partido.set1_b } };
+        const resultado = await cargarResultadoConSets(supabase, partidoId, sets, 1, identidad);
+        if (resultado.ok) {
+          await init();
+        } else {
+          mostrarToastError(resultado.mensaje);
+        }
+      } else {
+        mostrarToastError('No hay resultado cargado para confirmar.');
+      }
     }
   },
 

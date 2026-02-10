@@ -1,12 +1,25 @@
 import { state } from './state.js';
 import { crearCardEditable } from './cardEditable.js';
 import { obtenerFrasesUnicas } from '../utils/frasesFechaLibre.js';
-import { formatearResultado } from '../utils/formatoResultado.js';
+import { formatearResultado, tieneResultado, calcularSetsGanados, calcularGamesTotales } from '../utils/formatoResultado.js';
 
-async function guardarResultado(supabase, partidoId, gamesA, gamesB) {
+/**
+ * Guarda resultado como set1 (partido a 1 set) - para uso de admin
+ * NOTA: NO escribir directamente a games_totales_* (son derivados calculados por trigger)
+ */
+async function guardarResultadoComoSet(supabase, partidoId, gamesA, gamesB) {
   const { error } = await supabase
     .from('partidos')
-    .update({ games_a: gamesA, games_b: gamesB })
+    .update({ 
+      set1_a: gamesA, 
+      set1_b: gamesB,
+      num_sets: 1,
+      // Limpiar sets 2 y 3 por si acaso
+      set2_a: null,
+      set2_b: null,
+      set3_a: null,
+      set3_b: null
+    })
     .eq('id', partidoId);
 
   if (error) {
@@ -34,16 +47,15 @@ export async function cargarPartidosGrupos({ supabase, torneoId, msgCont, listCo
     .from('partidos')
       .select(`
       id,
-      games_a,
-      games_b,
       estado,
       cargado_por_pareja_id,
-      resultado_temp_a,
-      resultado_temp_b,
       notas_revision,
       ronda,
       set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
       set1_temp_a, set1_temp_b, set2_temp_a, set2_temp_b, set3_temp_a, set3_temp_b,
+      sets_a, sets_b,
+      games_totales_a, games_totales_b,
+      stb_puntos_a, stb_puntos_b,
       grupos ( nombre ),
       pareja_a:parejas!partidos_pareja_a_id_fkey ( nombre ),
       pareja_b:parejas!partidos_pareja_b_id_fkey ( nombre )
@@ -52,9 +64,11 @@ export async function cargarPartidosGrupos({ supabase, torneoId, msgCont, listCo
     .is('copa_id', null);
 
   if (state.modo === 'pendientes') {
-    q = q.or('games_a.is.null,games_b.is.null');
+    // Pendientes = sin sets cargados (sets_a es derivado, si es null no hay resultado)
+    q = q.is('sets_a', null);
   } else if (state.modo === 'jugados') {
-    q = q.not('games_a', 'is', null).not('games_b', 'is', null);
+    // Jugados = con sets cargados
+    q = q.not('sets_a', 'is', null);
   } else if (state.modo === 'disputas') {
     q = q.eq('estado', 'en_revision');
   }
@@ -278,25 +292,39 @@ function crearCardParaPartido(p, supabase, onAfterSave) {
   let estadoDisplay = 'Pendiente';
   if (estado === 'a_confirmar') estadoDisplay = '🟡 A confirmar';
   if (estado === 'confirmado') estadoDisplay = '✅ Confirmado';
-  if (p.games_a !== null && p.games_b !== null && estado === 'pendiente') estadoDisplay = 'Jugado';
+  if (tieneResultado(p) && estado === 'pendiente') estadoDisplay = 'Jugado';
+
+  // Para la card editable, mostrar el set1 (o null si no hay resultado)
+  const gamesA = p.set1_a;
+  const gamesB = p.set1_b;
 
   const card = crearCardEditable({
     headerLeft: `Grupo <strong>${grupo}</strong>`,
     headerRight: estadoDisplay,
     nombreA: a,
     nombreB: b,
-    gamesA: p.games_a,
-    gamesB: p.games_b,
+    gamesA: gamesA,
+    gamesB: gamesB,
     onSave: async (ga, gb) => {
-      // Admin puede forzar confirmado directamente
+      // Admin guarda como set1 (partido a 1 set)
+      // El trigger calculará games_totales_* y sets_* automáticamente
       const { error } = await supabase
         .from('partidos')
         .update({ 
-          games_a: ga, 
-          games_b: gb,
+          set1_a: ga, 
+          set1_b: gb,
+          num_sets: 1,
+          set2_a: null,
+          set2_b: null,
+          set3_a: null,
+          set3_b: null,
           estado: 'confirmado', // Admin confirma directo
-          resultado_temp_a: null,
-          resultado_temp_b: null,
+          set1_temp_a: null,
+          set1_temp_b: null,
+          set2_temp_a: null,
+          set2_temp_b: null,
+          set3_temp_a: null,
+          set3_temp_b: null,
           cargado_por_pareja_id: null
         })
         .eq('id', p.id);
@@ -389,8 +417,6 @@ function crearCardRevision(p, supabase, onAfterSave) {
       set2_temp_b: null,
       set3_temp_a: null,
       set3_temp_b: null,
-      resultado_temp_a: null,
-      resultado_temp_b: null,
       notas_revision: null
     };
     
@@ -426,8 +452,6 @@ function crearCardRevision(p, supabase, onAfterSave) {
       set2_temp_b: null,
       set3_temp_a: null,
       set3_temp_b: null,
-      resultado_temp_a: null,
-      resultado_temp_b: null,
       notas_revision: null
     };
     
@@ -452,8 +476,9 @@ function crearCardRevision(p, supabase, onAfterSave) {
   });
 
   card.querySelector('[data-action="manual"]').addEventListener('click', () => {
-    const gA = prompt('Ingresá games de ' + a + ':', p.games_a);
-    const gB = prompt('Ingresá games de ' + b + ':', p.games_b);
+    // Admin ingresa resultado manualmente como set1
+    const gA = prompt('Ingresá games de ' + a + ':', p.set1_a);
+    const gB = prompt('Ingresá games de ' + b + ':', p.set1_b);
     
     if (gA === null || gB === null) return;
     
@@ -465,14 +490,25 @@ function crearCardRevision(p, supabase, onAfterSave) {
       return;
     }
 
+    // Guardar como set1 (partido a 1 set)
+    // El trigger calculará games_totales_* y sets_* automáticamente
     supabase
       .from('partidos')
       .update({
-        games_a: gamesA,
-        games_b: gamesB,
+        set1_a: gamesA,
+        set1_b: gamesB,
+        num_sets: 1,
+        set2_a: null,
+        set2_b: null,
+        set3_a: null,
+        set3_b: null,
         estado: 'confirmado',
-        resultado_temp_a: null,
-        resultado_temp_b: null,
+        set1_temp_a: null,
+        set1_temp_b: null,
+        set2_temp_a: null,
+        set2_temp_b: null,
+        set3_temp_a: null,
+        set3_temp_b: null,
         notas_revision: null
       })
       .eq('id', p.id)

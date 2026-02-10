@@ -57,9 +57,10 @@ export async function trackCargaResultado(supabase, identidad, partidoId, gamesA
         metadata: {
           timestamp: new Date().toISOString(),
           partido_id: partidoId,
+          // Estos campos son legacy para compat con logs existentes
           games_a: gamesA,
           games_b: gamesB,
-          resultado: `${gamesA}-${gamesB}`,
+          resultado: gamesA !== null && gamesB !== null ? `${gamesA}-${gamesB}` : 'N/A',
           pareja_nombre: identidad.parejaNombre
         }
       });

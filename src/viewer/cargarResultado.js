@@ -218,202 +218,24 @@ export async function cargarResultadoConSets(supabase, partidoId, sets, numSets,
 }
 
 /**
- * Carga o actualiza un resultado de partido (versión legacy con games)
+ * Carga o actualiza un resultado de partido (versión legacy - DEPRECATED)
+ * 
+ * NOTA: Esta función convierte games a un set único para compatibilidad.
+ * Para nuevos usos, preferir cargarResultadoConSets() directamente.
+ * 
  * @param {Object} supabase - Cliente de Supabase
  * @param {String} partidoId - ID del partido
- * @param {Number} gamesA - Games de pareja A
- * @param {Number} gamesB - Games de pareja B
+ * @param {Number} gamesA - Games de pareja A (se guardará como set1)
+ * @param {Number} gamesB - Games de pareja B (se guardará como set1)
  * @param {Object} identidad - Identidad del usuario
  * @returns {Object} Resultado de la operación
  */
 export async function cargarResultado(supabase, partidoId, gamesA, gamesB, identidad) {
-  // Versión legacy - mantiene compatibilidad con código existente
-  // Convierte games a sets simples (1 set con el resultado total)
-  // Esto es para mantener compatibilidad mientras migramos a sets
+  // Convertir a formato sets (partido a 1 set)
   const sets = {
-    set1: { setA: gamesA, setB: gamesB },
-    set2: { setA: gamesA, setB: gamesB }
+    set1: { setA: gamesA, setB: gamesB }
   };
-  return cargarResultadoConSets(supabase, partidoId, sets, 2, identidad);
-  try {
-    // 1. Obtener estado actual del partido
-    const { data: partido, error: fetchError } = await supabase
-      .from('partidos')
-      .select('*')
-      .eq('id', partidoId)
-      .single();
-
-    if (fetchError) throw fetchError;
-
-    // Validar que sea uno de los participantes
-    if (partido.pareja_a_id !== identidad.parejaId && partido.pareja_b_id !== identidad.parejaId) {
-      return { ok: false, mensaje: 'No podés cargar resultados de otros partidos.' };
-    }
-
-    const estado = partido.estado || 'pendiente';
-
-    // 2. Lógica según estado actual
-    if (estado === 'pendiente') {
-      // Primera pareja en cargar
-      const { error: updateError } = await supabase
-        .from('partidos')
-        .update({
-          games_a: gamesA,
-          games_b: gamesB,
-          estado: 'a_confirmar',
-          cargado_por_pareja_id: identidad.parejaId,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', partidoId);
-
-      if (updateError) throw updateError;
-
-      // Tracking automático de carga de resultado
-      trackCargaResultado(supabase, identidad, partidoId, gamesA, gamesB)
-        .catch(err => console.warn('Error tracking carga:', err));
-
-      return {
-        ok: true,
-        mensaje: '✅ Resultado cargado. Esperando confirmación de la otra pareja.',
-        nuevoEstado: 'a_confirmar'
-      };
-    }
-
-    if (estado === 'a_confirmar') {
-      if (partido.cargado_por_pareja_id === identidad.parejaId) {
-        // Editar mi propia carga (antes de que confirmen)
-        const { error: updateError } = await supabase
-          .from('partidos')
-          .update({
-            games_a: gamesA,
-            games_b: gamesB,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', partidoId);
-
-        if (updateError) throw updateError;
-
-        // Tracking automático de actualización de resultado
-        trackCargaResultado(supabase, identidad, partidoId, gamesA, gamesB)
-          .catch(err => console.warn('Error tracking carga:', err));
-
-        return {
-          ok: true,
-          mensaje: '✅ Resultado actualizado. Esperando confirmación.',
-          nuevoEstado: 'a_confirmar'
-        };
-      } else {
-        // Segunda pareja confirmando
-        if (partido.games_a === gamesA && partido.games_b === gamesB) {
-          // COINCIDEN - Confirmar
-          const { error: updateError } = await supabase
-            .from('partidos')
-            .update({
-              estado: 'confirmado',
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', partidoId);
-
-          if (updateError) throw updateError;
-
-          // Tracking automático de confirmación de resultado
-          trackCargaResultado(supabase, identidad, partidoId, gamesA, gamesB)
-            .catch(err => console.warn('Error tracking carga:', err));
-
-          return {
-            ok: true,
-            mensaje: '🎉 ¡Resultado confirmado! Ambas parejas coinciden.',
-            nuevoEstado: 'confirmado'
-          };
-        } else {
-          // NO COINCIDEN - Pasar a revisión
-          const { error: updateError } = await supabase
-            .from('partidos')
-            .update({
-              estado: 'en_revision',
-              resultado_temp_a: gamesA,
-              resultado_temp_b: gamesB,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', partidoId);
-
-          if (updateError) throw updateError;
-
-          // Tracking automático de carga con conflicto
-          trackCargaResultado(supabase, identidad, partidoId, gamesA, gamesB)
-            .catch(err => console.warn('Error tracking carga:', err));
-
-          return {
-            ok: true,
-            mensaje: '⚠️ Los resultados no coinciden. El partido pasó a revisión.',
-            nuevoEstado: 'en_revision',
-            conflicto: {
-              primerResultado: `${partido.games_a}-${partido.games_b}`,
-              segundoResultado: `${gamesA}-${gamesB}`
-            }
-          };
-        }
-      }
-    }
-
-    if (estado === 'en_revision') {
-      // Actualizar mi resultado en conflicto
-      const esParejaCargadora = partido.cargado_por_pareja_id === identidad.parejaId;
-
-      if (esParejaCargadora) {
-        // Actualizo el resultado original
-        const { error: updateError } = await supabase
-          .from('partidos')
-          .update({
-            games_a: gamesA,
-            games_b: gamesB,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', partidoId);
-
-        if (updateError) throw updateError;
-      } else {
-        // Actualizo el resultado temporal
-        const { error: updateError } = await supabase
-          .from('partidos')
-          .update({
-            resultado_temp_a: gamesA,
-            resultado_temp_b: gamesB,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', partidoId);
-
-        if (updateError) throw updateError;
-      }
-
-      // Tracking automático de actualización en revisión
-      trackCargaResultado(supabase, identidad, partidoId, gamesA, gamesB)
-        .catch(err => console.warn('Error tracking carga:', err));
-
-      return {
-        ok: true,
-        mensaje: '✅ Tu resultado actualizado. Sigue en revisión.',
-        nuevoEstado: 'en_revision'
-      };
-    }
-
-    if (estado === 'confirmado') {
-      return {
-        ok: false,
-        mensaje: 'Este resultado ya está confirmado. No se puede modificar.'
-      };
-    }
-
-    return { ok: false, mensaje: 'Estado desconocido.' };
-
-  } catch (error) {
-    console.error('Error cargando resultado:', error);
-    return {
-      ok: false,
-      mensaje: 'Error al guardar. Revisá la consola.',
-      error
-    };
-  }
+  return cargarResultadoConSets(supabase, partidoId, sets, 1, identidad);
 }
 
 /**
@@ -449,8 +271,6 @@ export async function aceptarOtroResultado(supabase, partidoId, identidad) {
         set2_temp_b: null,
         set3_temp_a: null,
         set3_temp_b: null,
-        resultado_temp_a: null,
-        resultado_temp_b: null,
         notas_revision: null,
         updated_at: new Date().toISOString()
       };
@@ -478,8 +298,6 @@ export async function aceptarOtroResultado(supabase, partidoId, identidad) {
           set2_temp_b: null,
           set3_temp_a: null,
           set3_temp_b: null,
-          resultado_temp_a: null,
-          resultado_temp_b: null,
           notas_revision: null,
           updated_at: new Date().toISOString()
         })

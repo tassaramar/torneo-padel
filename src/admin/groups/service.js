@@ -214,11 +214,12 @@ export async function cargarGrupoCierre(grupo) {
     .from('partidos')
     .select(`
       id,
-      games_a,
-      games_b,
       estado,
       pareja_a_id,
       pareja_b_id,
+      set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
+      sets_a, sets_b,
+      games_totales_a, games_totales_b,
       pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
       pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
     `)
@@ -232,7 +233,8 @@ export async function cargarGrupoCierre(grupo) {
   }
 
   const totalPartidos = (partidos || []).length;
-  const jugados = (partidos || []).filter(p => p.games_a !== null && p.games_b !== null).length;
+  // Usar sets_a para determinar si tiene resultado (campo derivado)
+  const jugados = (partidos || []).filter(p => p.sets_a !== null).length;
   const faltan = totalPartidos - jugados;
 
   const partidosArray = partidos || [];

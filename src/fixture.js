@@ -40,7 +40,11 @@ async function init(mostrarSkeleton = true) {
       supabase
         .from('partidos')
         .select(`
-          id, games_a, games_b, estado, ronda,
+          id, estado, ronda,
+          set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
+          sets_a, sets_b,
+          games_totales_a, games_totales_b,
+          stb_puntos_a, stb_puntos_b,
           grupos ( nombre ),
           pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
           pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
@@ -266,11 +270,13 @@ function renderFixtureGrid(data) {
   gridEl.innerHTML = html;
 }
 
+import { tieneResultado, formatearResultado } from './utils/formatoResultado.js';
+
 /**
  * Renderiza una card de partido
  */
 function renderPartidoCard(partido) {
-  const jugado = partido.games_a !== null && partido.games_b !== null;
+  const jugado = tieneResultado(partido);
   const claseEstado = jugado ? 'fixture-partido-jugado' : 'fixture-partido-pendiente';
   
   const nombreA = partido.pareja_a?.nombre || '—';
@@ -282,7 +288,7 @@ function renderPartidoCard(partido) {
     // Jugado: mostrar en línea con resultado
     html += `<div class="fixture-vs">`;
     html += `<span class="fixture-equipo">${escapeHtml(nombreA)}</span>`;
-    html += `<span class="fixture-resultado">${partido.games_a}-${partido.games_b}</span>`;
+    html += `<span class="fixture-resultado">${formatearResultado(partido)}</span>`;
     html += `<span class="fixture-equipo">${escapeHtml(nombreB)}</span>`;
     html += `</div>`;
   } else {
@@ -314,7 +320,7 @@ function renderFechaLibreCard(pareja) {
  * Determina si un partido está finalizado (tiene resultado cargado)
  */
 function esPartidoFinalizado(partido) {
-  return partido.games_a !== null && partido.games_b !== null;
+  return tieneResultado(partido);
 }
 
 /**
@@ -405,7 +411,11 @@ async function refrescarYRenderizar() {
     const partidosRes = await supabase
       .from('partidos')
       .select(`
-        id, games_a, games_b, estado, ronda,
+        id, estado, ronda,
+        set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
+        sets_a, sets_b,
+        games_totales_a, games_totales_b,
+        stb_puntos_a, stb_puntos_b,
         grupos ( nombre ),
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
@@ -504,7 +514,7 @@ function renderColaItem(partido, gruposOrdenados, opts = {}) {
   const nombreB = partido.pareja_b?.nombre || '—';
   const ronda = partido.ronda ?? '?';
   const posicion = opts.posicion != null ? opts.posicion : null;
-  const resultado = esPartidoFinalizado(partido) ? `${partido.games_a}-${partido.games_b}` : null;
+  const resultado = esPartidoFinalizado(partido) ? formatearResultado(partido) : null;
   const searchable = `${grupo} ${nombreA} ${nombreB} R${ronda}`;
 
   let html = `<div class="fixture-cola-item" data-search="${escapeHtml(searchable)}">`;

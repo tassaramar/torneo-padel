@@ -1,5 +1,6 @@
 import { state } from './state.js';
 import { crearCardEditable } from './cardEditable.js';
+import { tieneResultado } from '../utils/formatoResultado.js';
 
 function labelRonda(r) {
   if (!r) return '';
@@ -9,10 +10,22 @@ function labelRonda(r) {
   return r;
 }
 
-async function guardarResultado(supabase, partidoId, gamesA, gamesB) {
+/**
+ * Guarda resultado como set1 (partido a 1 set) - para uso de admin en copas
+ * NOTA: NO escribir directamente a games_totales_* (son derivados calculados por trigger)
+ */
+async function guardarResultadoComoSet(supabase, partidoId, gamesA, gamesB) {
   const { error } = await supabase
     .from('partidos')
-    .update({ games_a: gamesA, games_b: gamesB })
+    .update({ 
+      set1_a: gamesA, 
+      set1_b: gamesB,
+      num_sets: 1,
+      set2_a: null,
+      set2_b: null,
+      set3_a: null,
+      set3_b: null
+    })
     .eq('id', partidoId);
 
   if (error) {
@@ -32,11 +45,11 @@ export async function cargarCopas({ supabase, torneoId, copasCont, onAfterSave }
     .from('partidos')
     .select(`
       id,
-      games_a,
-      games_b,
       ronda_copa,
       orden_copa,
       set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
+      sets_a, sets_b,
+      games_totales_a, games_totales_b,
       copas ( id, nombre, orden ),
       pareja_a:parejas!partidos_pareja_a_id_fkey ( nombre ),
       pareja_b:parejas!partidos_pareja_b_id_fkey ( nombre )
@@ -45,9 +58,11 @@ export async function cargarCopas({ supabase, torneoId, copasCont, onAfterSave }
     .not('copa_id', 'is', null);
 
   if (state.modo === 'pendientes') {
-    q = q.or('games_a.is.null,games_b.is.null');
+    // Pendientes = sin sets cargados (sets_a es derivado, si es null no hay resultado)
+    q = q.is('sets_a', null);
   } else {
-    q = q.not('games_a', 'is', null).not('games_b', 'is', null);
+    // Jugados = con sets cargados
+    q = q.not('sets_a', 'is', null);
   }
 
   q = q.order('orden_copa', { ascending: true });
@@ -97,15 +112,19 @@ function renderCopas({ supabase, copasCont, partidos, onAfterSave }) {
       .forEach(p => {
         const header = `<strong>${c.nombre}</strong> · ${labelRonda(p.ronda_copa) || 'Partido'}`;
 
+        // Para la card editable, mostrar el set1 (o null si no hay resultado)
+        const gamesA = p.set1_a;
+        const gamesB = p.set1_b;
+
         const card = crearCardEditable({
           headerLeft: header,
-          headerRight: (p.games_a !== null && p.games_b !== null) ? 'Jugado' : 'Pendiente',
+          headerRight: tieneResultado(p) ? 'Jugado' : 'Pendiente',
           nombreA: p.pareja_a?.nombre ?? 'Pareja A',
           nombreB: p.pareja_b?.nombre ?? 'Pareja B',
-          gamesA: p.games_a,
-          gamesB: p.games_b,
+          gamesA: gamesA,
+          gamesB: gamesB,
           onSave: async (ga, gb) => {
-            const ok = await guardarResultado(supabase, p.id, ga, gb);
+            const ok = await guardarResultadoComoSet(supabase, p.id, ga, gb);
             if (ok) {
               await onAfterSave?.();
             }

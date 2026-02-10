@@ -97,11 +97,12 @@ async function calcularTablaGrupoDB(grupoId) {
     .from('partidos')
     .select(`
       id,
-      games_a,
-      games_b,
       estado,
       pareja_a_id,
       pareja_b_id,
+      set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
+      sets_a, sets_b,
+      games_totales_a, games_totales_b,
       pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
       pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
     `)
@@ -115,7 +116,7 @@ async function calcularTablaGrupoDB(grupoId) {
   }
 
   const total = (partidos || []).length;
-  const jugados = (partidos || []).filter(p => p.games_a !== null && p.games_b !== null).length;
+  const jugados = (partidos || []).filter(p => p.sets_a !== null).length;
 
   if (total > 0 && jugados < total) {
     return { ok: false, msg: `faltan partidos (${jugados}/${total})` };
@@ -646,8 +647,9 @@ export async function aplicarAsignacionesAutomaticas() {
 }
 
 function fmtRes(p) {
-  if (p.games_a === null || p.games_b === null) return 'Pendiente';
-  return `${p.games_a} - ${p.games_b}`;
+  if (p.sets_a === null) return 'Pendiente';
+  // Mostrar sets ganados para brackets
+  return `${p.sets_a} - ${p.sets_b}`;
 }
 
 function fmtRonda(p) {
@@ -697,10 +699,11 @@ export async function cargarCopasAdmin() {
       .from('partidos')
       .select(`
         id,
-        games_a,
-        games_b,
         ronda_copa,
         orden_copa,
+        set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
+        sets_a, sets_b,
+        games_totales_a, games_totales_b,
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
       `)
@@ -716,7 +719,7 @@ export async function cargarCopasAdmin() {
     }
 
     const total = (partidos || []).length;
-    const jugados = (partidos || []).filter(p => p.games_a !== null && p.games_b !== null).length;
+    const jugados = (partidos || []).filter(p => p.sets_a !== null).length;
     const faltan = total - jugados;
 
     card.appendChild(
@@ -1097,9 +1100,9 @@ export async function generarCopasYSemis() {
 ========================= */
 
 function winnerLoserFromMatch(p) {
-  // requiere games cargados y sin empate
-  const ga = p.games_a;
-  const gb = p.games_b;
+  // requiere sets cargados y sin empate
+  const ga = p.sets_a;
+  const gb = p.sets_b;
   if (ga === null || gb === null) return null;
   if (ga === gb) return null;
 
@@ -1135,7 +1138,7 @@ export async function generarFinalesYTercerPuesto() {
     // Traer TODOS los partidos de la copa (para ver SF + F + 3P)
     const { data: partidos, error: errP } = await supabase
       .from('partidos')
-      .select('id, copa_id, ronda_copa, orden_copa, pareja_a_id, pareja_b_id, games_a, games_b')
+      .select('id, copa_id, ronda_copa, orden_copa, pareja_a_id, pareja_b_id, sets_a, sets_b')
       .eq('torneo_id', TORNEO_ID)
       .eq('copa_id', copa.id);
 
