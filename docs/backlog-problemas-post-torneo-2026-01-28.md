@@ -83,12 +83,19 @@ Rank	Problema (título corto)	S	F	T	C	Score
 - **Usuarios afectados**: principalmente **admin/organizador** (y por arrastre todos los jugadores).
 - **Cuándo ocurre**: **fin de grupos** (ventana crítica).
 
-### P2 — Tabla/posiciones percibida como poco confiable (“números raros”)
-- **Descripción**: métricas de tabla no coincidían con expectativa (p.ej. “3 games a favor” cuando esperabas ~18), generando dudas de interpretación.
-- **Evidencia**: triple empate; decisión tomada con confianza parcial (“cerré los ojos y anuncié”).
+### P2 — Tabla/posiciones percibida como poco confiable ("números raros") ✅ RESUELTO
+- **Descripción**: métricas de tabla no coincidían con expectativa (p.ej. "3 games a favor" cuando esperabas ~18), generando dudas de interpretación.
+- **Evidencia**: triple empate; decisión tomada con confianza parcial ("cerré los ojos y anuncié").
 - **Impacto**: cuestionamientos; riesgo real de anuncio incorrecto; pérdida de confianza en el sistema.
 - **Usuarios afectados**: **admin/organizador** (y jugadores al validar justicia).
 - **Cuándo ocurre**: **fin de grupos** (ventana crítica).
+
+**✅ RESOLUCIÓN (2026-01-30)**:
+- **Causa raíz identificada**: Funciones diferentes calculando posiciones en distintas páginas → resultados inconsistentes.
+- **Solución implementada**: Centralización de cálculo de tabla en función única [`calcularTablaGrupo()`](../src/utils/tablaPosiciones.js:210).
+- **Implementación**: Todos los lugares del sistema (viewer, personal, modal, admin, copas) importan y usan la misma función centralizada.
+- **Verificación**: Código auditado - no existe lógica duplicada. Las funciones locales son solo wrappers async que fetch data y llaman a la función central.
+- **Resultado**: Garantía de consistencia - mismo grupo muestra mismas posiciones en todas las vistas.
 
 ### P3 — Fixture: encontrar “quién juega ahora” es difícil (4 nombres, orden, homónimos)
 - **Descripción**: localizar rápidamente el partido correcto es cognitivamente costoso:
