@@ -45,13 +45,10 @@ test.describe('TC-020: Números Globales en Modal de Consulta', () => {
     // Paso 1: Abrir modal "Tablas / Grupos"
     console.log('\nPaso 1: Abriendo modal "Tablas / Grupos"...');
 
-    // Buscar botón (puede variar el texto exacto)
-    const botonModal = page.getByText(/tablas.*grupos|grupos.*tablas|tablas.*fixture/i).first();
+    // Buscar botón por ID (más robusto que buscar por texto)
+    const botonModal = page.locator('#btn-abrir-modal');
 
-    const botonVisible = await botonModal.isVisible({ timeout: 5000 })
-      .catch(() => false);
-
-    expect(botonVisible).toBe(true);
+    await expect(botonModal).toBeVisible({ timeout: 10000 });
     console.log('✅ Botón "Tablas / Grupos" encontrado');
 
     await botonModal.click();
