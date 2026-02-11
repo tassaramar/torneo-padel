@@ -4369,12 +4369,11 @@ a.btn-action-secondary:hover {
 }
 
 .modal-partido-ronda {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--primary-900);
-  background: var(--primary-soft);
-  padding: 4px 8px;
-  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 0 4px;
+  flex-shrink: 0;
 }
 
 .modal-partido-equipos {
@@ -4464,6 +4463,20 @@ a.btn-action-secondary:hover {
   justify-content: center;
   font-weight: 700;
   font-size: 13px;
+}
+
+.modal-partido-pos {
+  width: 32px;
+  height: 32px;
+  background: var(--primary);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
 }
 
 .modal-fixture-grupo {

@@ -8,7 +8,7 @@
  * - Fixture: vista de cola del fixture (reutiliza lógica existente)
  */
 
-import { 
+import {
   calcularTablaGrupo as calcularTablaGrupoCentral,
   ordenarConOverrides,
   detectarEmpatesReales,
@@ -16,6 +16,7 @@ import {
   agregarMetadataOverrides
 } from '../utils/tablaPosiciones.js';
 import { tieneResultado, formatearResultado } from '../utils/formatoResultado.js';
+import { calcularColaSugerida, crearMapaPosiciones } from '../utils/colaFixture.js';
 
 let modalState = {
   isOpen: false,
@@ -232,7 +233,11 @@ async function renderMiGrupo(container) {
       });
     });
   }
-  
+
+  // Calcular cola global y mapa de posiciones para números de partido
+  const colaGlobal = calcularColaSugerida(cache.partidos || [], cache.grupos || []);
+  const mapaPosiciones = crearMapaPosiciones(colaGlobal);
+
   const jugados = partidosDelGrupo.filter(p => tieneResultado(p)).length;
   const total = partidosDelGrupo.length;
   
@@ -281,7 +286,7 @@ async function renderMiGrupo(container) {
       <details class="modal-details" open>
         <summary>Partidos del grupo</summary>
         <div class="modal-partidos-list">
-          ${renderPartidosGrupo(partidosDelGrupo, identidad)}
+          ${renderPartidosGrupo(partidosDelGrupo, identidad, mapaPosiciones)}
         </div>
       </details>
     </div>
@@ -321,7 +326,11 @@ async function renderOtrosGrupos(container) {
   const overridesMap = await cargarOverrides(supabase, torneoId, modalState.grupoSeleccionado);
   const tablaOrdenada = ordenarConOverrides(tablaBase, overridesMap, partidosDelGrupo);
   const tablaConMetadata = agregarMetadataOverrides(tablaOrdenada, overridesMap);
-  
+
+  // Calcular cola global y mapa de posiciones para números de partido
+  const colaGlobal = calcularColaSugerida(cache.partidos || [], cache.grupos || []);
+  const mapaPosiciones = crearMapaPosiciones(colaGlobal);
+
   const jugados = partidosDelGrupo.filter(p => tieneResultado(p)).length;
   const total = partidosDelGrupo.length;
   
@@ -377,7 +386,7 @@ async function renderOtrosGrupos(container) {
       <details class="modal-details">
         <summary>Partidos del grupo</summary>
         <div class="modal-partidos-list">
-          ${renderPartidosGrupo(partidosDelGrupo, null)}
+          ${renderPartidosGrupo(partidosDelGrupo, null, mapaPosiciones)}
         </div>
       </details>
     </div>
@@ -480,12 +489,15 @@ function renderFixture(container) {
 
 /**
  * Renderiza lista de partidos de un grupo
+ * @param {Array} partidos - Lista de partidos del grupo
+ * @param {Object|null} identidad - Identidad del jugador (puede ser null)
+ * @param {Map} mapaPosiciones - Mapa de ID partido -> posición global
  */
-function renderPartidosGrupo(partidos, identidad) {
+function renderPartidosGrupo(partidos, identidad, mapaPosiciones) {
   if (!partidos.length) {
     return '<p class="modal-empty">Sin partidos</p>';
   }
-  
+
   // Ordenar por ronda, luego por estado (pendientes primero)
   const ordenados = [...partidos].sort((a, b) => {
     if (a.ronda !== b.ronda) return (a.ronda || 999) - (b.ronda || 999);
@@ -493,16 +505,18 @@ function renderPartidosGrupo(partidos, identidad) {
     const bJugado = tieneResultado(b) ? 1 : 0;
     return aJugado - bJugado;
   });
-  
+
   return ordenados.map(p => {
     const nombreA = p.pareja_a?.nombre || '—';
     const nombreB = p.pareja_b?.nombre || '—';
     const jugado = tieneResultado(p);
     const ronda = p.ronda ?? '?';
     const esMiPartido = identidad && (p.pareja_a?.id === identidad.parejaId || p.pareja_b?.id === identidad.parejaId);
-    
+    const posicionGlobal = mapaPosiciones?.get(p.id);
+
     return `
       <div class="modal-partido ${jugado ? 'jugado' : 'pendiente'} ${esMiPartido ? 'es-mio' : ''}">
+        ${posicionGlobal ? `<span class="modal-partido-pos">#${posicionGlobal}</span>` : ''}
         <span class="modal-partido-ronda">R${ronda}</span>
         <span class="modal-partido-equipos">
           ${escapeHtml(nombreA)} <span class="vs">vs</span> ${escapeHtml(nombreB)}
