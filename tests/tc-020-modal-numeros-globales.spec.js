@@ -42,6 +42,18 @@ test.describe('TC-020: Números Globales en Modal de Consulta', () => {
     expect(identidad).not.toBeNull();
     console.log(`✅ Identidad establecida: ${identidad.parejaNombre}`);
 
+    // Hacer clic en "Continuar" para pasar de la pantalla de confirmación al Home
+    console.log('Haciendo clic en "Continuar" para ir al Home...');
+    const botonContinuar = page.getByText(/continuar/i);
+    const continuarVisible = await botonContinuar.isVisible({ timeout: 5000 })
+      .catch(() => false);
+
+    if (continuarVisible) {
+      await botonContinuar.click();
+      await page.waitForTimeout(1500);
+      console.log('✅ Navegado al Home Único');
+    }
+
     // Esperar a que el Home Único esté completamente renderizado
     console.log('Esperando a que el Home Único se renderice...');
     await page.waitForSelector('.home-shell', { timeout: 10000 });
