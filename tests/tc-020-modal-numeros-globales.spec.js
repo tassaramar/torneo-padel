@@ -236,9 +236,14 @@ test.describe('TC-020: Números Globales en Modal de Consulta', () => {
     console.log(`Números en "Mi grupo": ${numerosFinalesMiGrupo.slice(0, 3).join(', ')}...`);
     console.log(`Números en "Fixture": ${numerosFinalesFixture.slice(0, 3).join(', ')}...`);
 
+    // Normalizar números (quitar # para comparar)
+    const normalizarNumero = (num) => num.replace('#', '');
+    const numerosNormalizadosMiGrupo = numerosFinalesMiGrupo.map(normalizarNumero);
+    const numerosNormalizadosFixture = numerosFinalesFixture.map(normalizarNumero);
+
     // Verificar que al menos algunos números coinciden (los partidos del jugador)
-    const numerosCoincidentes = numerosFinalesMiGrupo.filter(num =>
-      numerosFinalesFixture.includes(num)
+    const numerosCoincidentes = numerosNormalizadosMiGrupo.filter(num =>
+      numerosNormalizadosFixture.includes(num)
     );
 
     expect(numerosCoincidentes.length).toBeGreaterThan(0);
