@@ -176,6 +176,10 @@ test.describe('TC-020: Números Globales en Modal de Consulta', () => {
     // Paso 5: Verificar jerarquía visual (números prominentes, rondas secundarias)
     console.log('\nPaso 5: Verificando jerarquía visual (CSS)...');
 
+    // Volver a "Mi grupo" para verificar estilos (Fixture usa clases diferentes)
+    await tabMiGrupo.click();
+    await page.waitForTimeout(500);
+
     // Verificar que números tienen estilos prominentes (círculo teal)
     const estilosNumero = await page.locator('.modal-partido-pos').first().evaluate(el => {
       const styles = window.getComputedStyle(el);
