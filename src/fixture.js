@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import { esPartidoFinalizado, esPartidoPendiente, esPartidoYaJugado, calcularColaSugerida } from './utils/colaFixture.js';
+import { tieneResultado, formatearResultado } from './utils/formatoResultado.js';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -270,8 +272,6 @@ function renderFixtureGrid(data) {
   gridEl.innerHTML = html;
 }
 
-import { tieneResultado, formatearResultado } from './utils/formatoResultado.js';
-
 /**
  * Renderiza una card de partido
  */
@@ -314,71 +314,6 @@ function renderFechaLibreCard(pareja) {
       <div style="font-size: 0.75rem; line-height: 1.2;">${escapeHtml(pareja.nombre)}</div>
     </div>
   `;
-}
-
-/**
- * Determina si un partido está finalizado (tiene resultado cargado)
- */
-function esPartidoFinalizado(partido) {
-  return tieneResultado(partido);
-}
-
-/**
- * Determina si un partido está pendiente (no finalizado, no en juego, no terminado)
- */
-function esPartidoPendiente(partido) {
-  return !esPartidoFinalizado(partido) && partido.estado !== 'en_juego' && partido.estado !== 'terminado';
-}
-
-/**
- * Determina si un partido va en "Ya jugados" (tiene resultado o fue marcado terminado)
- */
-function esPartidoYaJugado(partido) {
-  return esPartidoFinalizado(partido) || partido.estado === 'terminado';
-}
-
-/**
- * Calcula la cola sugerida de partidos pendientes
- * Orden: por ronda ascendente, intercalando grupos dentro de cada ronda
- */
-function calcularColaSugerida(partidos, grupos) {
-  // Filtrar solo partidos pendientes
-  const pendientes = partidos.filter(p => esPartidoPendiente(p));
-  
-  // Grupos ordenados alfabéticamente
-  const gruposOrdenados = grupos.map(g => g.nombre).sort();
-  
-  // Crear mapa de partidos por ronda y grupo
-  const porRondaYGrupo = {};
-  pendientes.forEach(p => {
-    const ronda = p.ronda || 999;
-    const grupo = p.grupos?.nombre || 'Sin Grupo';
-    const key = `${ronda}-${grupo}`;
-    if (!porRondaYGrupo[key]) {
-      porRondaYGrupo[key] = [];
-    }
-    porRondaYGrupo[key].push(p);
-  });
-  
-  // Obtener rondas únicas y ordenarlas
-  const rondasSet = new Set();
-  pendientes.forEach(p => {
-    if (p.ronda) rondasSet.add(p.ronda);
-  });
-  const rondas = Array.from(rondasSet).sort((a, b) => a - b);
-  
-  // Construir cola intercalando grupos por ronda
-  const cola = [];
-  rondas.forEach(ronda => {
-    // Para cada grupo en orden, agregar sus partidos de esta ronda
-    gruposOrdenados.forEach(grupo => {
-      const key = `${ronda}-${grupo}`;
-      const partidosDelGrupo = porRondaYGrupo[key] || [];
-      cola.push(...partidosDelGrupo);
-    });
-  });
-  
-  return cola;
 }
 
 /**

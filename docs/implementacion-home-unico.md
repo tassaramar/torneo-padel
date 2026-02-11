@@ -54,39 +54,49 @@ Se implementó el **Home Único**, una pantalla que permite al jugador operar el
 
 ## Sistema de Presentismo
 
-El presentismo usa **localStorage** con la siguiente estructura:
+El presentismo está almacenado en **Supabase** utilizando el campo `presentes` en la tabla `parejas`:
+
+```sql
+-- Estructura en BD
+ALTER TABLE public.parejas
+ADD COLUMN IF NOT EXISTS presentes TEXT[] DEFAULT '{}';
+
+-- Ejemplo de datos
+presentes = ['Tincho', 'Max']  -- ambos presentes
+presentes = ['Tincho']         -- solo uno presente
+presentes = []                 -- ninguno presente
+```
+
+**Migraciones aplicadas**:
+- `20260130010000_add_presentes_to_parejas.sql` - Agrega campo `presentes TEXT[]`
+- `20260130020000_add_presentismo_activo_to_torneos.sql` - Agrega flag `presentismo_activo BOOLEAN` a torneos
+
+### Funciones disponibles (src/viewer/presentismo.js)
+
+Todas las funciones usan Supabase:
+
+- `obtenerPresentes(parejaId)` → Promise<string[]>
+- `marcarPresente(parejaId, nombre)` → Promise<boolean>
+- `marcarAmbosPresentes(parejaId, nombre1, nombre2)` → Promise<boolean>
+- `desmarcarPresente(parejaId, nombre)` → Promise<boolean>
+- `desmarcarTodos(parejaId)` → Promise<boolean>
+- `estaPresente(presentes, nombre)` → boolean
+- `parejaCompleta(presentes, nombre1, nombre2)` → boolean
+- `estadoPresentismo(presentes, miNombre, companero)` → { estado, yoPresente, companeroPresente }
+
+### LocalStorage (solo UX)
+
+LocalStorage se usa únicamente para mejorar UX (no para sincronizar datos):
 
 ```javascript
-// Key: presentismo_{torneoId}_{parejaId}
-{
-  jugadorA: boolean,
-  jugadorB: boolean,
-  timestamp: number
-}
+// Key: presentismo_toast_visto_{torneoId}_{parejaId}
+// Valor: 'true' si el usuario ya vio el toast de presentismo
 ```
 
-### Funciones disponibles
-
-- `marcarPresente(torneoId, parejaId, 'A' | 'B' | 'ambos')`
-- `desmarcarPresente(torneoId, parejaId, 'ambos')`
-- `parejaCompleta(torneoId, parejaId)` → boolean
-- `estadoPresentismo(torneoId, parejaId)` → `{ estado: 'ninguno' | 'parcial' | 'completo' }`
-- `modoTodosPresentes(torneoId)` → boolean (admin puede activar)
-
-### Migración futura a BD
-
-La arquitectura está lista para migrar a una tabla `presentismo_torneo`:
-```sql
-CREATE TABLE presentismo_torneo (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  torneo_id UUID REFERENCES torneos(id),
-  pareja_id UUID REFERENCES parejas(id),
-  jugador_a_presente BOOLEAN DEFAULT false,
-  jugador_b_presente BOOLEAN DEFAULT false,
-  updated_at TIMESTAMP DEFAULT NOW(),
-  UNIQUE(torneo_id, pareja_id)
-);
-```
+Funciones auxiliares:
+- `toastYaVisto(torneoId, parejaId)` → boolean
+- `marcarToastVisto(torneoId, parejaId)`
+- `limpiarToastVisto(torneoId, parejaId)`
 
 ## Modal de Consulta
 
