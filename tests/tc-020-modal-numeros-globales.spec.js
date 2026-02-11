@@ -42,6 +42,11 @@ test.describe('TC-020: Números Globales en Modal de Consulta', () => {
     expect(identidad).not.toBeNull();
     console.log(`✅ Identidad establecida: ${identidad.parejaNombre}`);
 
+    // Esperar a que el Home Único esté completamente renderizado
+    console.log('Esperando a que el Home Único se renderice...');
+    await page.waitForSelector('.home-shell', { timeout: 10000 });
+    await page.waitForTimeout(1000); // Tiempo extra para JS dinámico
+
     // Paso 1: Abrir modal "Tablas / Grupos"
     console.log('\nPaso 1: Abriendo modal "Tablas / Grupos"...');
 
