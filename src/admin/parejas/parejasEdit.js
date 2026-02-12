@@ -1,4 +1,5 @@
 import { supabase, TORNEO_ID, logMsg, el } from '../context.js';
+import { showToast } from '../../utils/toast.js';
 
 function normNombrePareja(raw) {
   let s = String(raw ?? '').trim();
@@ -54,6 +55,9 @@ function inferGroupMap(grupos, parejas) {
   }
   return map;
 }
+
+// Variable global para la función refresh (necesaria para rollback)
+let globalRefresh = null;
 
 function renderList(container, estado, filterText) {
   container.innerHTML = '';
@@ -136,26 +140,38 @@ function renderList(container, estado, filterText) {
         return;
       }
 
+      // OPTIMISTIC UI: Capturar estado previo
+      const nombreAnterior = viewLine.textContent;
+
+      // Actualizar UI inmediatamente + deshabilitar botones
+      viewLine.textContent = nuevo;
+      editBox.style.display = 'none';
       btnSave.disabled = true;
       btnCancel.disabled = true;
 
+      // Backend call
       const { error } = await supabase
         .from('parejas')
         .update({ nombre: nuevo })
         .eq('id', p.id);
 
+      // Re-habilitar botones
       btnSave.disabled = false;
       btnCancel.disabled = false;
 
       if (error) {
+        // ROLLBACK: Revert + Notify + Refresh
+        viewLine.textContent = nombreAnterior;
+        editBox.style.display = 'block';
         console.error(error);
-        alert('Error guardando (mirá consola).');
+        showToast('Error al guardar pareja', 'error');
+        if (globalRefresh) await globalRefresh(); // ← Garantizar consistencia
         return;
       }
 
-      viewLine.textContent = nuevo;
-      editBox.style.display = 'none';
+      // Success: Log + Refresh
       logMsg(`✅ Pareja actualizada: ${nuevo}`);
+      if (globalRefresh) await globalRefresh(); // ← Garantizar consistencia
     });
 
     container.appendChild(card);
@@ -176,6 +192,9 @@ export function initParejasEdit() {
     estado = await fetchEstado();
     renderList(listEl, estado, searchEl?.value ?? '');
   };
+
+  // Asignar a variable global para que btnSave pueda usarla en rollback
+  globalRefresh = refresh;
 
   btnRefresh?.addEventListener('click', refresh);
 
