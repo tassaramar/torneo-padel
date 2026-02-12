@@ -2,12 +2,13 @@ import { createClient } from '@supabase/supabase-js';
 import { getIdentidad, clearIdentidad } from './identificacion/identidad.js';
 import { iniciarIdentificacion } from './identificacion/ui.js';
 import { cargarVistaPersonalizada } from './viewer/vistaPersonal.js';
-import { 
-  cargarResultado, 
+import {
+  cargarResultado,
   aceptarOtroResultado,
-  mostrarModalCargarResultado 
+  mostrarModalCargarResultado
 } from './viewer/cargarResultado.js';
 import { initModal, abrirModal, cerrarModal, invalidarCache } from './viewer/modalConsulta.js';
+import { showToast } from './utils/toast.js';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -253,27 +254,45 @@ async function init(mostrarSkeleton = true) {
 function animarPartidoSalida(partidoId) {
   return new Promise((resolve) => {
     const tarjeta = document.querySelector(`[data-partido-id="${partidoId}"]`);
-    
+
     if (!tarjeta) {
       // Si no encuentra la tarjeta, continuar sin animación
       resolve();
       return;
     }
-    
+
     // Agregar clase de animación
     tarjeta.classList.add('partido-moving');
-    
+
     // Crear y agregar mensaje flotante
     const mensaje = document.createElement('div');
     mensaje.className = 'moving-message';
     mensaje.textContent = '¡Movido a partidos jugados! 🎾';
     tarjeta.appendChild(mensaje);
-    
+
     // Resolver después de que termine la animación (600ms)
     setTimeout(() => {
       resolve();
     }, 600);
   });
+}
+
+/**
+ * Revierte la animación de salida de un partido (para rollback)
+ */
+function revertirAnimacionPartido(partidoId) {
+  const tarjeta = document.querySelector(`[data-partido-id="${partidoId}"]`);
+
+  if (!tarjeta) return;
+
+  // Remover clase de animación
+  tarjeta.classList.remove('partido-moving');
+
+  // Remover mensaje flotante si existe
+  const mensaje = tarjeta.querySelector('.moving-message');
+  if (mensaje) {
+    mensaje.remove();
+  }
 }
 
 /**
@@ -368,9 +387,9 @@ window.app = {
     if (!partido) return;
 
     mostrarModalCargarResultado(partido, identidad, async (setsOrGamesA, gamesBOrNumSets) => {
-      // Animar salida de la tarjeta
+      // OPTIMISTIC UI: Animar salida de la tarjeta
       await animarPartidoSalida(partidoId);
-      
+
       let resultado;
       // Detectar si es modo sets (objeto) o modo legacy (números)
       if (typeof setsOrGamesA === 'object' && setsOrGamesA.set1) {
@@ -381,12 +400,15 @@ window.app = {
         // Modo legacy (games)
         resultado = await cargarResultado(supabase, partidoId, setsOrGamesA, gamesBOrNumSets, identidad);
       }
-      
+
       if (resultado.ok) {
-        // Animación ya mostró el éxito, solo recargar
+        // Success: Refresh para garantizar consistencia
         await init();
       } else {
-        mostrarToastError(resultado.mensaje);
+        // ROLLBACK: Revert + Notify + Refresh
+        revertirAnimacionPartido(partidoId);
+        showToast(resultado.mensaje || 'Error al cargar resultado', 'error');
+        await init(); // ← Garantizar consistencia
       }
     });
   },
@@ -474,16 +496,19 @@ window.app = {
 
     if (!confirm('¿Estás seguro de aceptar el resultado de la otra pareja?')) return;
 
-    // Animar salida de la tarjeta
+    // OPTIMISTIC UI: Animar salida de la tarjeta
     await animarPartidoSalida(partidoId);
 
     const resultado = await aceptarOtroResultado(supabase, partidoId, identidad);
-    
+
     if (resultado.ok) {
-      // Animación ya mostró el éxito, solo recargar
+      // Success: Refresh para garantizar consistencia
       await init();
     } else {
-      mostrarToastError(resultado.mensaje);
+      // ROLLBACK: Revert + Notify + Refresh
+      revertirAnimacionPartido(partidoId);
+      showToast(resultado.mensaje || 'Error al aceptar resultado', 'error');
+      await init(); // ← Garantizar consistencia
     }
   },
 
