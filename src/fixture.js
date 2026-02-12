@@ -17,6 +17,7 @@ const gridEl = document.getElementById('fixture-grid');
 let vistaActual = 'cola'; // 'tabla' | 'cola'
 let cacheDatos = null;
 let colaSearch = '';
+let filtroParejasCompletas = false;
 
 // Auto-refresh cada 30s
 let pollingInterval = null;
@@ -456,6 +457,16 @@ async function siguenJugando(partidoId) {
   }
 }
 
+/**
+ * Toggle del filtro de parejas completas
+ */
+function toggleFiltroParejas() {
+  filtroParejasCompletas = !filtroParejasCompletas;
+  if (cacheDatos) {
+    renderColaFixture(cacheDatos.partidos, cacheDatos.grupos, cacheDatos.parejas);
+  }
+}
+
 function normSearch(s) {
   return String(s || '')
     .toLowerCase()
@@ -660,7 +671,25 @@ function renderColaFixture(partidos, grupos, parejas) {
     html += `<span class="stat-finalizado">${s.finalizado}</span>`;
     html += '</span></div>';
   });
-  html += '</div></div>';
+  html += '</div>';
+
+  // Filtro de presentismo (si está activo)
+  if (cacheDatos?.presentismoActivo) {
+    const partidosCompletos = cola.filter(p => {
+      const estado = calcularEstadoVisualPartido(p);
+      return estado.todosPresentes;
+    }).length;
+
+    html += '<div class="fixture-filtro-presentismo">';
+    html += `<label class="filtro-checkbox-label">`;
+    html += `<input type="checkbox" id="filtro-parejas-completas" ${filtroParejasCompletas ? 'checked' : ''} onchange="window.toggleFiltroParejas()">`;
+    html += `<span>Solo parejas completas</span>`;
+    html += `<span class="filtro-contador">${partidosCompletos}/${cola.length}</span>`;
+    html += `</label>`;
+    html += '</div>';
+  }
+
+  html += '</div>';
 
   // Sección: En juego (arriba) – colapsable, acento naranja
   html += '<details class="fixture-cola-seccion fixture-cola-seccion-en-juego" open>';
@@ -677,8 +706,18 @@ function renderColaFixture(partidos, grupos, parejas) {
   html += '<details class="fixture-cola-seccion fixture-cola-seccion-pendientes" open>';
   html += '<summary class="fixture-cola-seccion-titulo">Pendientes</summary>';
   html += '<div class="fixture-cola-lista">';
-  if (cola.length) {
-    cola.forEach((p, i) => { html += renderColaItem(p, gruposOrdenados, { posicion: i + 1, acciones: 'pendiente' }); });
+
+  // Aplicar filtro si está activo
+  let colaFiltrada = cola;
+  if (filtroParejasCompletas && cacheDatos?.presentismoActivo) {
+    colaFiltrada = cola.filter(p => {
+      const estado = calcularEstadoVisualPartido(p);
+      return estado.todosPresentes;
+    });
+  }
+
+  if (colaFiltrada.length) {
+    colaFiltrada.forEach((p, i) => { html += renderColaItem(p, gruposOrdenados, { posicion: i + 1, acciones: 'pendiente' }); });
   } else {
     html += '<p class="fixture-cola-vacio">Ninguno</p>';
   }
@@ -705,6 +744,7 @@ function renderColaFixture(partidos, grupos, parejas) {
   window.desmarcarEnJuego = desmarcarEnJuego;
   window.marcarComoFinalizado = marcarComoFinalizado;
   window.siguenJugando = siguenJugando;
+  window.toggleFiltroParejas = toggleFiltroParejas;
 
   aplicarBusquedaCola();
   wireSearchUI();
