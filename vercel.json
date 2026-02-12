@@ -5,7 +5,8 @@
     { "source": "/carga", "destination": "/carga/", "permanent": false },
     { "source": "/analytics", "destination": "/analytics/", "permanent": false },
     { "source": "/general", "destination": "/general/", "permanent": false },
-    { "source": "/fixture", "destination": "/fixture/", "permanent": false }
+    { "source": "/fixture", "destination": "/fixture/", "permanent": false },
+    { "source": "/presente", "destination": "/presente/", "permanent": false }
   ],
   "rewrites": [
     { "source": "/", "destination": "/index.html" },
@@ -15,6 +16,7 @@
     { "source": "/bracket/", "destination": "/bracket.html" },
     { "source": "/analytics/", "destination": "/analytics.html" },
     { "source": "/general/", "destination": "/general.html" },
-    { "source": "/fixture/", "destination": "/fixture.html" }
+    { "source": "/fixture/", "destination": "/fixture.html" },
+    { "source": "/presente/", "destination": "/presente.html" }
   ]
 }
