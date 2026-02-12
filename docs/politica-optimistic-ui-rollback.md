@@ -77,6 +77,39 @@ else {
 
 ---
 
+### 5. En caso de ERROR: SIEMPRE notificar al usuario (CRÍTICO)
+
+```javascript
+else {
+  // Paso 1: Revert immediate UI
+  element.classList.remove('active');
+  button.textContent = 'Guardar';
+
+  // Paso 2: Log error
+  logMsg(`❌ Error en acción`);
+
+  // Paso 3: NOTIFICAR AL USUARIO
+  showToast('Error al guardar. Por favor, intentá de nuevo.', 'error');
+
+  // Paso 4: Refresh all affected views
+  await refreshAffectedViews();
+}
+```
+
+**Razón**:
+- **Pensar en el usuario primero**: Optimistic UI se trata de mejorar la experiencia del usuario, pero cuando falla, el usuario DEBE ser notificado de forma clara
+- **Feedback visible**: El log interno no es suficiente - el usuario no ve los logs de consola
+- **Expectativa frustrada**: El usuario vio el cambio (optimistic), cuando falla sin notificación, no entiende qué pasó
+
+**Sistema de notificación**: Usar toast/snackbar temporal (no bloqueante):
+- ✅ **Toast**: Notificación temporal (3s) en bottom-center
+- ✅ **No bloqueante**: El usuario puede seguir usando la app
+- ✅ **Variantes de color**: Error (rojo), Success (verde), Info (azul)
+
+**Implementación**: Ver `src/utils/toast.js`
+
+---
+
 ## Patrón Template
 
 ```javascript
@@ -98,9 +131,10 @@ async function optimisticAction(params) {
     logMsg(`✅ Acción exitosa`);
     await refreshAffectedViews();
   } else {
-    // ROLLBACK = Revert + Refresh
+    // ROLLBACK = Revert + Notify + Refresh
     revertImmediateUI(element, previousState);
     logMsg(`❌ Error en acción`);
+    showToast('Error al realizar la acción', 'error'); // ← NOTIFICAR USUARIO
     await refreshAffectedViews(); // ← CRÍTICO
   }
 }
@@ -144,7 +178,7 @@ window.toggleJugadorPresentismo = async function(event, parejaId, nombre) {
     logMsg(`✅ ${nombre} actualizado`);
     await refreshTodasLasVistas();
   } else {
-    // ROLLBACK: Revert + Refresh
+    // ROLLBACK: Revert + Notify + Refresh
     if (estaPresente) {
       btn.classList.remove('ausente');
       btn.classList.add('presente');
@@ -155,6 +189,7 @@ window.toggleJugadorPresentismo = async function(event, parejaId, nombre) {
       btn.textContent = `❌ ${nombre}`;
     }
     logMsg(`❌ Error al cambiar estado de ${nombre}`);
+    showToast(`Error al cambiar estado de ${nombre}`, 'error'); // ← Notify user
     await refreshTodasLasVistas(); // ← Guarantee consistency
   }
 };
@@ -230,6 +265,7 @@ Para considerar que una función cumple con la política:
 4. ✅ En caso de error:
    - Se revierte el elemento inmediato (feedback visual)
    - Se loguea el error
+   - **Se notifica al usuario** (toast/snackbar visible)
    - **Se llama a refresh** (garantía de consistencia)
 
 ---

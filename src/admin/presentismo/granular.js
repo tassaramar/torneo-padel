@@ -5,6 +5,7 @@
 import { supabase, TORNEO_ID, logMsg, el } from '../context.js';
 import { marcarPresente, desmarcarPresente, marcarAmbosPresentes, desmarcarTodos } from '../../viewer/presentismo.js';
 import { refreshTodasLasVistas } from './index.js';
+import { showToast } from '../../utils/toast.js';
 
 let parejasCache = [];
 let gruposCache = [];
@@ -247,6 +248,7 @@ window.toggleJugadorPresentismo = async function(event, parejaId, nombre) {
       btn.textContent = `❌ ${nombre}`;
     }
     logMsg(`❌ Error al cambiar estado de ${nombre}`);
+    showToast(`Error al cambiar estado de ${nombre}`, 'error'); // ← Notify user
     await refreshTodasLasVistas(); // ← Guarantee consistency on error
   }
 };

@@ -184,9 +184,16 @@ Hemos definido una política estándar de Optimistic UI + Rollback que garantiza
 
 ### Problema
 Actualmente solo está implementada en 1 lugar:
-- ✅ `src/admin/presentismo/granular.js` - Toggle de jugadores
+- ✅ `src/admin/presentismo/granular.js` - Toggle de jugadores (con toast)
 
 Hay múltiples lugares en la app donde hacemos mutaciones sin optimistic UI o sin rollback correcto.
+
+### Infraestructura Disponible
+- ✅ **Sistema de toast implementado** (`src/utils/toast.js`)
+  - Función: `showToast(message, type, duration)`
+  - Variantes: 'success', 'error', 'info'
+  - CSS en `style.css`
+  - Ejemplo de uso: Ver `src/admin/presentismo/granular.js` línea 250
 
 ### Objetivo
 Aplicar la política de rollback de forma consistente en toda la app.
@@ -258,6 +265,7 @@ Para cada lugar:
 - ✅ En error:
   - Revert del elemento inmediato
   - Log del error
+  - **Notificar al usuario** (`showToast(..., 'error')`) ← **PENSAR EN EL USUARIO**
   - `await refreshAffectedViews()` ← **CRÍTICO**
 
 ### Esfuerzo Estimado
@@ -278,6 +286,7 @@ Para cada lugar:
 - ❌ **Antes**: Usuario hace click, espera 500ms-2s viendo spinner, luego ve cambio
 - ✅ **Después**: Usuario hace click, ve cambio instantáneo, backend sincroniza en background
 - 🔒 **Garantía**: Si falla backend, UI se corrige automáticamente (refresh)
+- 👤 **Usuario informado**: Si falla, usuario ve toast rojo claro explicando el error
 
 ---
 
