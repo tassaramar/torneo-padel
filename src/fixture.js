@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { esPartidoFinalizado, esPartidoPendiente, esPartidoYaJugado, calcularColaSugerida } from './utils/colaFixture.js';
 import { tieneResultado, formatearResultado } from './utils/formatoResultado.js';
+import { initPresentismo, marcarAmbosPresentes } from './viewer/presentismo.js';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -38,7 +39,7 @@ async function init(mostrarSkeleton = true) {
     setStatus('Cargando fixture...');
 
     // Fetch datos en paralelo
-    const [partidosRes, gruposRes, parejasRes] = await Promise.all([
+    const [partidosRes, gruposRes, parejasRes, torneoRes] = await Promise.all([
       supabase
         .from('partidos')
         .select(`
@@ -48,45 +49,57 @@ async function init(mostrarSkeleton = true) {
           games_totales_a, games_totales_b,
           stb_puntos_a, stb_puntos_b,
           grupos ( nombre ),
-          pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
-          pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
+          pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre, presentes ),
+          pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre, presentes )
         `)
         .eq('torneo_id', TORNEO_ID)
         .is('copa_id', null),
-      
+
       supabase
         .from('grupos')
         .select('id, nombre')
         .eq('torneo_id', TORNEO_ID)
         .order('nombre'),
-      
+
       supabase
         .from('parejas')
-        .select('id, nombre, orden')
+        .select('id, nombre, orden, presentes')
         .eq('torneo_id', TORNEO_ID)
-        .order('orden')
+        .order('orden'),
+
+      supabase
+        .from('torneos')
+        .select('presentismo_activo')
+        .eq('id', TORNEO_ID)
+        .single()
     ]);
 
     if (partidosRes.error) throw partidosRes.error;
     if (gruposRes.error) throw gruposRes.error;
     if (parejasRes.error) throw parejasRes.error;
+    if (torneoRes.error) throw torneoRes.error;
 
     const partidos = partidosRes.data || [];
     const grupos = gruposRes.data || [];
     const parejas = parejasRes.data || [];
+    const presentismoActivo = torneoRes.data?.presentismo_activo || false;
+
+    // Inicializar módulo de presentismo
+    initPresentismo(supabase);
 
     // Asignar grupo a cada pareja
     const parejasConGrupo = agregarGrupoAParejas(parejas, grupos);
 
     // Agrupar por ronda y grupo
     const data = agruparPorRondaYGrupo(partidos, grupos, parejasConGrupo);
-    
+
     // Guardar en cache para uso en ambas vistas
     cacheDatos = {
       partidos,
       grupos,
       parejas: parejasConGrupo,
-      data
+      data,
+      presentismoActivo
     };
 
     // Renderizar según la vista actual
@@ -352,8 +365,8 @@ async function refrescarYRenderizar() {
         games_totales_a, games_totales_b,
         stb_puntos_a, stb_puntos_b,
         grupos ( nombre ),
-        pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
-        pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
+        pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre, presentes ),
+        pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre, presentes )
       `)
       .eq('torneo_id', TORNEO_ID)
       .is('copa_id', null);
