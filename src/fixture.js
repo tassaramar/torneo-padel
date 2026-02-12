@@ -452,6 +452,115 @@ function normSearch(s) {
 }
 
 /**
+ * Calcula el estado visual de un partido basado en presentismo
+ * @param {Object} partido - Partido con pareja_a y pareja_b que incluyen campo 'presentes'
+ * @returns {Object} { jugadores: Array<{nombre, presente}>, todosPresentes: boolean, ausentes: string[], badge: {icono, clase} }
+ */
+function calcularEstadoVisualPartido(partido) {
+  // Si presentismo no está activo, retornar estado por defecto
+  if (!cacheDatos?.presentismoActivo) {
+    return {
+      jugadores: [],
+      todosPresentes: true,
+      ausentes: [],
+      badge: { icono: '', clase: '' }
+    };
+  }
+
+  const parejaA = partido.pareja_a || {};
+  const parejaB = partido.pareja_b || {};
+
+  // Parsear nombres (formato "Nico - Pablo" o "Tincho-Max")
+  const nombresA = (parejaA.nombre || '').split(/\s*-\s*/);
+  const nombresB = (parejaB.nombre || '').split(/\s*-\s*/);
+
+  // Obtener arrays de presentes (pueden ser null)
+  const presentesA = Array.isArray(parejaA.presentes) ? parejaA.presentes : [];
+  const presentesB = Array.isArray(parejaB.presentes) ? parejaB.presentes : [];
+
+  // Crear lista de jugadores con estado de presencia
+  const jugadores = [];
+  const ausentes = [];
+
+  nombresA.forEach(nombre => {
+    const nombreTrim = nombre.trim();
+    const presente = presentesA.includes(nombreTrim);
+    jugadores.push({ nombre: nombreTrim, presente, pareja: 'A' });
+    if (!presente) ausentes.push(nombreTrim);
+  });
+
+  nombresB.forEach(nombre => {
+    const nombreTrim = nombre.trim();
+    const presente = presentesB.includes(nombreTrim);
+    jugadores.push({ nombre: nombreTrim, presente, pareja: 'B' });
+    if (!presente) ausentes.push(nombreTrim);
+  });
+
+  const todosPresentes = ausentes.length === 0;
+
+  // Determinar badge
+  const badge = todosPresentes
+    ? { icono: '✅', clase: 'todos-presentes' }
+    : { icono: '⚠️', clase: 'info-incompleta' };
+
+  return { jugadores, todosPresentes, ausentes, badge };
+}
+
+/**
+ * Marca automáticamente a los jugadores ausentes como presentes en la BD
+ * @param {Object} partido - Partido con información de parejas
+ * @param {Array<string>} nombresAusentes - Nombres de jugadores a marcar como presentes
+ */
+async function marcarJugadoresComoPresentesAutomaticamente(partido, nombresAusentes) {
+  if (nombresAusentes.length === 0) return;
+
+  const parejaA = partido.pareja_a || {};
+  const parejaB = partido.pareja_b || {};
+
+  const nombresA = (parejaA.nombre || '').split(/\s*-\s*/).map(n => n.trim());
+  const nombresB = (parejaB.nombre || '').split(/\s*-\s*/).map(n => n.trim());
+
+  // Verificar si algún ausente pertenece a pareja A
+  const ausentesEnA = nombresAusentes.some(n => nombresA.includes(n));
+  if (ausentesEnA && parejaA.id) {
+    await marcarAmbosPresentes(parejaA.id, nombresA[0], nombresA[1]);
+  }
+
+  // Verificar si algún ausente pertenece a pareja B
+  const ausentesEnB = nombresAusentes.some(n => nombresB.includes(n));
+  if (ausentesEnB && parejaB.id) {
+    await marcarAmbosPresentes(parejaB.id, nombresB[0], nombresB[1]);
+  }
+}
+
+/**
+ * Renderiza nombres de jugadores con colores según presencia
+ * @param {Array<{nombre, presente}>} jugadores - Lista de jugadores con estado de presencia
+ * @returns {string} HTML con spans coloreados
+ */
+function renderizarNombresConColores(jugadores) {
+  if (jugadores.length === 0) {
+    return '';
+  }
+
+  // Agrupar por pareja (asumiendo que jugadores vienen en orden: 2 de A, 2 de B)
+  const parejaA = jugadores.slice(0, 2);
+  const parejaB = jugadores.slice(2, 4);
+
+  const renderPareja = (pareja) => {
+    return pareja.map(j => {
+      const clase = j.presente ? 'jugador presente' : 'jugador ausente';
+      return `<span class="${clase}">${j.nombre}</span>`;
+    }).join('-');
+  };
+
+  const htmlA = renderPareja(parejaA);
+  const htmlB = renderPareja(parejaB);
+
+  return `${htmlA} <span class="vs">vs</span> ${htmlB}`;
+}
+
+/**
  * Renderiza una card de partido para la cola (header + equipos + acciones opcionales)
  */
 function renderColaItem(partido, gruposOrdenados, opts = {}) {
