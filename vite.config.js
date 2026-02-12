@@ -15,6 +15,7 @@ export default defineConfig({
         admin: resolve(__dirname, 'admin.html'),
         analytics: resolve(__dirname, 'analytics.html'),
         fixture: resolve(__dirname, 'fixture.html'),
+        presente: resolve(__dirname, 'presente.html'),
       },
     },
   },
