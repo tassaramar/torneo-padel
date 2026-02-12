@@ -5272,3 +5272,21 @@ a.btn-action-secondary:hover {
     font-size: 13px;
   }
 }
+
+/* ====================================
+   OPTIMISTIC UI - VISUAL FEEDBACK
+   ==================================== */
+
+/* Partido siendo marcado como "en juego" (optimistic) */
+.partido-optimistic-enjuego {
+  opacity: 0.6;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+/* Partido siendo desmarcado (volviendo a pendiente) (optimistic) */
+.partido-optimistic-pendiente {
+  opacity: 0.6;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}

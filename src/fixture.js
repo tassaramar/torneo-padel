@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { esPartidoFinalizado, esPartidoPendiente, esPartidoYaJugado, calcularColaSugerida } from './utils/colaFixture.js';
 import { tieneResultado, formatearResultado } from './utils/formatoResultado.js';
 import { initPresentismo, marcarAmbosPresentes } from './viewer/presentismo.js';
+import { showToast } from './utils/toast.js';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -409,6 +410,12 @@ async function refrescarYRenderizar() {
  * Marca un partido como "en juego"
  */
 async function marcarEnJuego(partidoId) {
+  // OPTIMISTIC UI: Marcar visualmente el elemento antes de llamar al backend
+  const partidoElement = document.querySelector(`[data-partido-id="${partidoId}"]`);
+  if (partidoElement) {
+    partidoElement.classList.add('partido-optimistic-enjuego');
+  }
+
   try {
     // Validar presentismo si está activo
     if (cacheDatos?.presentismoActivo) {
@@ -424,6 +431,10 @@ async function marcarEnJuego(partidoId) {
           );
 
           if (!confirmado) {
+            // Revert optimistic change
+            if (partidoElement) {
+              partidoElement.classList.remove('partido-optimistic-enjuego');
+            }
             return; // Cancelar acción
           }
 
@@ -433,13 +444,20 @@ async function marcarEnJuego(partidoId) {
       }
     }
 
-    // Proceder con la acción
+    // Backend call
     const { error } = await supabase.from('partidos').update({ estado: 'en_juego' }).eq('id', partidoId);
     if (error) throw error;
+
+    // Success: Refresh para garantizar consistencia
     await refrescarYRenderizar();
   } catch (error) {
+    // ROLLBACK: Revert + Notify + Refresh
+    if (partidoElement) {
+      partidoElement.classList.remove('partido-optimistic-enjuego');
+    }
     console.error('Error marcando partido como en juego:', error);
-    alert('Error al marcar el partido como en juego');
+    showToast('Error al marcar partido como en juego', 'error');
+    await refrescarYRenderizar(); // ← Garantizar consistencia
   }
 }
 
@@ -447,13 +465,27 @@ async function marcarEnJuego(partidoId) {
  * Desmarca "en juego" -> vuelve a pendiente
  */
 async function desmarcarEnJuego(partidoId) {
+  // OPTIMISTIC UI: Marcar visualmente el elemento
+  const partidoElement = document.querySelector(`[data-partido-id="${partidoId}"]`);
+  if (partidoElement) {
+    partidoElement.classList.add('partido-optimistic-pendiente');
+  }
+
   try {
+    // Backend call
     const { error } = await supabase.from('partidos').update({ estado: 'pendiente' }).eq('id', partidoId);
     if (error) throw error;
+
+    // Success: Refresh para garantizar consistencia
     await refrescarYRenderizar();
   } catch (error) {
+    // ROLLBACK: Revert + Notify + Refresh
+    if (partidoElement) {
+      partidoElement.classList.remove('partido-optimistic-pendiente');
+    }
     console.error('Error desmarcando en juego:', error);
-    alert('Error al desmarcar en juego');
+    showToast('Error al desmarcar partido', 'error');
+    await refrescarYRenderizar(); // ← Garantizar consistencia
   }
 }
 
