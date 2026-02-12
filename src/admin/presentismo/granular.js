@@ -8,7 +8,7 @@ import { refreshTodasLasVistas } from './index.js';
 
 let parejasCache = [];
 let gruposCache = [];
-let filtroActual = 'todas';
+let filtrosActivos = new Set(); // Multi-select filters (can have multiple active)
 let busquedaActual = '';
 
 export async function initControlGranular() {
@@ -22,13 +22,38 @@ export async function initControlGranular() {
     renderParejas();
   });
 
-  // Setup filtros
+  // Setup filtros (toggleable multi-select)
   const botonesFiltro = document.querySelectorAll('.segmented__btn');
   botonesFiltro.forEach(btn => {
     btn.addEventListener('click', () => {
-      botonesFiltro.forEach(b => b.classList.remove('is-active'));
-      btn.classList.add('is-active');
-      filtroActual = btn.dataset.filtro;
+      const filtro = btn.dataset.filtro;
+
+      if (filtro === 'todas') {
+        // "Todas" clears all filters
+        filtrosActivos.clear();
+        botonesFiltro.forEach(b => b.classList.remove('is-active'));
+        btn.classList.add('is-active');
+      } else {
+        // Toggle this specific filter
+        if (filtrosActivos.has(filtro)) {
+          filtrosActivos.delete(filtro);
+          btn.classList.remove('is-active');
+        } else {
+          filtrosActivos.add(filtro);
+          btn.classList.add('is-active');
+        }
+
+        // Deactivate "todas" if any specific filter is active
+        const btnTodas = document.querySelector('[data-filtro="todas"]');
+        if (btnTodas) btnTodas.classList.remove('is-active');
+      }
+
+      // If no filters active, activate "todas" automatically
+      if (filtrosActivos.size === 0) {
+        const btnTodas = document.querySelector('[data-filtro="todas"]');
+        if (btnTodas) btnTodas.classList.add('is-active');
+      }
+
       renderParejas();
     });
   });
@@ -99,16 +124,26 @@ async function renderParejas() {
       }
     }
 
-    // Aplicar filtro por estado
-    if (filtroActual !== 'todas') {
+    // Aplicar filtros por estado (multi-select: OR logic)
+    if (filtrosActivos.size > 0) {
       const [nombre1, nombre2] = p.nombre.split(' - ').map(s => s.trim());
       const presentes = p.presentes || [];
       const presente1 = presentes.includes(nombre1);
       const presente2 = presentes.includes(nombre2);
 
-      if (filtroActual === 'completas' && (!presente1 || !presente2)) return false;
-      if (filtroActual === 'incompletas' && (presente1 === presente2)) return false;
-      if (filtroActual === 'ausentes' && (presente1 || presente2)) return false;
+      let matchAnyFilter = false;
+
+      if (filtrosActivos.has('completas') && presente1 && presente2) {
+        matchAnyFilter = true;
+      }
+      if (filtrosActivos.has('incompletas') && (presente1 !== presente2)) {
+        matchAnyFilter = true;
+      }
+      if (filtrosActivos.has('ausentes') && !presente1 && !presente2) {
+        matchAnyFilter = true;
+      }
+
+      if (!matchAnyFilter) return false;
     }
 
     return true;
@@ -138,8 +173,11 @@ function renderParejaCard(pareja, grupo) {
 
   const grupoNombre = grupo ? grupo.nombre : '?';
 
+  // Add presentismo-incomplete class if not all players are present
+  const incompleteClass = (presente1 && presente2) ? '' : 'presentismo-incomplete';
+
   return `
-    <div class="pareja-card" data-pareja-id="${pareja.id}">
+    <div class="pareja-card ${incompleteClass}" data-pareja-id="${pareja.id}">
       <div class="pareja-header">
         <span class="pareja-badge">${estadoBadge}</span>
         <span class="pareja-grupo">Grupo ${grupoNombre}</span>
@@ -175,6 +213,18 @@ window.toggleJugadorPresentismo = async function(event, parejaId, nombre) {
   const btn = event.target;
   const estaPresente = btn.classList.contains('presente');
 
+  // OPTIMISTIC UI: Update immediately before backend responds
+  if (estaPresente) {
+    btn.classList.remove('presente');
+    btn.classList.add('ausente');
+    btn.textContent = `❌ ${nombre}`;
+  } else {
+    btn.classList.remove('ausente');
+    btn.classList.add('presente');
+    btn.textContent = `✅ ${nombre}`;
+  }
+
+  // Call backend
   let success;
   if (estaPresente) {
     success = await desmarcarPresente(parejaId, nombre);
@@ -186,6 +236,16 @@ window.toggleJugadorPresentismo = async function(event, parejaId, nombre) {
     logMsg(`${estaPresente ? '❌' : '✅'} ${nombre} ${estaPresente ? 'desmarcado' : 'marcado'} como presente`);
     await refreshTodasLasVistas();
   } else {
+    // Revert UI on error
+    if (estaPresente) {
+      btn.classList.remove('ausente');
+      btn.classList.add('presente');
+      btn.textContent = `✅ ${nombre}`;
+    } else {
+      btn.classList.remove('presente');
+      btn.classList.add('ausente');
+      btn.textContent = `❌ ${nombre}`;
+    }
     logMsg(`❌ Error al cambiar estado de ${nombre}`);
   }
 };

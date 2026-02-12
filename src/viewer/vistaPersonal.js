@@ -1010,8 +1010,11 @@ function renderPartidosPendientesHome(partidosPendientes, todosPartidosGrupo, to
     const oponente = getOponenteName(p, identidad);
     const posicion = p.posicionGlobal !== 999 ? `#${p.posicionGlobal}` : '—';
     
+    // Add presentismo-incomplete class if not habilitado (bloqueado)
+    const incompleteClass = !habilitado ? 'presentismo-incomplete' : '';
+
     html += `
-      <div class="partido-home ${habilitado ? '' : 'bloqueado'}" data-partido-id="${p.id}">
+      <div class="partido-home ${habilitado ? '' : 'bloqueado'} ${incompleteClass}" data-partido-id="${p.id}">
         <div class="partido-home-header">
           <span class="partido-home-posicion">${posicion}</span>
           <span class="partido-home-vs">vs ${escapeHtml(oponente)}</span>

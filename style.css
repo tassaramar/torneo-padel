@@ -5191,3 +5191,17 @@ a.btn-action-secondary:hover {
     flex: 1;
   }
 }
+
+/* ====================================
+   PRESENTISMO STATUS - REUSABLE CLASSES
+   ==================================== */
+
+/* Apply to any element (card, item, pill) to indicate incomplete presentismo */
+.presentismo-incomplete {
+  background: rgba(156, 163, 175, 0.15);
+}
+
+/* Optional: explicit class for complete presentismo (currently just default) */
+.presentismo-complete {
+  /* No special styling - default background */
+}

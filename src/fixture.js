@@ -299,7 +299,11 @@ function renderPartidoCard(partido) {
   // Calcular estado visual de presentismo
   const estadoVisual = calcularEstadoVisualPartido(partido);
 
-  let html = `<div class="fixture-partido-card ${claseEstado}">`;
+  // Add presentismo-incomplete class if not jugado and not all players are present
+  const incompleteClass = (!jugado && cacheDatos?.presentismoActivo && !estadoVisual.todosPresentes)
+    ? 'presentismo-incomplete' : '';
+
+  let html = `<div class="fixture-partido-card ${claseEstado} ${incompleteClass}">`;
 
   // Agregar badge de presentismo si está activo (solo para pendientes)
   if (!jugado && cacheDatos?.presentismoActivo && estadoVisual.badge.icono) {
@@ -627,7 +631,11 @@ function renderColaItem(partido, gruposOrdenados, opts = {}) {
   // Calcular estado visual de presentismo
   const estadoVisual = calcularEstadoVisualPartido(partido);
 
-  let html = `<div class="fixture-cola-item" data-search="${escapeHtml(searchable)}">`;
+  // Add presentismo-incomplete class if not all players are present
+  const incompleteClass = (cacheDatos?.presentismoActivo && !estadoVisual.todosPresentes)
+    ? 'presentismo-incomplete' : '';
+
+  let html = `<div class="fixture-cola-item ${incompleteClass}" data-search="${escapeHtml(searchable)}">`;
   html += '<div class="fixture-cola-item-header">';
   if (posicion != null) html += `<span class="fixture-cola-posicion">${posicion}</span>`;
   html += `<span class="${pillClass}">Grupo ${escapeHtml(grupo)}</span>`;
