@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Torneo de Padel - Presentismo</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<body>
+  <!-- Topnav -->
+  <div class="topnav">
+    <a class="topnav-link" href="/">👤 Mis Partidos</a>
+    <a class="topnav-link" href="/general">👀 Todos los Resultados</a>
+    <a class="topnav-link" href="/fixture">📋 Fixture</a>
+    <a class="topnav-link" href="/carga">📲 Cargar</a>
+    <a class="topnav-link" href="/admin">🛠 Admin</a>
+    <a class="topnav-link" href="/presente">✅ Presentismo</a>
+    <a class="topnav-link" href="/analytics">📊 Analytics</a>
+  </div>
+
+  <div class="container">
+    <h1>Gestión de Presentismo</h1>
+
+    <!-- SECCIÓN 1: Toggle Global -->
+    <details class="admin-section" open>
+      <summary>🌐 Sistema de Presentismo (toggle global)</summary>
+
+      <p class="helper" style="margin-top:8px;">
+        Activá o desactivá el sistema de presentismo para todo el torneo.
+        Cuando está desactivado, no se muestran badges y no se solicita confirmación.
+      </p>
+
+      <div class="presentismo-toggle-container" style="margin:14px 0;">
+        <div class="presentismo-toggle-card">
+          <div class="presentismo-toggle-info">
+            <div class="presentismo-toggle-label">Sistema de Presentismo</div>
+            <div class="presentismo-toggle-status" id="presentismo-status">
+              <!-- Se inyecta: "Activo ✅" o "Desactivado ❌" -->
+            </div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="presentismo-global-toggle" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+    </details>
+
+    <!-- SECCIÓN 2: Estadísticas Rápidas -->
+    <details class="admin-section" open>
+      <summary>📊 Resumen del Torneo</summary>
+
+      <div id="stats-container" class="presentismo-stats">
+        <!-- Se inyecta dinámicamente -->
+      </div>
+    </details>
+
+    <!-- SECCIÓN 3: Operaciones Masivas -->
+    <details class="admin-section">
+      <summary>⚡ Operaciones Masivas</summary>
+
+      <p class="helper" style="margin-top:8px;">
+        Marcar o desmarcar jugadores en lote. Ideal para inicio del torneo o reseteo completo.
+      </p>
+
+      <!-- Safety bar -->
+      <div id="admin-safe-bar" class="admin-safety">
+        <label class="admin-safety-label">
+          <input id="admin-safe-toggle" type="checkbox" />
+          Desbloquear acciones peligrosas
+        </label>
+        <span id="admin-safe-badge" class="admin-safety-badge">Modo seguro</span>
+      </div>
+
+      <div class="admin-actions">
+        <button id="marcar-todos-presentes" type="button">✅ Marcar TODOS presentes</button>
+        <button id="desmarcar-todos" type="button" data-danger="hard">🧹 Limpiar TODOS</button>
+      </div>
+
+      <!-- Operaciones por grupo -->
+      <h3 style="margin-top:18px;">Por Grupo</h3>
+      <div id="grupos-bulk-container" class="grupos-bulk">
+        <!-- Se inyecta dinámicamente -->
+      </div>
+    </details>
+
+    <!-- SECCIÓN 4: Vista por Parejas (Control Granular) -->
+    <details class="admin-section" open>
+      <summary>👥 Control por Pareja</summary>
+
+      <!-- Filtros y búsqueda -->
+      <div class="presentismo-filters" style="margin:12px 0;">
+        <input
+          id="parejas-search"
+          type="search"
+          class="search__input"
+          placeholder="Buscar pareja o jugador..."
+          autocomplete="off"
+        />
+
+        <div class="segmented" style="margin-top:10px;">
+          <button class="segmented__btn is-active" data-filtro="todas" id="filtro-todas">
+            Todas
+          </button>
+          <button class="segmented__btn" data-filtro="completas" id="filtro-completas">
+            ✅ Completas
+          </button>
+          <button class="segmented__btn" data-filtro="incompletas" id="filtro-incompletas">
+            ⚠️ Incompletas
+          </button>
+          <button class="segmented__btn" data-filtro="ausentes" id="filtro-ausentes">
+            ❌ Ausentes
+          </button>
+        </div>
+      </div>
+
+      <!-- Lista de parejas -->
+      <div id="parejas-container" class="parejas-presentismo">
+        <!-- Se inyecta dinámicamente: grilla de parejas -->
+      </div>
+
+      <div class="admin-actions" style="margin-top:12px;">
+        <button id="refresh-parejas" type="button">🔄 Refrescar Vista</button>
+      </div>
+    </details>
+
+    <!-- SECCIÓN 5: Ausentes (Vista Rápida) -->
+    <details class="admin-section">
+      <summary>⚠️ Jugadores Ausentes</summary>
+
+      <p class="helper" style="margin-top:8px;">
+        Lista de jugadores que aún no marcaron presencia. Acciones rápidas desde acá.
+      </p>
+
+      <div id="ausentes-container" class="ausentes-lista">
+        <!-- Se inyecta dinámicamente -->
+      </div>
+    </details>
+
+    <!-- Log -->
+    <h2>Log</h2>
+    <div id="log" class="log"></div>
+  </div>
+
+  <script type="module" src="/src/presente.js"></script>
+  <script>
+    // Marcar link activo
+    (function () {
+      const path = (location.pathname.endsWith('/') ? location.pathname : location.pathname + '/');
+      document.querySelectorAll('.topnav-link').forEach(a => {
+        const href = a.getAttribute('href');
+        const norm = (href.endsWith('/') ? href : href + '/');
+        if (norm === path) a.classList.add('is-active');
+      });
+    })();
+  </script>
+</body>
+</html>

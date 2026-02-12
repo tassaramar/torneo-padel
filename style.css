@@ -4786,3 +4786,408 @@ a.btn-action-secondary:hover {
     padding: 2px 6px;
   }
 }
+
+/* ========================================
+   ADMIN PRESENTISMO
+   ======================================== */
+
+/* Toggle Switch */
+.presentismo-toggle-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.presentismo-toggle-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 500px;
+  padding: 14px 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.presentismo-toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.presentismo-toggle-label {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.presentismo-toggle-status {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.status-active {
+  color: var(--success);
+}
+
+.status-inactive {
+  color: var(--muted);
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 50px;
+  height: 28px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.3s;
+  border-radius: 28px;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 20px;
+  width: 20px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: var(--success);
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(22px);
+}
+
+/* Estadísticas */
+.presentismo-stats {
+  padding: 8px 0;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.stat-card {
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: center;
+}
+
+.stat-card.stat-success {
+  background: rgba(22, 163, 74, 0.08);
+  border-color: rgba(22, 163, 74, 0.2);
+}
+
+.stat-card.stat-warning {
+  background: rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.2);
+}
+
+.stat-card.stat-danger {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.stats-grupos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.grupo-stat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.grupo-badge {
+  font-size: 18px;
+}
+
+.grupo-nombre {
+  font-weight: 700;
+  flex: 1;
+}
+
+.grupo-detalle {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* Grupos bulk */
+.grupos-bulk {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.grupo-bulk-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.03);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.grupo-bulk-label {
+  font-weight: 700;
+}
+
+.grupo-bulk-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Parejas presentismo */
+.parejas-presentismo {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.pareja-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: var(--shadow);
+}
+
+.pareja-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.pareja-badge {
+  font-size: 18px;
+}
+
+.pareja-grupo {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.pareja-nombre {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.pareja-jugadores {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.jugador-toggle {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+}
+
+.jugador-toggle.presente {
+  background: rgba(22, 163, 74, 0.12);
+  color: #16A34A;
+  border-color: rgba(22, 163, 74, 0.3);
+}
+
+.jugador-toggle.ausente {
+  background: rgba(156, 163, 175, 0.12);
+  color: #64748B;
+  border-color: rgba(156, 163, 175, 0.3);
+}
+
+.jugador-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.pareja-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.btn-small {
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-small:hover {
+  background: var(--bg);
+}
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+}
+
+/* Ausentes */
+.ausentes-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ausente-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  border-radius: 10px;
+}
+
+.ausente-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ausente-nombre {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.ausente-pareja {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.ausente-grupo {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.btn-presente {
+  padding: 8px 12px;
+  background: var(--success);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-presente:hover {
+  background: var(--primary-900);
+  transform: translateY(-1px);
+}
+
+/* Filtros */
+.presentismo-filters {
+  margin-bottom: 14px;
+}
+
+.helper-info {
+  padding: 12px;
+  background: rgba(22, 163, 74, 0.08);
+  border: 1px solid rgba(22, 163, 74, 0.2);
+  border-radius: 8px;
+  color: var(--success);
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .parejas-presentismo {
+    grid-template-columns: 1fr;
+  }
+
+  .ausente-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .btn-presente {
+    width: 100%;
+  }
+
+  .grupo-bulk-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .grupo-bulk-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .grupo-bulk-actions button {
+    flex: 1;
+  }
+}
