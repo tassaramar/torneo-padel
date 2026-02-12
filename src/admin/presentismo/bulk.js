@@ -5,6 +5,7 @@
 import { supabase, TORNEO_ID, logMsg } from '../context.js';
 import { marcarAmbosPresentes, desmarcarTodos } from '../../viewer/presentismo.js';
 import { refreshTodasLasVistas } from './index.js';
+import { showToast } from '../../utils/toast.js';
 
 export async function initOperacionesMasivas() {
   // Botón "Marcar todos presentes"
@@ -50,6 +51,12 @@ async function renderGruposBulk() {
 }
 
 async function marcarTodosPresentes() {
+  // OPTIMISTIC UI: Deshabilitar botón durante operación
+  const btn = document.getElementById('marcar-todos-presentes');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Procesando...';
+
   logMsg('🔄 Marcando TODOS los jugadores como presentes...');
 
   const { data: parejas, error } = await supabase
@@ -60,6 +67,11 @@ async function marcarTodosPresentes() {
   if (error) {
     console.error('Error cargando parejas:', error);
     logMsg('❌ Error cargando parejas');
+    showToast('Error cargando parejas', 'error');
+    // Revert button state
+    btn.disabled = false;
+    btn.textContent = originalText;
+    await refreshTodasLasVistas();
     return;
   }
 
@@ -80,6 +92,19 @@ async function marcarTodosPresentes() {
   }
 
   logMsg(`✅ Completado: ${ok} OK, ${fail} errores`);
+
+  // Notify user
+  if (fail > 0) {
+    showToast(`Completado con ${fail} errores`, 'error');
+  } else {
+    showToast('Todos los jugadores marcados como presentes', 'success');
+  }
+
+  // Revert button state
+  btn.disabled = false;
+  btn.textContent = originalText;
+
+  // Refresh para garantizar consistencia
   await refreshTodasLasVistas();
 }
 
@@ -97,6 +122,12 @@ async function limpiarTodos() {
     return;
   }
 
+  // OPTIMISTIC UI: Deshabilitar botón durante operación
+  const btn = document.getElementById('desmarcar-todos');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Procesando...';
+
   logMsg('🧹 Limpiando TODOS los presentismos...');
 
   const { data: parejas, error } = await supabase
@@ -107,6 +138,11 @@ async function limpiarTodos() {
   if (error) {
     console.error('Error cargando parejas:', error);
     logMsg('❌ Error cargando parejas');
+    showToast('Error cargando parejas', 'error');
+    // Revert button state
+    btn.disabled = false;
+    btn.textContent = originalText;
+    await refreshTodasLasVistas();
     return;
   }
 
@@ -125,6 +161,19 @@ async function limpiarTodos() {
   }
 
   logMsg(`✅ Limpieza completada: ${ok} OK, ${fail} errores`);
+
+  // Notify user
+  if (fail > 0) {
+    showToast(`Limpieza completada con ${fail} errores`, 'error');
+  } else {
+    showToast('Todos los presentismos limpiados', 'success');
+  }
+
+  // Revert button state
+  btn.disabled = false;
+  btn.textContent = originalText;
+
+  // Refresh para garantizar consistencia
   await refreshTodasLasVistas();
 }
 
@@ -141,6 +190,8 @@ window.marcarGrupoPresente = async function(grupoId, grupoNombre) {
   if (error) {
     console.error('Error cargando parejas del grupo:', error);
     logMsg(`❌ Error cargando parejas del grupo ${grupoNombre}`);
+    showToast(`Error cargando parejas del grupo ${grupoNombre}`, 'error');
+    await refreshTodasLasVistas();
     return;
   }
 
@@ -153,6 +204,15 @@ window.marcarGrupoPresente = async function(grupoId, grupoNombre) {
   }
 
   logMsg(`✅ Grupo ${grupoNombre}: ${ok} parejas marcadas, ${fail} errores`);
+
+  // Notify user
+  if (fail > 0) {
+    showToast(`Grupo ${grupoNombre}: ${ok} OK, ${fail} errores`, 'error');
+  } else {
+    showToast(`Grupo ${grupoNombre} marcado completo`, 'success');
+  }
+
+  // Refresh para garantizar consistencia
   await refreshTodasLasVistas();
 };
 
@@ -179,6 +239,8 @@ window.limpiarGrupo = async function(grupoId, grupoNombre) {
   if (error) {
     console.error('Error cargando parejas del grupo:', error);
     logMsg(`❌ Error cargando parejas del grupo ${grupoNombre}`);
+    showToast(`Error cargando parejas del grupo ${grupoNombre}`, 'error');
+    await refreshTodasLasVistas();
     return;
   }
 
@@ -190,5 +252,14 @@ window.limpiarGrupo = async function(grupoId, grupoNombre) {
   }
 
   logMsg(`✅ Grupo ${grupoNombre} limpiado: ${ok} parejas, ${fail} errores`);
+
+  // Notify user
+  if (fail > 0) {
+    showToast(`Grupo ${grupoNombre}: ${ok} OK, ${fail} errores`, 'error');
+  } else {
+    showToast(`Grupo ${grupoNombre} limpiado`, 'success');
+  }
+
+  // Refresh para garantizar consistencia
   await refreshTodasLasVistas();
 };
