@@ -236,7 +236,7 @@ window.toggleJugadorPresentismo = async function(event, parejaId, nombre) {
     logMsg(`${estaPresente ? '❌' : '✅'} ${nombre} ${estaPresente ? 'desmarcado' : 'marcado'} como presente`);
     await refreshTodasLasVistas();
   } else {
-    // Revert UI on error
+    // ROLLBACK: Revert immediate UI + refresh all views for consistency
     if (estaPresente) {
       btn.classList.remove('ausente');
       btn.classList.add('presente');
@@ -247,6 +247,7 @@ window.toggleJugadorPresentismo = async function(event, parejaId, nombre) {
       btn.textContent = `❌ ${nombre}`;
     }
     logMsg(`❌ Error al cambiar estado de ${nombre}`);
+    await refreshTodasLasVistas(); // ← Guarantee consistency on error
   }
 };
 
