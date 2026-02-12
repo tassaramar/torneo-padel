@@ -291,12 +291,20 @@ function renderFixtureGrid(data) {
 function renderPartidoCard(partido) {
   const jugado = tieneResultado(partido);
   const claseEstado = jugado ? 'fixture-partido-jugado' : 'fixture-partido-pendiente';
-  
+
   const nombreA = partido.pareja_a?.nombre || '—';
   const nombreB = partido.pareja_b?.nombre || '—';
-  
+
+  // Calcular estado visual de presentismo
+  const estadoVisual = calcularEstadoVisualPartido(partido);
+
   let html = `<div class="fixture-partido-card ${claseEstado}">`;
-  
+
+  // Agregar badge de presentismo si está activo (solo para pendientes)
+  if (!jugado && cacheDatos?.presentismoActivo && estadoVisual.badge.icono) {
+    html += `<span class="badge-presentismo badge-presentismo-tabla ${estadoVisual.badge.clase}">${estadoVisual.badge.icono}</span>`;
+  }
+
   if (jugado) {
     // Jugado: mostrar en línea con resultado
     html += `<div class="fixture-vs">`;
@@ -307,12 +315,19 @@ function renderPartidoCard(partido) {
   } else {
     // Pendiente: mostrar en línea con vs
     html += `<div class="fixture-vs">`;
-    html += `<span class="fixture-equipo">${escapeHtml(nombreA)}</span>`;
-    html += `<span style="font-size: 0.65rem; color: #999; flex: 0 0 auto; margin: 0 2px;">vs</span>`;
-    html += `<span class="fixture-equipo">${escapeHtml(nombreB)}</span>`;
+
+    // Renderizar nombres con colores si presentismo está activo
+    if (cacheDatos?.presentismoActivo && estadoVisual.jugadores.length > 0) {
+      html += renderizarNombresConColores(estadoVisual.jugadores);
+    } else {
+      html += `<span class="fixture-equipo">${escapeHtml(nombreA)}</span>`;
+      html += `<span style="font-size: 0.65rem; color: #999; flex: 0 0 auto; margin: 0 2px;">vs</span>`;
+      html += `<span class="fixture-equipo">${escapeHtml(nombreB)}</span>`;
+    }
+
     html += `</div>`;
   }
-  
+
   html += '</div>';
   return html;
 }
@@ -574,16 +589,32 @@ function renderColaItem(partido, gruposOrdenados, opts = {}) {
   const resultado = esPartidoFinalizado(partido) ? formatearResultado(partido) : null;
   const searchable = `${grupo} ${nombreA} ${nombreB} R${ronda}`;
 
+  // Calcular estado visual de presentismo
+  const estadoVisual = calcularEstadoVisualPartido(partido);
+
   let html = `<div class="fixture-cola-item" data-search="${escapeHtml(searchable)}">`;
   html += '<div class="fixture-cola-item-header">';
   if (posicion != null) html += `<span class="fixture-cola-posicion">${posicion}</span>`;
   html += `<span class="${pillClass}">Grupo ${escapeHtml(grupo)}</span>`;
   html += `<span class="fixture-cola-ronda">R${ronda}</span>`;
+
+  // Agregar badge de presentismo si está activo
+  if (cacheDatos?.presentismoActivo && estadoVisual.badge.icono) {
+    html += `<span class="badge-presentismo ${estadoVisual.badge.clase}">${estadoVisual.badge.icono}</span>`;
+  }
+
   html += '</div>';
   html += '<div class="fixture-cola-item-content">';
-  html += `<span class="fixture-cola-equipo">${escapeHtml(nombreA)}</span>`;
-  html += '<span class="fixture-cola-vs">vs</span>';
-  html += `<span class="fixture-cola-equipo">${escapeHtml(nombreB)}</span>`;
+
+  // Renderizar nombres con colores si presentismo está activo
+  if (cacheDatos?.presentismoActivo && estadoVisual.jugadores.length > 0) {
+    html += renderizarNombresConColores(estadoVisual.jugadores);
+  } else {
+    html += `<span class="fixture-cola-equipo">${escapeHtml(nombreA)}</span>`;
+    html += '<span class="fixture-cola-vs">vs</span>';
+    html += `<span class="fixture-cola-equipo">${escapeHtml(nombreB)}</span>`;
+  }
+
   if (resultado) html += `<span class="fixture-cola-resultado">${resultado}</span>`;
   html += '</div>';
 
