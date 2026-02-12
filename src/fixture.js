@@ -406,6 +406,30 @@ async function refrescarYRenderizar() {
  */
 async function marcarEnJuego(partidoId) {
   try {
+    // Validar presentismo si está activo
+    if (cacheDatos?.presentismoActivo) {
+      const partido = cacheDatos.partidos.find(p => p.id === partidoId);
+      if (partido) {
+        const estadoVisual = calcularEstadoVisualPartido(partido);
+
+        // Si faltan jugadores, pedir confirmación
+        if (!estadoVisual.todosPresentes && estadoVisual.ausentes.length > 0) {
+          const nombresAusentes = estadoVisual.ausentes.join(', ');
+          const confirmado = confirm(
+            `⚠️ Faltan jugadores presentes:\n${nombresAusentes}\n\n¿Continuar de todas formas?\n(Se marcarán como presentes automáticamente)`
+          );
+
+          if (!confirmado) {
+            return; // Cancelar acción
+          }
+
+          // Auto-corregir: marcar ausentes como presentes
+          await marcarJugadoresComoPresentesAutomaticamente(partido, estadoVisual.ausentes);
+        }
+      }
+    }
+
+    // Proceder con la acción
     const { error } = await supabase.from('partidos').update({ estado: 'en_juego' }).eq('id', partidoId);
     if (error) throw error;
     await refrescarYRenderizar();
