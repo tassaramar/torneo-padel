@@ -11,6 +11,7 @@ let parejasCache = [];
 let gruposCache = [];
 let filtrosActivos = new Set(); // Multi-select filters (can have multiple active)
 let busquedaActual = '';
+let refreshTimeout = null; // Para debounce del refresh
 
 export async function initControlGranular() {
   // Cargar datos
@@ -261,6 +262,18 @@ function actualizarBotonesAcciones(parejaId) {
   }
 }
 
+// Helper: hacer refresh con debounce (espera 300ms antes de ejecutar)
+// Evita múltiples refreshes cuando se hacen clicks rápidos
+function debouncedRefresh() {
+  if (refreshTimeout) {
+    clearTimeout(refreshTimeout);
+  }
+  refreshTimeout = setTimeout(async () => {
+    await refreshTodasLasVistas();
+    refreshTimeout = null;
+  }, 300);
+}
+
 // Exponer funciones globales
 window.toggleJugadorPresentismo = async function(event, parejaId, nombre) {
   event.preventDefault();
@@ -291,7 +304,7 @@ window.toggleJugadorPresentismo = async function(event, parejaId, nombre) {
 
   if (success) {
     logMsg(`${estaPresente ? '❌' : '✅'} ${nombre} ${estaPresente ? 'desmarcado' : 'marcado'} como presente`);
-    await refreshTodasLasVistas();
+    debouncedRefresh(); // Debounced para evitar race conditions
   } else {
     // ROLLBACK: Revert immediate UI + refresh all views for consistency
     if (estaPresente) {
@@ -306,7 +319,7 @@ window.toggleJugadorPresentismo = async function(event, parejaId, nombre) {
     actualizarBotonesAcciones(parejaId); // Revert button visibility
     logMsg(`❌ Error al cambiar estado de ${nombre}`);
     showToast(`Error al cambiar estado de ${nombre}`, 'error');
-    await refreshTodasLasVistas();
+    debouncedRefresh(); // Debounced para evitar race conditions
   }
 };
 
@@ -338,7 +351,7 @@ window.marcarAmbosPresentes = async function(parejaId, nombre1, nombre2) {
 
   if (success) {
     logMsg(`✅ Pareja completa: ${nombre1} y ${nombre2}`);
-    await refreshTodasLasVistas();
+    debouncedRefresh(); // Debounced para evitar race conditions
   } else {
     // ROLLBACK: Revert + Notify + Refresh
     if (!estadoAnterior1) {
@@ -354,7 +367,7 @@ window.marcarAmbosPresentes = async function(parejaId, nombre1, nombre2) {
     actualizarBotonesAcciones(parejaId);
     logMsg(`❌ Error al marcar pareja`);
     showToast('Error al marcar pareja como presente', 'error');
-    await refreshTodasLasVistas();
+    debouncedRefresh(); // Debounced para evitar race conditions
   }
 };
 
@@ -389,7 +402,7 @@ window.limpiarPareja = async function(parejaId) {
 
   if (success) {
     logMsg(`🧹 Pareja limpiada`);
-    await refreshTodasLasVistas();
+    debouncedRefresh(); // Debounced para evitar race conditions
   } else {
     // ROLLBACK: Revert + Notify + Refresh
     if (estadoAnterior1) {
@@ -405,7 +418,7 @@ window.limpiarPareja = async function(parejaId) {
     actualizarBotonesAcciones(parejaId);
     logMsg(`❌ Error al limpiar pareja`);
     showToast('Error al limpiar pareja', 'error');
-    await refreshTodasLasVistas();
+    debouncedRefresh(); // Debounced para evitar race conditions
   }
 };
 
