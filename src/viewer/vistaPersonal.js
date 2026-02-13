@@ -526,7 +526,10 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
   const countConfirmaciones = partidos.porConfirmar.length;
   
   // Estado de presentismo (desde BD)
-  const { activo: presentismoActivo, yoPresente, companeroPresente, mostrarToast, toastMensaje } = presentismoData;
+  const { activo: presentismoActivo, mostrarToast, toastMensaje } = presentismoData;
+  // Variables de estado de presentismo (mutable, se actualizan en los toggles)
+  let yoPresente = presentismoData.yoPresente;
+  let companeroPresente = presentismoData.companeroPresente;
   // Si presentismo está desactivado, consideramos pareja completa (no bloquea partidos)
   const parejaEstaCompleta = !presentismoActivo || (yoPresente && companeroPresente);
   
