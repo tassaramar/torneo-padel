@@ -652,9 +652,9 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
     <!-- 4) MIS PARTIDOS PENDIENTES -->
     <div class="home-partidos-pendientes">
       ${!parejaEstaCompleta ? `
-        <div class="partidos-bloqueados-msg">
-          <span class="msg-icon">⏳</span>
-          <span class="msg-text">Esperando a tu compañero para habilitar tus partidos.</span>
+        <div class="partidos-bloqueados-msg partidos-warning-msg">
+          <span class="msg-icon">⚠️</span>
+          <span class="msg-text">Falta ${escapeHtml(!yoPresente && !companeroPresente ? 'que den el presente' : !yoPresente ? 'tu presente' : `que llegue ${identidad.companero}`)}. Igual podés cargar resultados.</span>
         </div>
       ` : ''}
       
@@ -664,7 +664,7 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
           <span class="vacio-text">¡No tenés partidos pendientes!</span>
         </div>
       ` : `
-        <div id="partidos-pendientes-lista" class="${!parejaEstaCompleta ? 'bloqueado' : ''}">
+        <div id="partidos-pendientes-lista">
           <!-- Se renderiza dinámicamente -->
         </div>
       `}
@@ -987,24 +987,22 @@ function renderPartidosPendientesHome(partidosPendientes, todosPartidosGrupo, to
     const oponente = getOponenteName(p, identidad);
     const posicion = p.posicionGlobal !== 999 ? `#${p.posicionGlobal}` : '—';
     
-    // Add presentismo-incomplete class if not habilitado (bloqueado)
     const incompleteClass = !habilitado ? 'presentismo-incomplete' : '';
 
     html += `
-      <div class="partido-home ${habilitado ? '' : 'bloqueado'} ${incompleteClass}" data-partido-id="${p.id}">
+      <div class="partido-home ${incompleteClass}" data-partido-id="${p.id}">
         <div class="partido-home-header">
           <span class="partido-home-posicion">${posicion}</span>
           <span class="partido-home-vs">vs ${escapeHtml(oponente)}</span>
         </div>
         <div class="partido-home-estado">
-          ${habilitado ? 'Pendiente' : 'Bloqueado por presentismo'}
+          ${habilitado ? 'Pendiente' : '⚠️ Falta presente'}
         </div>
         <div class="partido-home-accion">
-          <button 
-            type="button" 
-            class="btn-cargar-resultado ${habilitado ? '' : 'disabled'}"
-            onclick="${habilitado ? `app.cargarResultado('${p.id}')` : ''}"
-            ${habilitado ? '' : 'disabled'}
+          <button
+            type="button"
+            class="btn-cargar-resultado"
+            onclick="app.cargarResultado('${p.id}')"
           >
             📝 Cargar resultado
           </button>

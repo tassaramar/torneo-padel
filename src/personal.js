@@ -378,13 +378,44 @@ window.app = {
         sets_a, sets_b,
         games_totales_a, games_totales_b,
         copa_id,
-        pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
-        pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
+        pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre, presentes ),
+        pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre, presentes )
       `)
       .eq('id', partidoId)
       .single();
 
     if (!partido) return;
+
+    // Verificar presentismo antes de abrir el modal
+    const { data: torneo } = await supabase
+      .from('torneos')
+      .select('presentismo_activo')
+      .eq('id', TORNEO_ID)
+      .single();
+
+    const presentismoActivo = torneo?.presentismo_activo ?? true;
+
+    if (presentismoActivo) {
+      const miPareja = partido.pareja_a?.id === identidad.parejaId ? partido.pareja_a : partido.pareja_b;
+      const presentes = miPareja?.presentes || [];
+      const ausentes = [identidad.miNombre, identidad.companero].filter(n => !presentes.includes(n));
+
+      if (ausentes.length > 0) {
+        const nombres = ausentes.join(' y ');
+        const msg = ausentes.length === 2
+          ? `🎾 ¡Ey! Ni vos ni ${identidad.companero} dieron el presente todavía.\n\nSi cargás el resultado, los marcamos como presentes automáticamente. ¿Dale?`
+          : `🎾 ¡Ey! ${ausentes[0]} no dio el presente todavía.\n\nSi cargás el resultado, lo marcamos como presente automáticamente. ¿Dale?`;
+
+        if (!confirm(msg)) return;
+
+        // Auto-marcar ausentes como presentes
+        const nuevosPresentes = [...new Set([...presentes, ...ausentes])];
+        await supabase
+          .from('parejas')
+          .update({ presentes: nuevosPresentes })
+          .eq('id', miPareja.id);
+      }
+    }
 
     mostrarModalCargarResultado(partido, identidad, async (setsOrGamesA, gamesBOrNumSets) => {
       // OPTIMISTIC UI: Animar salida de la tarjeta
