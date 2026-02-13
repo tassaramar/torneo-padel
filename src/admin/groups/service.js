@@ -135,17 +135,17 @@ export async function generarPartidosGrupos() {
       continue;
     }
     console.log(`Generando partidos para grupo ${grupo.nombre}:`, ps.map(p => p.nombre));
-    
+
     // Usar Circle Method para generar pairings con rondas
     const nombresParaCircle = ps.map(p => p.nombre);
     const pairings = circleMethod(nombresParaCircle);
-    
+
     // Crear mapa de nombre a ID para búsqueda rápida
     const nombreAId = {};
     ps.forEach(p => {
       nombreAId[p.nombre] = p.id;
     });
-    
+
     // Crear partidos con número de ronda
     for (let rondaIdx = 0; rondaIdx < pairings.length; rondaIdx++) {
       const rondaPairings = pairings[rondaIdx];
@@ -163,7 +163,7 @@ export async function generarPartidosGrupos() {
           errores++;
           continue;
         }
-        
+
         const { error } = await supabase
           .from('partidos')
           .insert({

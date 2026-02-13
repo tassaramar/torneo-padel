@@ -31,7 +31,8 @@ import {
   calcularColaSugerida,
   crearMapaPosiciones
 } from '../utils/colaFixture.js';
-import { 
+import { showToast } from '../utils/toast.js';
+import {
   initPresentismo,
   obtenerPresentes,
   marcarPresente,
@@ -728,32 +729,15 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
   // Cambiar de pareja
   document.getElementById('btn-change-pareja')?.addEventListener('click', onChangePareja);
   
-  // === Presentismo (toggles con loading state) ===
-  
-  let presentismoLoading = false;
-  
-  // Helper: poner toggles en estado de carga
-  function setTogglesLoading(loading) {
-    presentismoLoading = loading;
-    const toggles = document.querySelectorAll('.presentismo-toggle');
-    toggles.forEach(t => {
-      if (loading) {
-        t.classList.add('loading');
-        t.setAttribute('disabled', 'true');
-      } else {
-        t.classList.remove('loading');
-        t.removeAttribute('disabled');
-      }
-    });
-  }
-  
-  // Helper: actualizar toggle visualmente
+  // === Presentismo (Optimistic UI + Rollback) ===
+
+  // Helper: actualizar toggle visualmente (optimistic)
   function actualizarToggleUI(toggleEl, nuevoEstado, esYo = false) {
     if (!toggleEl) return;
-    
+
     const checkEl = toggleEl.querySelector('.toggle-check');
     const hintEl = toggleEl.querySelector('.toggle-hint');
-    
+
     if (nuevoEstado) {
       toggleEl.classList.add('presente');
       if (checkEl) checkEl.textContent = '✅';
@@ -764,166 +748,156 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
       if (hintEl) hintEl.textContent = esYo ? '¡tocá para dar presente!' : '¿ya llegó? ¡Marcalo!';
     }
   }
-  
-  // Helper: animación cuando se completa el presentismo
-  function animarPresentismoCompleto() {
-    // Mostrar mensaje de éxito en el panel
-    const msgListo = document.querySelector('.presentismo-mensaje-listo');
-    if (!msgListo) {
-      const container = document.querySelector('.presentismo-container');
-      if (container) {
-        const msg = document.createElement('p');
-        msg.className = 'presentismo-mensaje-listo';
-        msg.textContent = '🎾 ¡Están los dos! A romperla';
-        container.appendChild(msg);
-      }
-    }
-    
-    // Cambiar mensaje de "Esperando compañero" a "Cargando partidos"
-    const msgBloqueado = document.querySelector('.partidos-bloqueados-msg');
-    if (msgBloqueado) {
-      const iconEl = msgBloqueado.querySelector('.msg-icon');
-      const textEl = msgBloqueado.querySelector('.msg-text');
-      if (iconEl) iconEl.textContent = '🔄';
-      if (textEl) textEl.textContent = 'Cargando tus partidos...';
-      msgBloqueado.classList.add('loading');
-    }
-    
-    // Esperar un momento, luego animar el cierre
+
+  // Helper: cerrar panel suavemente cuando ambos están presentes
+  function cerrarPanelPresentismo() {
+    const panel = document.getElementById('quien-soy-panel');
+    const container = document.querySelector('.home-quien-soy');
+
+    if (!panel || !container) return;
+
+    // Animar cierre suave
+    panel.classList.add('closing');
+
     setTimeout(() => {
-      const panel = document.getElementById('quien-soy-panel');
-      const container = document.querySelector('.home-quien-soy');
-      
-      if (panel && container) {
-        // Animar el cierre
-        panel.classList.add('closing');
-        
-        setTimeout(() => {
-          panel.style.display = 'none';
-          container.classList.add('collapsed');
-          panel.classList.remove('closing');
-          
-          // Actualizar botón
-          const expandBtn = container.querySelector('.quien-soy-expand-btn');
-          if (expandBtn) expandBtn.textContent = '▼';
-          
-          // Actualizar estado en header
-          const estadoTexto = container.querySelector('.quien-soy-estado-texto');
-          if (estadoTexto) estadoTexto.textContent = '✅ Presentes';
-          
-          // Limpiar sessionStorage
-          if (panelKeyAttr) {
-            sessionStorage.removeItem(panelKeyAttr);
-          }
-          
-          // Mostrar toast de éxito y hacer refresh para cargar partidos
-          mostrarToastExito();
-          
-          // Refresh después de un momento para cargar los partidos
-          setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('homeRefresh'));
-          }, 500);
-        }, 400);
+      panel.style.display = 'none';
+      container.classList.add('collapsed');
+      panel.classList.remove('closing');
+
+      // Actualizar botón
+      const expandBtn = container.querySelector('.quien-soy-expand-btn');
+      if (expandBtn) expandBtn.textContent = '▼';
+
+      // Actualizar estado en header
+      const estadoTexto = container.querySelector('.quien-soy-estado-texto');
+      if (estadoTexto) estadoTexto.textContent = '✅ Presentes';
+
+      // Limpiar sessionStorage
+      if (panelKeyAttr) {
+        sessionStorage.removeItem(panelKeyAttr);
       }
-    }, 800);
+    }, 300);
   }
-  
-  // Helper: mostrar toast de éxito
-  function mostrarToastExito() {
-    // Remover toast existente si hay
-    document.getElementById('presentismo-toast-exito')?.remove();
-    
-    const toast = document.createElement('div');
-    toast.id = 'presentismo-toast-exito';
-    toast.className = 'presentismo-toast presentismo-toast-exito';
-    toast.innerHTML = '<span class="toast-mensaje">🎾 ¡Listos para jugar! A romperla</span>';
-    
-    document.getElementById('home-content')?.prepend(toast);
-    
-    // Auto-remover después de 3 segundos
-    setTimeout(() => {
-      toast.classList.add('animating-out');
-      setTimeout(() => toast.remove(), 500);
-    }, 3000);
-  }
-  
+
   // Toggle mi presencia
   const toggleYoEl = document.getElementById('toggle-yo');
   toggleYoEl?.addEventListener('click', async () => {
-    if (presentismoLoading) return;
-    
+    const estadoAnterior = yoPresente;
     const nuevoEstado = !yoPresente;
-    
-    // Loading state
-    setTogglesLoading(true);
+
+    // OPTIMISTIC UI: Actualizar check inmediatamente
     actualizarToggleUI(toggleYoEl, nuevoEstado, true);
-    
-    // Actualizar BD
+
+    // Actualizar BD en background
+    let success;
     if (nuevoEstado) {
-      await marcarPresente(identidad.parejaId, identidad.miNombre);
+      success = await marcarPresente(identidad.parejaId, identidad.miNombre);
     } else {
-      await desmarcarPresente(identidad.parejaId, identidad.miNombre);
+      success = await desmarcarPresente(identidad.parejaId, identidad.miNombre);
     }
-    
-    // Verificar si ahora están ambos presentes
-    const ahoraYoPresente = nuevoEstado;
-    const ambosPresentes = ahoraYoPresente && companeroPresente;
-    
-    if (ambosPresentes) {
-      // Animación de completado
-      setTogglesLoading(false);
-      animarPresentismoCompleto();
+
+    if (success) {
+      // SUCCESS: Verificar si ahora están ambos presentes
+      yoPresente = nuevoEstado;
+      const ambosPresentes = yoPresente && companeroPresente;
+
+      if (ambosPresentes) {
+        // Toast de éxito + cierre suave del panel
+        showToast('🎾 ¡Listos para jugar! A romperla', 'success');
+        cerrarPanelPresentismo();
+
+        // Refresh después de cerrar panel
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('homeRefresh'));
+        }, 400);
+      } else {
+        // Refresh normal
+        window.dispatchEvent(new CustomEvent('homeRefresh'));
+      }
     } else {
-      // Refresh normal
-      window.dispatchEvent(new CustomEvent('homeRefresh'));
+      // ROLLBACK: Revert + Notify + Refresh
+      actualizarToggleUI(toggleYoEl, estadoAnterior, true);
+      showToast('Error al actualizar presentismo. Intentá de nuevo.', 'error');
+      await window.dispatchEvent(new CustomEvent('homeRefresh'));
     }
   });
-  
+
   // Toggle compañero
   const toggleCompEl = document.getElementById('toggle-companero');
   toggleCompEl?.addEventListener('click', async () => {
-    if (presentismoLoading) return;
-    
+    const estadoAnterior = companeroPresente;
     const nuevoEstado = !companeroPresente;
-    
-    // Loading state
-    setTogglesLoading(true);
+
+    // OPTIMISTIC UI: Actualizar check inmediatamente
     actualizarToggleUI(toggleCompEl, nuevoEstado, false);
-    
-    // Actualizar BD
+
+    // Actualizar BD en background
+    let success;
     if (nuevoEstado) {
-      await marcarPresente(identidad.parejaId, identidad.companero);
+      success = await marcarPresente(identidad.parejaId, identidad.companero);
     } else {
-      await desmarcarPresente(identidad.parejaId, identidad.companero);
+      success = await desmarcarPresente(identidad.parejaId, identidad.companero);
     }
-    
-    // Verificar si ahora están ambos presentes
-    const ahoraCompPresente = nuevoEstado;
-    const ambosPresentes = yoPresente && ahoraCompPresente;
-    
-    if (ambosPresentes) {
-      // Animación de completado
-      setTogglesLoading(false);
-      animarPresentismoCompleto();
+
+    if (success) {
+      // SUCCESS: Verificar si ahora están ambos presentes
+      companeroPresente = nuevoEstado;
+      const ambosPresentes = yoPresente && companeroPresente;
+
+      if (ambosPresentes) {
+        // Toast de éxito + cierre suave del panel
+        showToast('🎾 ¡Listos para jugar! A romperla', 'success');
+        cerrarPanelPresentismo();
+
+        // Refresh después de cerrar panel
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('homeRefresh'));
+        }, 400);
+      } else {
+        // Refresh normal
+        window.dispatchEvent(new CustomEvent('homeRefresh'));
+      }
     } else {
-      // Refresh normal
-      window.dispatchEvent(new CustomEvent('homeRefresh'));
+      // ROLLBACK: Revert + Notify + Refresh
+      actualizarToggleUI(toggleCompEl, estadoAnterior, false);
+      showToast('Error al actualizar presentismo. Intentá de nuevo.', 'error');
+      await window.dispatchEvent(new CustomEvent('homeRefresh'));
     }
   });
-  
+
   // Marcar compañero desde el toast
   document.getElementById('toast-marcar-companero')?.addEventListener('click', async () => {
-    if (presentismoLoading) return;
-    
-    setTogglesLoading(true);
+    const estadoAnterior = companeroPresente;
     const toggleComp = document.getElementById('toggle-companero');
+
+    // OPTIMISTIC UI: Actualizar inmediatamente
     actualizarToggleUI(toggleComp, true, false);
-    
+
     const toast = document.getElementById('presentismo-toast');
     if (toast) toast.remove();
-    
-    await marcarPresente(identidad.parejaId, identidad.companero);
-    window.dispatchEvent(new CustomEvent('homeRefresh'));
+
+    // Actualizar BD
+    const success = await marcarPresente(identidad.parejaId, identidad.companero);
+
+    if (success) {
+      companeroPresente = true;
+      const ambosPresentes = yoPresente && companeroPresente;
+
+      if (ambosPresentes) {
+        showToast('🎾 ¡Listos para jugar! A romperla', 'success');
+        cerrarPanelPresentismo();
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('homeRefresh'));
+        }, 400);
+      } else {
+        window.dispatchEvent(new CustomEvent('homeRefresh'));
+      }
+    } else {
+      // ROLLBACK
+      actualizarToggleUI(toggleComp, estadoAnterior, false);
+      showToast('Error al actualizar presentismo. Intentá de nuevo.', 'error');
+      await window.dispatchEvent(new CustomEvent('homeRefresh'));
+    }
   });
   
   // === Toast animado ===

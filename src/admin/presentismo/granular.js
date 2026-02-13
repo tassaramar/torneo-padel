@@ -208,6 +208,44 @@ function renderParejaCard(pareja, grupo) {
   `;
 }
 
+// Helper: actualizar visibilidad de botones "Ambos" y "Limpiar" reactivamente
+function actualizarBotonesAcciones(parejaId) {
+  const card = document.querySelector(`[data-pareja-id="${parejaId}"]`);
+  if (!card) return;
+
+  const toggles = card.querySelectorAll('.jugador-toggle');
+  if (toggles.length !== 2) return;
+
+  const presente1 = toggles[0].classList.contains('presente');
+  const presente2 = toggles[1].classList.contains('presente');
+
+  const actionsContainer = card.querySelector('.pareja-actions');
+  if (!actionsContainer) return;
+
+  // Limpiar contenedor
+  actionsContainer.innerHTML = '';
+
+  // Botón "Ambos ✅" si al menos uno está ausente
+  if (!presente1 || !presente2) {
+    const nombre1 = toggles[0].dataset.nombre;
+    const nombre2 = toggles[1].dataset.nombre;
+    const btnAmbos = document.createElement('button');
+    btnAmbos.className = 'btn-small';
+    btnAmbos.textContent = 'Ambos ✅';
+    btnAmbos.onclick = () => window.marcarAmbosPresentes(parejaId, nombre1, nombre2);
+    actionsContainer.appendChild(btnAmbos);
+  }
+
+  // Botón "Limpiar" si al menos uno está presente
+  if (presente1 || presente2) {
+    const btnLimpiar = document.createElement('button');
+    btnLimpiar.className = 'btn-small btn-danger';
+    btnLimpiar.textContent = 'Limpiar';
+    btnLimpiar.onclick = () => window.limpiarPareja(parejaId);
+    actionsContainer.appendChild(btnLimpiar);
+  }
+}
+
 // Exponer funciones globales
 window.toggleJugadorPresentismo = async function(event, parejaId, nombre) {
   event.preventDefault();
@@ -224,6 +262,9 @@ window.toggleJugadorPresentismo = async function(event, parejaId, nombre) {
     btn.classList.add('presente');
     btn.textContent = `✅ ${nombre}`;
   }
+
+  // Actualizar botones reactivamente
+  actualizarBotonesAcciones(parejaId);
 
   // Call backend
   let success;
@@ -247,29 +288,109 @@ window.toggleJugadorPresentismo = async function(event, parejaId, nombre) {
       btn.classList.add('ausente');
       btn.textContent = `❌ ${nombre}`;
     }
+    actualizarBotonesAcciones(parejaId); // Revert button visibility
     logMsg(`❌ Error al cambiar estado de ${nombre}`);
-    showToast(`Error al cambiar estado de ${nombre}`, 'error'); // ← Notify user
-    await refreshTodasLasVistas(); // ← Guarantee consistency on error
+    showToast(`Error al cambiar estado de ${nombre}`, 'error');
+    await refreshTodasLasVistas();
   }
 };
 
 window.marcarAmbosPresentes = async function(parejaId, nombre1, nombre2) {
+  const card = document.querySelector(`[data-pareja-id="${parejaId}"]`);
+  if (!card) return;
+
+  const toggles = card.querySelectorAll('.jugador-toggle');
+  if (toggles.length !== 2) return;
+
+  // Capturar estados anteriores para rollback
+  const estadoAnterior1 = toggles[0].classList.contains('presente');
+  const estadoAnterior2 = toggles[1].classList.contains('presente');
+
+  // OPTIMISTIC UI: Marcar ambos como presentes inmediatamente
+  toggles[0].classList.remove('ausente');
+  toggles[0].classList.add('presente');
+  toggles[0].textContent = `✅ ${nombre1}`;
+
+  toggles[1].classList.remove('ausente');
+  toggles[1].classList.add('presente');
+  toggles[1].textContent = `✅ ${nombre2}`;
+
+  // Actualizar botones reactivamente
+  actualizarBotonesAcciones(parejaId);
+
+  // Backend call
   const success = await marcarAmbosPresentes(parejaId, nombre1, nombre2);
+
   if (success) {
     logMsg(`✅ Pareja completa: ${nombre1} y ${nombre2}`);
     await refreshTodasLasVistas();
   } else {
+    // ROLLBACK: Revert + Notify + Refresh
+    if (!estadoAnterior1) {
+      toggles[0].classList.remove('presente');
+      toggles[0].classList.add('ausente');
+      toggles[0].textContent = `❌ ${nombre1}`;
+    }
+    if (!estadoAnterior2) {
+      toggles[1].classList.remove('presente');
+      toggles[1].classList.add('ausente');
+      toggles[1].textContent = `❌ ${nombre2}`;
+    }
+    actualizarBotonesAcciones(parejaId);
     logMsg(`❌ Error al marcar pareja`);
+    showToast('Error al marcar pareja como presente', 'error');
+    await refreshTodasLasVistas();
   }
 };
 
 window.limpiarPareja = async function(parejaId) {
+  const card = document.querySelector(`[data-pareja-id="${parejaId}"]`);
+  if (!card) return;
+
+  const toggles = card.querySelectorAll('.jugador-toggle');
+  if (toggles.length !== 2) return;
+
+  const nombre1 = toggles[0].dataset.nombre;
+  const nombre2 = toggles[1].dataset.nombre;
+
+  // Capturar estados anteriores para rollback
+  const estadoAnterior1 = toggles[0].classList.contains('presente');
+  const estadoAnterior2 = toggles[1].classList.contains('presente');
+
+  // OPTIMISTIC UI: Marcar ambos como ausentes inmediatamente
+  toggles[0].classList.remove('presente');
+  toggles[0].classList.add('ausente');
+  toggles[0].textContent = `❌ ${nombre1}`;
+
+  toggles[1].classList.remove('presente');
+  toggles[1].classList.add('ausente');
+  toggles[1].textContent = `❌ ${nombre2}`;
+
+  // Actualizar botones reactivamente
+  actualizarBotonesAcciones(parejaId);
+
+  // Backend call
   const success = await desmarcarTodos(parejaId);
+
   if (success) {
     logMsg(`🧹 Pareja limpiada`);
     await refreshTodasLasVistas();
   } else {
+    // ROLLBACK: Revert + Notify + Refresh
+    if (estadoAnterior1) {
+      toggles[0].classList.remove('ausente');
+      toggles[0].classList.add('presente');
+      toggles[0].textContent = `✅ ${nombre1}`;
+    }
+    if (estadoAnterior2) {
+      toggles[1].classList.remove('ausente');
+      toggles[1].classList.add('presente');
+      toggles[1].textContent = `✅ ${nombre2}`;
+    }
+    actualizarBotonesAcciones(parejaId);
     logMsg(`❌ Error al limpiar pareja`);
+    showToast('Error al limpiar pareja', 'error');
+    await refreshTodasLasVistas();
   }
 };
 

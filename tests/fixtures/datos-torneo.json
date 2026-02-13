@@ -1,0 +1,445 @@
+{
+  "torneoId": "test-torneo-completo-001",
+  "torneoNombre": "Torneo Test E2E",
+  "grupos": [
+    {
+      "nombre": "A",
+      "descripcion": "Grupo A - Con triple empate en puntos"
+    },
+    {
+      "nombre": "B",
+      "descripcion": "Grupo B - Con triple empate resuelto por DG"
+    }
+  ],
+  "parejas": [
+    {
+      "id": "A1",
+      "nombre": "Tincho - Max",
+      "grupo": "A",
+      "jugadores": ["Tincho", "Max"],
+      "presentes": ["Tincho", "Max"]
+    },
+    {
+      "id": "A2",
+      "nombre": "Ari - Lean",
+      "grupo": "A",
+      "jugadores": ["Ari", "Lean"],
+      "presentes": ["Ari", "Lean"]
+    },
+    {
+      "id": "A3",
+      "nombre": "Fede - Santi",
+      "grupo": "A",
+      "jugadores": ["Fede", "Santi"],
+      "presentes": ["Fede", "Santi"]
+    },
+    {
+      "id": "A4",
+      "nombre": "Nico - Pablo",
+      "grupo": "A",
+      "jugadores": ["Nico", "Pablo"],
+      "presentes": ["Nico"],
+      "nota": "Pablo ausente - para tests de presentismo"
+    },
+    {
+      "id": "B1",
+      "nombre": "Lucas - Martín",
+      "grupo": "B",
+      "jugadores": ["Lucas", "Martín"],
+      "presentes": ["Lucas", "Martín"]
+    },
+    {
+      "id": "B2",
+      "nombre": "Diego - Javi",
+      "grupo": "B",
+      "jugadores": ["Diego", "Javi"],
+      "presentes": ["Diego", "Javi"]
+    },
+    {
+      "id": "B3",
+      "nombre": "Ale - Gonza",
+      "grupo": "B",
+      "jugadores": ["Ale", "Gonza"],
+      "presentes": ["Ale", "Gonza"]
+    },
+    {
+      "id": "B4",
+      "nombre": "Mateo - Bruno",
+      "grupo": "B",
+      "jugadores": ["Mateo", "Bruno"],
+      "presentes": ["Mateo", "Bruno"]
+    }
+  ],
+  "partidos": [
+    {
+      "numero": 1,
+      "parejaA_id": "A1",
+      "parejaB_id": "A2",
+      "grupo": "A",
+      "ronda": 1,
+      "resultado": {
+        "set1_a": 7,
+        "set1_b": 5,
+        "set2_a": 4,
+        "set2_b": 6,
+        "set3_a": 6,
+        "set3_b": 4,
+        "num_sets": 3
+      },
+      "estado": "confirmado",
+      "ganador": "A1",
+      "nota": "Confirmado automáticamente - ambas parejas cargaron mismo resultado"
+    },
+    {
+      "numero": 2,
+      "parejaA_id": "A1",
+      "parejaB_id": "A3",
+      "grupo": "A",
+      "ronda": 2,
+      "resultado": {
+        "set1_a": 6,
+        "set1_b": 4,
+        "set2_a": 6,
+        "set2_b": 3,
+        "num_sets": 2
+      },
+      "estado": "confirmado",
+      "ganador": "A1",
+      "nota": "Normal"
+    },
+    {
+      "numero": 3,
+      "parejaA_id": "A1",
+      "parejaB_id": "A4",
+      "grupo": "A",
+      "ronda": 3,
+      "resultado": {
+        "set1_a": 6,
+        "set1_b": 7,
+        "set2_a": 6,
+        "set2_b": 4,
+        "set3_a": 4,
+        "set3_b": 6,
+        "num_sets": 3
+      },
+      "estado": "a_confirmar",
+      "ganador": "A4",
+      "cargado_por": "A4",
+      "nota": "Pendiente de confirmación - solo A4 cargó, admin dará por bueno"
+    },
+    {
+      "numero": 4,
+      "parejaA_id": "A2",
+      "parejaB_id": "A3",
+      "grupo": "A",
+      "ronda": 1,
+      "resultado": {
+        "set1_a": 6,
+        "set1_b": 4,
+        "set2_a": 3,
+        "set2_b": 6,
+        "set3_a": 6,
+        "set3_b": 2,
+        "num_sets": 3
+      },
+      "estado": "confirmado",
+      "ganador": "A2",
+      "nota": "Normal"
+    },
+    {
+      "numero": 5,
+      "parejaA_id": "A2",
+      "parejaB_id": "A4",
+      "grupo": "A",
+      "ronda": 2,
+      "resultado_version_A2": {
+        "set1_a": 6,
+        "set1_b": 3,
+        "set2_a": 6,
+        "set2_b": 4,
+        "num_sets": 2
+      },
+      "resultado_version_A4": {
+        "set1_a": 6,
+        "set1_b": 4,
+        "set2_a": 6,
+        "set2_b": 3,
+        "num_sets": 2
+      },
+      "estado": "en_revision",
+      "nota": "EN DISPUTA - A2 cargó 6-3/6-4, A4 cargó 6-4/6-3 (orden inverso)"
+    },
+    {
+      "numero": 6,
+      "parejaA_id": "A3",
+      "parejaB_id": "A4",
+      "grupo": "A",
+      "ronda": 3,
+      "resultado": {
+        "set1_a": 7,
+        "set1_b": 6,
+        "set2_a": 5,
+        "set2_b": 7,
+        "set3_a": 6,
+        "set3_b": 4,
+        "num_sets": 3
+      },
+      "estado": "confirmado",
+      "ganador": "A3",
+      "resuelto_por": "jugadores",
+      "nota": "Disputa resuelta por jugadores - A3 aceptó resultado de A4"
+    },
+    {
+      "numero": 7,
+      "parejaA_id": "B1",
+      "parejaB_id": "B2",
+      "grupo": "B",
+      "ronda": 1,
+      "resultado": {
+        "set1_a": 6,
+        "set1_b": 4,
+        "set2_a": 4,
+        "set2_b": 6,
+        "set3_a": 7,
+        "set3_b": 5,
+        "num_sets": 3
+      },
+      "estado": "confirmado",
+      "ganador": "B1",
+      "nota": "Normal"
+    },
+    {
+      "numero": 8,
+      "parejaA_id": "B1",
+      "parejaB_id": "B3",
+      "grupo": "B",
+      "ronda": 2,
+      "resultado": {
+        "set1_a": 6,
+        "set1_b": 3,
+        "set2_a": 6,
+        "set2_b": 2,
+        "num_sets": 2
+      },
+      "estado": "confirmado",
+      "ganador": "B1",
+      "nota": "Normal"
+    },
+    {
+      "numero": 9,
+      "parejaA_id": "B1",
+      "parejaB_id": "B4",
+      "grupo": "B",
+      "ronda": 3,
+      "resultado": {
+        "set1_a": 4,
+        "set1_b": 6,
+        "set2_a": 3,
+        "set2_b": 6,
+        "num_sets": 2
+      },
+      "estado": "confirmado",
+      "ganador": "B4",
+      "nota": "Normal"
+    },
+    {
+      "numero": 10,
+      "parejaA_id": "B2",
+      "parejaB_id": "B3",
+      "grupo": "B",
+      "ronda": 1,
+      "resultado": {
+        "set1_a": 6,
+        "set1_b": 4,
+        "set2_a": 6,
+        "set2_b": 3,
+        "num_sets": 2
+      },
+      "estado": "confirmado",
+      "ganador": "B2",
+      "nota": "Normal"
+    },
+    {
+      "numero": 11,
+      "parejaA_id": "B2",
+      "parejaB_id": "B4",
+      "grupo": "B",
+      "ronda": 2,
+      "resultado": {
+        "set1_a": 6,
+        "set1_b": 4,
+        "set2_a": 3,
+        "set2_b": 6,
+        "set3_a": 4,
+        "set3_b": 6,
+        "num_sets": 3
+      },
+      "estado": "confirmado",
+      "ganador": "B4",
+      "nota": "Normal"
+    },
+    {
+      "numero": 12,
+      "parejaA_id": "B3",
+      "parejaB_id": "B4",
+      "grupo": "B",
+      "ronda": 3,
+      "resultado_version_B3": {
+        "set1_a": 6,
+        "set1_b": 7,
+        "set2_a": 6,
+        "set2_b": 4,
+        "set3_a": 7,
+        "set3_b": 5,
+        "num_sets": 3
+      },
+      "resultado_version_B4": {
+        "set1_a": 6,
+        "set1_b": 7,
+        "set2_a": 6,
+        "set2_b": 4,
+        "set3_a": 5,
+        "set3_b": 7,
+        "num_sets": 3
+      },
+      "resultado_correcto": "version_B4",
+      "estado": "en_revision",
+      "ganador": "B4",
+      "nota": "EN DISPUTA - B3 dice ganó set 3 (7-5), B4 dice ganó set 3 (7-5) - Admin resolverá a favor de B4"
+    }
+  ],
+  "tablaEsperada": {
+    "grupoA": [
+      {
+        "posicion": 1,
+        "pareja": "A1",
+        "nombre": "Tincho - Max",
+        "PJ": 3,
+        "PG": 2,
+        "PP": 1,
+        "P": 5,
+        "SF": 5,
+        "SC": 3,
+        "DS": 2,
+        "GF": 45,
+        "GC": 39,
+        "DG": 6,
+        "nota": "Empate en P (5) y DS (+2) con A2 y A4. Gana por mejor DG (+6 vs +6 vs +1). Entre A1 y A2 (mismo DG), gana por mejor GF (45 vs 42)"
+      },
+      {
+        "posicion": 2,
+        "pareja": "A2",
+        "nombre": "Ari - Lean",
+        "PJ": 3,
+        "PG": 2,
+        "PP": 1,
+        "P": 5,
+        "SF": 5,
+        "SC": 3,
+        "DS": 2,
+        "GF": 42,
+        "GC": 36,
+        "DG": 6,
+        "nota": "Segundo lugar por peor GF que A1 (42 vs 45)"
+      },
+      {
+        "posicion": 3,
+        "pareja": "A4",
+        "nombre": "Nico - Pablo",
+        "PJ": 3,
+        "PG": 2,
+        "PP": 1,
+        "P": 5,
+        "SF": 5,
+        "SC": 3,
+        "DS": 2,
+        "GF": 41,
+        "GC": 40,
+        "DG": 1,
+        "nota": "Tercer lugar por peor DG (+1 vs +6)"
+      },
+      {
+        "posicion": 4,
+        "pareja": "A3",
+        "nombre": "Fede - Santi",
+        "PJ": 3,
+        "PG": 0,
+        "PP": 3,
+        "P": 3,
+        "SF": 3,
+        "SC": 6,
+        "DS": -3,
+        "GF": 37,
+        "GC": 44,
+        "DG": -7,
+        "nota": "Último lugar por menor puntos (3)"
+      }
+    ],
+    "grupoB": [
+      {
+        "posicion": 1,
+        "pareja": "B1",
+        "nombre": "Lucas - Martín",
+        "PJ": 3,
+        "PG": 2,
+        "PP": 1,
+        "P": 5,
+        "SF": 4,
+        "SC": 4,
+        "DS": 0,
+        "GF": 40,
+        "GC": 38,
+        "DG": 2,
+        "nota": "Empate en P (5) y DS (0) con B2 y B4. Gana por mejor DG (+2 vs +1 vs +1)"
+      },
+      {
+        "posicion": 2,
+        "pareja": "B2",
+        "nombre": "Diego - Javi",
+        "PJ": 3,
+        "PG": 2,
+        "PP": 1,
+        "P": 5,
+        "SF": 4,
+        "SC": 4,
+        "DS": 0,
+        "GF": 39,
+        "GC": 38,
+        "DG": 1,
+        "nota": "Segundo lugar. Mismo DG que B4 (+1), gana por mejor GF (39 vs 38)"
+      },
+      {
+        "posicion": 3,
+        "pareja": "B4",
+        "nombre": "Mateo - Bruno",
+        "PJ": 3,
+        "PG": 2,
+        "PP": 1,
+        "P": 5,
+        "SF": 4,
+        "SC": 4,
+        "DS": 0,
+        "GF": 38,
+        "GC": 37,
+        "DG": 1,
+        "nota": "Tercer lugar por peor GF que B2 (38 vs 39)"
+      },
+      {
+        "posicion": 4,
+        "pareja": "B3",
+        "nombre": "Ale - Gonza",
+        "PJ": 3,
+        "PG": 0,
+        "PP": 3,
+        "P": 3,
+        "SF": 3,
+        "SC": 6,
+        "DS": -3,
+        "GF": 35,
+        "GC": 39,
+        "DG": -4,
+        "nota": "Último lugar por menor puntos (3)"
+      }
+    ]
+  }
+}
