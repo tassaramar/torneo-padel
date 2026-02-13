@@ -262,9 +262,8 @@ function actualizarBotonesAcciones(parejaId) {
   }
 }
 
-// Helper: hacer refresh con debounce (espera 600ms antes de ejecutar)
+// Helper: hacer refresh con debounce (espera 300ms antes de ejecutar)
 // Evita múltiples refreshes cuando se hacen clicks rápidos
-// 600ms da margen suficiente para que el backend termine antes del refresh
 function debouncedRefresh() {
   if (refreshTimeout) {
     clearTimeout(refreshTimeout);
@@ -272,7 +271,7 @@ function debouncedRefresh() {
   refreshTimeout = setTimeout(async () => {
     await refreshTodasLasVistas();
     refreshTimeout = null;
-  }, 600);
+  }, 300);
 }
 
 // Exponer funciones globales
