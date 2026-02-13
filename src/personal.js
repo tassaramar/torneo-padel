@@ -453,36 +453,29 @@ window.app = {
 
     // Si tiene sets, confirmar con sets
     if (partido.set1_a !== null && partido.set1_b !== null) {
+      // Los sets en DB están en perspectiva absoluta (A/B).
+      // cargarResultadoConSets() espera sets en perspectiva del jugador
+      // (setA = "mis puntos", setB = "puntos rival") y los rota internamente.
+      // Hay que pasar los sets desde la perspectiva del que confirma.
+      const soyA = partido.pareja_a_id === identidad.parejaId;
       const sets = {
-        set1: { setA: partido.set1_a, setB: partido.set1_b },
-        set2: { setA: partido.set2_a, setB: partido.set2_b }
+        set1: { setA: soyA ? partido.set1_a : partido.set1_b, setB: soyA ? partido.set1_b : partido.set1_a },
+        set2: { setA: soyA ? partido.set2_a : partido.set2_b, setB: soyA ? partido.set2_b : partido.set2_a }
       };
       if (partido.set3_a !== null && partido.set3_b !== null) {
-        sets.set3 = { setA: partido.set3_a, setB: partido.set3_b };
+        sets.set3 = { setA: soyA ? partido.set3_a : partido.set3_b, setB: soyA ? partido.set3_b : partido.set3_a };
       }
 
       const { cargarResultadoConSets } = await import('./viewer/cargarResultado.js');
       const resultado = await cargarResultadoConSets(supabase, partidoId, sets, partido.num_sets || 3, identidad);
-      
+
       if (resultado.ok) {
         await init();
       } else {
         mostrarToastError(resultado.mensaje);
       }
     } else {
-      // Fallback: si tiene set1 pero no set2, usar set1 como partido a 1 set
-      if (partido.set1_a !== null && partido.set1_b !== null) {
-        const { cargarResultadoConSets } = await import('./viewer/cargarResultado.js');
-        const sets = { set1: { setA: partido.set1_a, setB: partido.set1_b } };
-        const resultado = await cargarResultadoConSets(supabase, partidoId, sets, 1, identidad);
-        if (resultado.ok) {
-          await init();
-        } else {
-          mostrarToastError(resultado.mensaje);
-        }
-      } else {
-        mostrarToastError('No hay resultado cargado para confirmar.');
-      }
+      mostrarToastError('No hay resultado cargado para confirmar.');
     }
   },
 
