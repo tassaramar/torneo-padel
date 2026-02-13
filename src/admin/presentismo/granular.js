@@ -219,6 +219,21 @@ function actualizarBotonesAcciones(parejaId) {
   const presente1 = toggles[0].classList.contains('presente');
   const presente2 = toggles[1].classList.contains('presente');
 
+  // Actualizar badge de estado
+  const badge = card.querySelector('.pareja-badge');
+  if (badge) {
+    if (presente1 && presente2) {
+      badge.textContent = '🟢';
+      card.classList.remove('presentismo-incomplete');
+    } else if (!presente1 && !presente2) {
+      badge.textContent = '🔴';
+      card.classList.add('presentismo-incomplete');
+    } else {
+      badge.textContent = '🟡';
+      card.classList.add('presentismo-incomplete');
+    }
+  }
+
   const actionsContainer = card.querySelector('.pareja-actions');
   if (!actionsContainer) return;
 
