@@ -5297,11 +5297,14 @@ a.btn-action-secondary:hover {
 
 /* Pantalla de login admin */
 .admin-login-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 80vh;
   padding: 20px;
+  background: #0f172a;
 }
 
 .admin-login-card {
