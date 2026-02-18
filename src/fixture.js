@@ -3,6 +3,7 @@ import { esPartidoFinalizado, esPartidoPendiente, esPartidoYaJugado, calcularCol
 import { tieneResultado, formatearResultado } from './utils/formatoResultado.js';
 import { initPresentismo, marcarAmbosPresentes } from './viewer/presentismo.js';
 import { showToast } from './utils/toast.js';
+import { requireAdmin } from './auth/adminGuard.js';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -928,5 +929,7 @@ function handleVisibilityChange() {
   }
 }
 
-// Inicializar
-init().then(() => startPolling());
+// Inicializar con guard de admin
+requireAdmin(supabase, {
+  onReady: () => init().then(() => startPolling())
+});

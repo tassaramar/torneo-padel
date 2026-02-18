@@ -6,6 +6,7 @@ import { initCopas } from './admin/copas/index.js';
 
 import * as parejasImport from './admin/parejas/parejasImport.js';
 import { initParejasEdit } from './admin/parejas/parejasEdit.js';
+import { requireAdmin } from './auth/adminGuard.js';
 
 console.log('ADMIN ENTRY CARGADO');
 
@@ -41,19 +42,29 @@ function debugClick(id, label) {
   );
 }
 
-safeInit('SafetyLock', initSafetyLock);
-safeInit('ParejasImport', () => (parejasImport.initParejasImport ?? parejasImport.initParejas)?.());
-safeInit('ParejasEdit', initParejasEdit);
-safeInit('Groups', initGroups);
-safeInit('Copas', initCopas);
+function initAdmin() {
+  safeInit('SafetyLock', initSafetyLock);
+  safeInit('ParejasImport', () => (parejasImport.initParejasImport ?? parejasImport.initParejas)?.());
+  safeInit('ParejasEdit', initParejasEdit);
+  safeInit('Groups', initGroups);
+  safeInit('Copas', initCopas);
 
-// Debug de clicks clave
-debugClick('reset-grupos', 'Reset grupos');
-debugClick('gen-grupos', 'Generar grupos');
-debugClick('reset-copas', 'Reset copas');
-debugClick('gen-copas', 'Generar copas');
-debugClick('gen-finales', 'Generar finales');
-debugClick('reset-resultados', 'Reset resultados');
+  // Debug de clicks clave
+  debugClick('reset-grupos', 'Reset grupos');
+  debugClick('gen-grupos', 'Generar grupos');
+  debugClick('reset-copas', 'Reset copas');
+  debugClick('gen-copas', 'Generar copas');
+  debugClick('gen-finales', 'Generar finales');
+  debugClick('reset-resultados', 'Reset resultados');
+
+  // Conectar botón de reset resultados
+  const btnResetResultados = document.getElementById('reset-resultados');
+  if (btnResetResultados) {
+    btnResetResultados.onclick = resetearResultados;
+  }
+}
+
+requireAdmin(supabase, { onReady: initAdmin });
 
 /* =========================
    RESET RESULTADOS PRE-TORNEO
@@ -157,8 +168,3 @@ export async function resetearResultados() {
   }
 }
 
-// Conectar botón de reset resultados
-const btnResetResultados = document.getElementById('reset-resultados');
-if (btnResetResultados) {
-  btnResetResultados.onclick = resetearResultados;
-}

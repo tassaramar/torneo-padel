@@ -9,6 +9,7 @@ import {
 } from './viewer/cargarResultado.js';
 import { initModal, abrirModal, cerrarModal, invalidarCache } from './viewer/modalConsulta.js';
 import { showToast } from './utils/toast.js';
+import { tryShowAdminLinks } from './auth/adminLinks.js';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -543,6 +544,9 @@ window.app = {
 
 // Inicializar al cargar la página
 checkIdentidadYCargar();
+
+// Si hay admin logueado, mostrar links de navegación (no-bloqueante)
+tryShowAdminLinks(supabase);
 
 async function checkIdentidadYCargar() {
   const identidad = getIdentidad();

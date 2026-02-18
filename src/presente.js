@@ -15,20 +15,20 @@ import {
   initAusentes
 } from './admin/presentismo/index.js';
 
+import { requireAdmin } from './auth/adminGuard.js';
+
 console.log('PRESENTE ENTRY CARGADO');
 
-// Init módulo de presentismo con supabase
-initPresentismo(supabase);
+async function initPresente() {
+  // Init módulo de presentismo con supabase
+  initPresentismo(supabase);
 
-// Init safety lock (solo para operaciones masivas)
-initSafetyLock();
+  // Init safety lock (solo para operaciones masivas)
+  initSafetyLock();
 
-// Init secciones
-async function init() {
   try {
     logMsg('Inicializando sistema de presentismo...');
 
-    // Inicializar cada sección
     await initToggleGlobal();
     await initEstadisticas();
     await initOperacionesMasivas();
@@ -42,9 +42,4 @@ async function init() {
   }
 }
 
-// Iniciar cuando el DOM esté listo
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
-}
+requireAdmin(supabase, { onReady: initPresente });

@@ -5290,3 +5290,152 @@ a.btn-action-secondary:hover {
   pointer-events: none;
   transition: opacity 0.2s ease;
 }
+
+/* =============================
+   ADMIN AUTH - Login & Bars
+   ============================= */
+
+/* Pantalla de login admin */
+.admin-login-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 80vh;
+  padding: 20px;
+}
+
+.admin-login-card {
+  background: white;
+  border-radius: 12px;
+  padding: 32px 24px;
+  text-align: center;
+  max-width: 360px;
+  width: 100%;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+}
+
+.admin-login-card h1 {
+  font-size: 1.4rem;
+  margin: 0 0 8px;
+  color: #1E293B;
+}
+
+.admin-login-card p {
+  color: #64748B;
+  font-size: 0.9rem;
+  margin: 0 0 16px;
+}
+
+.btn-google-login {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  background: white;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.15s;
+}
+
+.btn-google-login:active {
+  background: #f1f3f4;
+}
+
+.admin-login-hint {
+  color: #9CA3AF;
+  font-size: 13px;
+  margin-top: 12px;
+}
+
+/* Barra de admin autenticado (en páginas protegidas) */
+.admin-auth-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  background: #1E293B;
+  color: white;
+  font-size: 13px;
+}
+
+.admin-auth-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-auth-role {
+  background: #3B82F6;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  text-transform: capitalize;
+}
+
+.admin-auth-logout {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.admin-auth-logout:active {
+  background: rgba(255,255,255,0.1);
+}
+
+/* Barra flotante admin en index.html (vista jugador) */
+.admin-floating-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #1E293B;
+  padding: 8px 12px;
+  z-index: 1000;
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.15);
+}
+
+.admin-floating-links {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  align-items: center;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-floating-links a {
+  color: white;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.1);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.admin-floating-links a:active {
+  background: rgba(255,255,255,0.2);
+}
+
+.admin-bar-btn {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.admin-bar-btn:active {
+  background: rgba(255,255,255,0.1);
+}
