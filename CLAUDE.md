@@ -27,11 +27,14 @@ npm run preview      # Preview del build de producción
 
 ### User Roles
 
-El sistema contempla **3 niveles de usuarios**:
+El sistema contempla los siguientes niveles de acceso:
 
-1. **Admin**: Acceso completo a gestión del torneo (admin.html)
-2. **Ayudante de Admin**: Acceso a funciones de organización (fixture.html, carga.html)
-3. **Usuario Final (Jugador)**: Vista personal autogestiva (index.html)
+1. **Admin** (requiere login Google): Acceso completo a gestión del torneo (admin.html) y analytics (analytics.html)
+2. **Organizador / Ayudante** (sin login): Acceso a fixture.html, carga.html, presente.html — páginas públicas
+3. **Usuario Final (Jugador)** (sin login): Vista personal autogestiva (index.html)
+
+> La autenticación se implementa con Google OAuth + tabla `admin_users` en Supabase.
+> Ver `src/auth/adminGuard.js`.
 
 ### Multi-HTML Structure
 
@@ -171,6 +174,11 @@ Si estas funciones aparecen duplicadas en otro archivo, eliminar la duplicación
 2. **Testing**: Hacer `npm run build` para verificar que no hay errores de compilación
 3. **Mobile-first**: Todas las features deben funcionar 100% en mobile (sin hover, todo tap/click)
 4. **Philosophy**: Cuando un usuario quiere hacer algo, SIEMPRE dejarlo (con confirmación si hay riesgos), nunca bloquear
+5. **Backlog**: Al completar cualquier feature o mejora significativa, actualizar `docs/brainstorming-proximas-mejoras.md`:
+   - Mover el ítem completado al historial (`## Historial`) con fecha y descripción breve
+   - Actualizar "Última actualización" al tope del archivo
+   - Sacar el ítem del roadmap activo si estaba ahí
+6. **Especificación Técnica**: Si se crea un documento de planificación previo al desarrollo, incluir el link en la entrada del historial
 
 ## Database Migrations
 
@@ -185,6 +193,7 @@ Migraciones recientes importantes:
 - `20260130010000_add_presentes_to_parejas.sql`: Campo de presentismo individual
 - `20260130020000_add_presentismo_activo_to_torneos.sql`: Toggle de presentismo por torneo
 - `20260130000000_refactor_games_to_sets_model.sql`: Modelo de sets
+- `20260224000000_fix_rls_policies.sql`: RLS policies alineadas con modelo de auth (función `is_admin()`, restricciones por rol)
 
 ## Environment Variables
 

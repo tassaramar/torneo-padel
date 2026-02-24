@@ -1,292 +1,202 @@
-# 🧩 Roadmap Próximas Mejoras – Torneo Pádel
+# Product Backlog — Torneo de Pádel
 
-**Fecha de notas**: 2026-02-12
+> **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
+> Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-Este documento captura ideas y preguntas abiertas para futuras mejoras del sistema. No son tareas definidas, sino inputs para brainstorming y diseño.
-
----
-
-## 1️⃣ Presentismo
-
-### Problema
-Hoy el fixture asume que todos están. En la realidad, no.
-
-### Objetivo
-Que la asistencia impacte en la lógica de asignación de partidos.
-
-### Preguntas clave
-
-**¿Entidad principal: jugador o pareja?**
-- ¿Se gestiona a nivel individual o como unidad?
-- ¿Un jugador ausente invalida toda la pareja?
-
-**¿Se puede modificar en vivo?**
-- ¿El organizador actualiza durante el torneo?
-- ¿Los jugadores auto-reportan llegada?
-
-**¿Qué hace el sistema si alguien falta?**
-- Elimina partidos
-- Reprograma
-- Marca como WO (walk-over)
-- Deja decisión manual
-
-### Output esperado
-Modelo claro + impacto en generación de partidos.
+**Última actualización**: 2026-02-24
 
 ---
 
-## 2️⃣ Orden Global del Fixture
+## Cómo usar este documento
 
-### Problema estructural
-Los partidos están ordenados por grupo, pero el organizador piensa en canchas y tiempos.
-
-### Necesitamos
-Un orden absoluto independiente del grupo.
-
-### El sistema debe responder
-
-- Tengo 4 partidos y 3 canchas → **¿quién espera?**
-- Se libera una cancha → **¿quién entra?**
-- **¿Hay prioridad por ronda?**
-
-**Esto ya no es UI.**
-**Es un problema de asignación de recursos.**
-
-### Output esperado
-Modelo conceptual de asignación cancha–partido–tiempo.
+- **Toda idea nueva** entra primero en `## Ideas Crudas` con estado `💡 CRUDA`
+- **Al iniciar chat con IA**: copiar el bloque al final de este archivo (`## Bloque para IA`)
+- **Al completar trabajo**: mover el ítem a `## Historial` con fecha y breve nota
+- **Regla anti-cementerio**: si un ítem lleva +60 días sin avanzar, agregar nota de bloqueo o moverlo a Descartado
+- **No duplicar con CLAUDE.md**: decisiones técnicas de implementación van en CLAUDE.md; acá van ideas y su estado
 
 ---
 
-## 3️⃣ Búsqueda
+## Estados
 
-### Dolor real
-Encontrar partidos en vivo fue complicado.
-
-### Necesitamos
-
-**Búsqueda global** con:
-
-- **Filtros rápidos**:
-  - Jugando ahora
-  - Pendientes
-  - Por jugador
-
-- **Resolver homónimos**
-  - ¿Cómo distinguir jugadores con mismo nombre?
-
-- **Mostrar estado real del partido**
-  - No solo "pendiente" genérico
-  - Diferenciar: esperando / en juego / cargando resultado / etc.
-
-### Output esperado
-Definición clara de qué es "buscar" dentro del sistema.
+| Emoji | Estado | Significado |
+|-------|--------|-------------|
+| 💡 | CRUDA | Idea registrada, sin análisis |
+| 🔍 | EN ANÁLISIS | Siendo evaluada, preguntas abiertas |
+| 📋 | PRIORIZADA | Analizada y lista para desarrollar |
+| 🚧 | EN DESARROLLO | Sprint activo ahora mismo |
+| ✅ | IMPLEMENTADA | Funcionando en producción |
+| 🏆 | VALIDADA | Probada en torneo real |
+| 🚫 | DESCARTADA | No se desarrollará (motivo registrado) |
 
 ---
 
-## 4️⃣ Admin / Seguridad – Etapa 0
+## Próximas 3 — Roadmap activo
 
-### Realidad incómoda
-La BD hoy está abierta. Funciona porque nadie la está atacando.
+> Máximo 3 ítems a la vez. Para agregar uno, sacar uno primero. Obliga a priorizar.
 
-### Objetivo
-Primer paso hacia usuarios reales.
-
-### Etapa 0 (mínimo viable)
-
-- **Identificación mínima de admin**
-  - No necesariamente auth complejo
-  - Podría ser token, contraseña simple, magic link
-
-- **Modo admin visible**
-  - Interfaz clara de quién está en modo admin
-
-- **Rutas protegidas**
-  - `/admin`, `/presente.html`, `/carga.html` requieren auth
-
-- **Empezar a cerrar escrituras públicas en BD**
-  - RLS (Row Level Security) en Supabase
-  - Políticas básicas: solo admin escribe, todos leen
-
-**Esto es clave antes de que el sistema crezca.**
+1. **Rediseño sistema de copas** — más flexible, menos intervención manual en el torneo
+2. **Múltiples torneos** — historial entre torneos sin borrar la BD
+3. *(libre — agregar próxima prioridad)*
 
 ---
 
-## Notas de Contexto
+## Backlog
 
-### Estado actual del presentismo
-- ✅ Ya implementado: campo `presentes TEXT[]` en tabla `parejas`
-- ✅ Ya implementado: toggle `presentismo_activo` en tabla `torneos`
-- ✅ Ya implementado: pantalla admin `presente.html` con gestión completa
-- ✅ Ya implementado: integración visual en `fixture.html` (badges ✅/⚠️)
-- ⚠️ **Pendiente**: Integración en `index.html` (vista del jugador)
-- ⚠️ **No resuelto**: Lógica de qué hacer cuando alguien falta (ver Pregunta #1)
+### Rediseño sistema de copas `🔍 EN ANÁLISIS`
 
-### Estado actual de orden global
-- ✅ Ya implementado: numeración global de partidos (#1, #2, #3...)
-- ✅ Ya implementado: `calcularColaSugerida()` en `utils/colaFixture.js`
-- ⚠️ **No resuelto**: Asignación de canchas (el sistema NO asigna canchas hoy)
-- ⚠️ **No resuelto**: Gestión de tiempos y esperas
+**Problema**: Sistema actual es ad hoc. Un botón por formato, poco flexible. En torneos reales muchas copas no se completan. Durante el torneo no hay tiempo para programar cruces. El ajuste manual de posiciones no alcanza.
 
-### Estado actual de búsqueda
-- ✅ Ya implementado: búsqueda en fixture (`src/carga/search.js`)
-- ✅ Ya implementado: búsqueda por nombre, grupo, ronda
-- ✅ Ya implementado: normalización de texto (acentos, mayúsculas)
-- ⚠️ **Limitado**: Solo busca en cola de pendientes, no en histórico
-- ⚠️ **No resuelto**: Búsqueda global cross-página
-- ⚠️ **No resuelto**: Resolución de homónimos
+**Objetivo**: Sistema flexible, inteligente y adaptable en tiempo real con mínima intervención manual del organizador.
 
-### Estado actual de admin/seguridad
-- ❌ **No implementado**: Sistema de autenticación
-- ❌ **No implementado**: RLS en Supabase
-- ⚠️ **Abierto**: Cualquiera con la URL puede acceder a `/admin`, `/presente.html`, etc.
-- ⚠️ **Abierto**: La BD permite escrituras públicas vía anon key
+**Preguntas clave**:
+- ¿Cuáles son los formatos de copa más comunes que hay que soportar?
+- ¿Cómo manejar automáticamente copas incompletas (ausencias, desistimientos)?
+- ¿Qué información mínima necesita el organizador para generar cruces en tiempo real?
+- ¿Se pueden sugerir cruces automáticos basados en posiciones de grupo?
 
 ---
 
-## Preguntas Transversales
+### Múltiples torneos `🔍 EN ANÁLISIS`
 
-### Filosofía del Sistema
-**"Guiar, No Bloquear"** aplica a todas estas features:
-- ¿Presentismo bloquea o solo guía?
-- ¿Asignación de canchas es sugerencia o restricción?
-- ¿Admin tiene poder absoluto o el sistema tiene reglas estrictas?
+**Problema**: Un único torneo activo. Al iniciar uno nuevo, se borra la BD y se pierde todo el historial.
 
-### Escalabilidad
-- ¿Cuántos jugadores/parejas soportamos?
-- ¿Cuántas canchas simultáneas?
-- ¿Torneos de múltiples días?
+**Objetivo**: Guardar historial de torneos anteriores, trabajar sobre torneos nuevos sin perder datos.
 
-### UX Mobile-First
-- Todas estas features deben funcionar 100% en mobile
-- Búsqueda: autocomplete touch-friendly
-- Admin: gestos para drag-drop de asignación
-- Presentismo: toggle rápido sin navegación
+**Preguntas clave**:
+- ¿Cómo selecciona el jugador en qué torneo está participando?
+- ¿El historial de torneos anteriores es accesible desde la app o solo como backup?
+- ¿Cómo afecta a la estructura de BD (foreign keys en partidos, grupos, parejas)?
+
+**Dependencia**: Conviene resolver identificación de jugadores (ver Gestión de usuarios individuales) antes para que el historial sea útil por jugador.
 
 ---
 
-## Referencias
+### Gestión de usuarios individuales `💡 CRUDA`
 
-- [docs/implementacion-presentismo-index-html.md](implementacion-presentismo-index-html.md) - Plan de integración de presentismo en vista jugador
-- [docs/fixture-presentismo-visual.md](fixture-presentismo-visual.md) - Diseño visual de badges
-- [docs/requerimientos-ux-torneo.md](requerimientos-ux-torneo.md) - Requerimientos funcionales generales
-- [readme/roadmap.md](../readme/roadmap.md) - Roadmap principal del proyecto
+**Idea**: Registro de jugadores individuales con datos propios, independientes de las parejas.
 
-## 5️⃣ Aplicar Política de Rollback System-Wide
+**Datos posibles**:
+- Nombre, apellido
+- Lado de juego (Drive / Revés / Ambos)
+- DNI
+- Fecha de nacimiento
+- Contraseña / método de autenticación
 
-### Contexto
-**Fecha de política**: 2026-02-12
-**Documento**: [docs/politica-optimistic-ui-rollback.md](politica-optimistic-ui-rollback.md)
+**Objetivo**: Validación de identidad más robusta. Base para histórico personal y estadísticas cross-torneo.
 
-Hemos definido una política estándar de Optimistic UI + Rollback que garantiza:
-- ⚡ UX instantánea (actualización optimista)
-- 🔒 Consistencia garantizada (refresh en error)
-- 🛡️ Rollback confiable (revert + refresh)
+**Condición bloqueante**: Antes de almacenar datos personales sensibles (DNI, fecha de nacimiento), la seguridad de BD debe estar resuelta. No avanzar sin RLS activo.
 
-### Problema
-Actualmente solo está implementada en 1 lugar:
-- ✅ `src/admin/presentismo/granular.js` - Toggle de jugadores (con toast)
-
-Hay múltiples lugares en la app donde hacemos mutaciones sin optimistic UI o sin rollback correcto.
-
-### Infraestructura Disponible
-- ✅ **Sistema de toast implementado** (`src/utils/toast.js`)
-  - Función: `showToast(message, type, duration)`
-  - Variantes: 'success', 'error', 'info'
-  - CSS en `style.css`
-  - Ejemplo de uso: Ver `src/admin/presentismo/granular.js` línea 250
-
-### Objetivo
-Aplicar la política de rollback de forma consistente en toda la app.
-
-### Lugares identificados donde aplicar
-
-#### 1️⃣ **Carga de resultados** 
-**Archivo**: `src/viewer/cargarResultado.js`
-- **Acción**: Usuario carga score de partido
-- **Optimistic**: Mostrar resultado inmediatamente en vista personal
-- **Rollback**: Revert + refresh si falla guardado
-- **Prioridad**: Alta (acción crítica, frecuente en torneo)
-
-#### 2️⃣ **Marcar partido "En juego"**
-**Archivo**: `src/fixture.js` - función `marcarEnJuego()`
-- **Acción**: Admin/organizador marca partido como "en juego"
-- **Optimistic**: Mover partido de "Pendientes" a "En juego" visualmente
-- **Rollback**: Revert + refresh si falla
-- **Prioridad**: Media
-
-#### 3️⃣ **Operaciones masivas de presentismo**
-**Archivo**: `src/admin/presentismo/bulk.js`
-- **Acción**: "Marcar todos presentes", "Limpiar grupo", etc.
-- **Optimistic**: Actualizar contadores y vista progresivamente
-- **Rollback**: Si alguna operación falla, refresh completo
-- **Prioridad**: Media (operación admin, menos frecuente)
-
-#### 4️⃣ **Edición inline de parejas**
-**Archivo**: `src/admin/parejas/parejasEdit.js`
-- **Acción**: Editar nombre de pareja inline
-- **Optimistic**: Mostrar cambio en lista inmediatamente
-- **Rollback**: Revert + refresh si falla guardado
-- **Prioridad**: Baja (operación de setup, no durante torneo)
-
-#### 5️⃣ **Confirmación de resultados**
-**Archivo**: `src/viewer/cargarResultado.js`
-- **Acción**: Jugador confirma resultado cargado por rival
-- **Optimistic**: Marcar como confirmado visualmente
-- **Rollback**: Revert + refresh si falla
-- **Prioridad**: Alta (acción frecuente)
-
-#### 6️⃣ **Resolución de disputas**
-**Archivo**: `src/viewer/cargarResultado.js` - función `aceptarOtroResultado()`
-- **Acción**: Admin o jugador resuelve disputa
-- **Optimistic**: Cambiar estado a "confirmado" visualmente
-- **Rollback**: Revert + refresh si falla
-- **Prioridad**: Media
-
-### Plan de Implementación
-
-**Fase 1 - Críticas** (durante torneo):
-1. Carga de resultados
-2. Confirmación de resultados
-
-**Fase 2 - Importantes** (operación del torneo):
-3. Marcar partido en juego
-4. Resolución de disputas
-
-**Fase 3 - Secundarias** (operación admin):
-5. Operaciones masivas presentismo
-6. Edición de parejas
-
-### Criterios de Aceptación
-
-Para cada lugar:
-- ✅ UI se actualiza inmediatamente (sin await antes del cambio visual)
-- ✅ Backend se llama después de actualización optimista
-- ✅ En éxito: `await refreshAffectedViews()`
-- ✅ En error:
-  - Revert del elemento inmediato
-  - Log del error
-  - **Notificar al usuario** (`showToast(..., 'error')`) ← **PENSAR EN EL USUARIO**
-  - `await refreshAffectedViews()` ← **CRÍTICO**
-
-### Esfuerzo Estimado
-
-| Lugar | Complejidad | Tiempo Estimado |
-|-------|-------------|-----------------|
-| Carga de resultados | Media | 1-2 horas |
-| Confirmación | Baja | 30-45 min |
-| Marcar en juego | Baja | 30-45 min |
-| Resolución disputas | Media | 1 hora |
-| Operaciones masivas | Alta | 2-3 horas |
-| Edición parejas | Baja | 30-45 min |
-
-**Total estimado**: 6-9 horas de trabajo
-
-### Señales de Éxito
-
-- ❌ **Antes**: Usuario hace click, espera 500ms-2s viendo spinner, luego ve cambio
-- ✅ **Después**: Usuario hace click, ve cambio instantáneo, backend sincroniza en background
-- 🔒 **Garantía**: Si falla backend, UI se corrige automáticamente (refresh)
-- 👤 **Usuario informado**: Si falla, usuario ve toast rojo claro explicando el error
+**Dependencia fuerte**: Seguridad de BD (RLS) debe estar implementada primero.
 
 ---
 
+### Sorteo de parejas `💡 CRUDA`
+
+**Idea**: Sortear y presentar parejas entre los jugadores inscriptos al torneo. Dos patas indispensables: el **armador de parejas** (algoritmo balanceado) y el **reveal animado** (presentación para grabar y compartir por WhatsApp). Réplica y evolución del Sorteador existente (hoy en Google Sheets + Google Apps Script).
+
+**Pata 1 — Armador de parejas**:
+- Algoritmo v2: agrupar jugadores en Drive / Revés / Ambos, balancear matemáticamente, shufflear y formar parejas por índice
+- Restricción opcional: marcar jugadores que no deben ser emparejados (equivalente al MatrimonioID del Sorteador)
+- Input: lista de jugadores inscriptos con su lado de juego
+
+**Pata 2 — Reveal animado** (igual o más importante que el sorteo):
+- Presentación teatral pareja por pareja: nombre del jugador 1 → nombre del jugador 2 → cierre con humor
+- Confetti en cada revelación
+- Comentarios con humor estilo argentino (banco de frases)
+- Timing configurable por segmento
+- **Objetivo principal**: grabar la pantalla del celular y compartir el video por WhatsApp
+
+**Pata 3 — Ajuste de parejas** (mejora respecto al Sorteador original):
+- Antes del reveal, poder intercambiar jugadores entre parejas manualmente
+- Confirmación visual de los cambios antes de ejecutar el reveal
+
+**Preguntas clave**:
+- ¿El sorteo lo hace solo el Admin o también el organizador (fixture.html)?
+- ¿El resultado del sorteo genera directamente las parejas en la BD o es una propuesta editable que se confirma?
+- ¿El reveal es una pantalla separada o dentro de admin.html?
+
+**Dependencia**: Gestión de usuarios individuales — necesita que los jugadores tengan `lado` (Drive / Revés / Ambos) como dato propio, independiente de las parejas del torneo.
+
+---
+
+### Histórico individual de partidos `💡 CRUDA`
+
+**Idea**: Cada jugador puede consultar su historial de partidos jugados (resultados, rivales, fechas).
+
+**Preguntas clave**:
+- ¿Solo del torneo actual o cross-torneos?
+- ¿Estadísticas agregadas (W/L, sets ganados) o solo listado cronológico?
+- ¿Dónde vive en la UI? ¿Tab nuevo en el modal de consulta del jugador?
+
+**Dependencia**: Múltiples torneos + Gestión de usuarios individuales para que sea útil a largo plazo.
+
+---
+
+## Historial — Implementado / Validado
+
+### Seguridad — BD (Row Level Security) `✅ IMPLEMENTADA`
+
+**Implementado**: 2026-02-24
+**Qué se hizo**: RLS policies alineadas con el modelo de autenticación. Función `is_admin()` con SECURITY DEFINER. Escrituras estructurales restringidas a admin autenticado; escrituras operacionales (UPDATE partidos/parejas) abiertas a anon para soportar páginas públicas (fixture, carga, presente). `admin_users` protegida con RLS. `posiciones_manual` habilitada (estaba OFF).
+**Migración**: `20260224000000_fix_rls_policies.sql`
+**Cambio relacionado**: fixture.html, carga.html, presente.html pasaron a ser páginas públicas (sin login). Solo admin.html y analytics.html requieren login.
+**Plan de diseño**: `C:\Users\Martin\.claude\plans\iterative-bouncing-trinket.md`
+
+---
+
+### Autenticación Admin — Google OAuth `✅ IMPLEMENTADA`
+
+**Implementado**: 2026-02-19
+**Qué se hizo**: Login con Google OAuth para proteger `admin.html`. Overlay de login fijo que cubre el contenido admin hasta autenticar.
+**Commits clave**: `41575a4 feat(auth): implementar autenticación admin con Google OAuth`, `0f0a4d2 fix(auth): login screen como overlay fijo`
+
+---
+
+### Presentismo individual `✅ IMPLEMENTADA`
+
+**Implementado**: 2026-01-30
+**Qué se hizo**: Campo `presentes TEXT[]` en tabla `parejas`. Toggle `presentismo_activo` en `torneos`. Badges visuales (✅/⚠️) en vista de fixture y del jugador.
+**Migración**: `20260130010000_add_presentes_to_parejas.sql`
+
+---
+
+### Modelo de sets `✅ IMPLEMENTADA`
+
+**Implementado**: 2026-01-30
+**Qué se hizo**: Refactor del modelo de juego a sets. Formato de resultado actualizado.
+**Migración**: `20260130000000_refactor_games_to_sets_model.sql`
+
+---
+
+## Descartado
+
+*(Vacío por ahora — cuando se descarte algo, registrar motivo para no volver a discutirlo)*
+
+---
+
+## Bloque para IA
+
+> Copiar esto al inicio de cada nuevo chat con Claude Code, Cursor u otra IA.
+
+```
+### Contexto del proyecto
+
+- **App**: Gestión de torneos de pádel (Vite + Supabase + JS vanilla)
+- **Deploy**: https://torneo-padel-teal.vercel.app/
+- **Arquitectura técnica**: leer `CLAUDE.md` antes de cualquier decisión técnica
+- **Fuente única de ideas y evolución**: `docs/brainstorming-proximas-mejoras.md`
+
+### Estados del backlog
+
+💡 CRUDA → 🔍 EN ANÁLISIS → 📋 PRIORIZADA → 🚧 EN DESARROLLO → ✅ IMPLEMENTADA → 🏆 VALIDADA
+(o 🚫 DESCARTADA con motivo registrado)
+
+### Reglas para este chat
+
+1. Si surge una idea nueva → agregarla al backlog en estado 💡 CRUDA
+2. Si completamos algo → actualizar estado en el documento y mover a Historial
+3. No reimplementar lo que ya está en "Historial — Implementado"
+4. No tomar decisiones de arquitectura sin leer CLAUDE.md primero
+5. Datos personales sensibles (DNI, etc.) → no implementar sin RLS activo primero
+```
