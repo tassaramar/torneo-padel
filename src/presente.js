@@ -15,7 +15,6 @@ import {
   initAusentes
 } from './admin/presentismo/index.js';
 
-import { requireAdmin } from './auth/adminGuard.js';
 
 console.log('PRESENTE ENTRY CARGADO');
 
@@ -42,4 +41,4 @@ async function initPresente() {
   }
 }
 
-requireAdmin(supabase, { onReady: initPresente });
+initPresente();

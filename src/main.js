@@ -4,7 +4,6 @@ import { cargarPartidosGrupos } from './carga/partidosGrupos.js';
 import { cargarPosiciones } from './carga/posiciones.js';
 import { cargarCopas } from './carga/copas.js';
 import { initSearchUI, applySearchToPartidos } from './carga/search.js';
-import { requireAdmin } from './auth/adminGuard.js';
 
 console.log('MAIN DE VITE (carga)');
 
@@ -89,4 +88,4 @@ function initCarga() {
   init();
 }
 
-requireAdmin(supabase, { onReady: initCarga });
+initCarga();

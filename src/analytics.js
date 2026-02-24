@@ -3,6 +3,7 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { requireAdmin } from './auth/adminGuard.js';
 import { 
   getActivityStats, 
   getTimelineData, 
@@ -95,9 +96,5 @@ function init() {
   }, 60000);
 }
 
-// Iniciar cuando el DOM esté listo
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
-}
+// Iniciar con guard de admin
+requireAdmin(supabase, { onReady: init });
