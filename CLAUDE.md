@@ -85,7 +85,7 @@ PostgreSQL con migraciones en `supabase/migrations/`. Tablas principales:
 - **`torneos`**: Configuración del torneo (formato, presentismo activo)
 - **`grupos`**: Grupos del torneo (A, B, C...)
 - **`parejas`**: Parejas de jugadores con campo `presentes TEXT[]` (presentismo individual)
-- **`partidos`**: Partidos con estados: `pendiente` | `en_juego` | `terminado` + resultado
+- **`partidos`**: Partidos con estados de resultado (ver Key Pattern #6) + campos de sets + campos temporales para disputa
 
 ### Key Patterns
 
@@ -139,6 +139,57 @@ En `index.html`, botón "Tablas/Grupos/Fixture" abre modal full-screen con tabs:
 - Fixture completo
 
 Implementación: `src/viewer/modalConsulta.js`
+
+#### 6. Identificación del Jugador (index.html)
+
+El jugador no tiene cuenta ni login. Se identifica por nombre al entrar a `index.html`:
+
+1. **Buscar nombre**: Escribe su nombre, la app busca en las parejas del torneo
+2. **Validar identidad**: Se le muestran 3 opciones de compañero (1 correcta + 2 random). Debe elegir la correcta.
+3. **Identidad guardada**: Se persiste en `localStorage` (key: `torneo_identidad`) con: `parejaId`, `parejaNombre`, `miNombre`, `companero`, `grupo`, `orden`
+4. **Sesiones futuras**: Si ya tiene identidad en localStorage, se salta el flujo y va directo a la vista personal
+
+**Archivos**: `src/identificacion/identidad.js` (lógica, localStorage), `src/identificacion/ui.js` (pantallas del flujo)
+
+**Importante**: La identidad es por pareja, no por jugador individual. El `parejaId` se usa para determinar qué partidos son "míos" y para validar quién puede cargar resultados.
+
+#### 7. Carga y Confirmación de Resultados
+
+Flujo de autogestión donde **ambas parejas** deben coincidir en el resultado para que sea oficial.
+
+**Estados del resultado** (campo `partidos.estado`):
+```
+pendiente → a_confirmar → confirmado
+      ↗         ↘
+en_juego    en_revision → confirmado
+```
+
+| Estado | Significado | Quién transiciona |
+|--------|-------------|-------------------|
+| `pendiente` | Nadie cargó resultado | (estado inicial) |
+| `en_juego` | Marcado como en cancha (optativo, best-effort) | Organizador desde fixture.html |
+| `a_confirmar` | Una pareja cargó el resultado, falta la otra | Primera pareja que carga |
+| `confirmado` | Ambas parejas coinciden — resultado firme | Segunda pareja al confirmar |
+| `en_revision` | Las parejas cargaron resultados distintos (disputa) | Segunda pareja al disputar |
+
+**Flujo detallado**:
+1. **Primera pareja carga**: Estado pasa a `a_confirmar`. Se guarda `cargado_por_pareja_id` para saber quién cargó primero.
+2. **Segunda pareja entra**: Ve el resultado cargado y puede:
+   - **Confirmar** (coincide) → estado pasa a `confirmado`
+   - **Disputar** (no coincide) → carga su versión en campos `set*_temp_*`, estado pasa a `en_revision`
+3. **En revisión**: Cualquiera de las dos puede:
+   - **Aceptar el resultado del otro** → se adopta ese resultado, estado pasa a `confirmado`
+   - **Re-cargar** → actualiza su versión y sigue en `en_revision`
+4. **Confirmado**: Resultado firme. No se puede modificar.
+
+**Nota**: `en_juego` y `terminado` son estados operacionales del organizador (fixture), no del flujo de carga. Un partido `en_juego` permite primera carga igual que `pendiente`.
+
+**Archivo**: `src/viewer/cargarResultado.js` — Toda la lógica de transiciones de estado.
+
+**Validaciones**:
+- Solo las parejas participantes pueden cargar resultado de un partido
+- La pareja que cargó primero puede editar su carga mientras está `a_confirmar`
+- Una vez `confirmado`, el resultado es inmutable desde la vista del jugador
 
 ## Code Quality Principles
 

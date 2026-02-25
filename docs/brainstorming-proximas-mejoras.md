@@ -43,7 +43,9 @@
 
 ## Backlog
 
-### Rediseño sistema de copas `🔍 EN ANÁLISIS`
+### Rediseño sistema de copas `📋 PRIORIZADA`
+
+**Plan de diseño**: [`docs/plan-reingenieria-copas.md`](plan-reingenieria-copas.md)
 
 **Problema**: Sistema actual es ad hoc. Un botón por formato, poco flexible. En torneos reales muchas copas no se completan. Durante el torneo no hay tiempo para programar cruces. El ajuste manual de posiciones no alcanza.
 
