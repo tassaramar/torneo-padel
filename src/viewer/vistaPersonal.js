@@ -1335,12 +1335,18 @@ function agruparPartidosEnRondas(misPartidosPendientes, todosPartidosGrupo, todo
 /**
  * Renderiza partidos por jugar agrupados en rondas
  */
+const _RONDA_COPA_LABEL = { SF: 'Semi', F: 'Final', '3P': '3° Puesto', direct: 'Cruce' };
+
 function renderPartidosCargar(partidosPendientes, todosPartidosGrupo, todosPartidosUsuario, identidad) {
   const container = document.getElementById('partidos-cargar');
   if (!container) return;
 
+  // Separar copa del flujo normal de rondas
+  const copaPartidos = partidosPendientes.filter(p => p.copa_id);
+  const grupoPartidos = partidosPendientes.filter(p => !p.copa_id);
+
   // Agrupar en rondas usando todos los partidos del usuario para detectar correctamente
-  const rondas = agruparPartidosEnRondas(partidosPendientes, todosPartidosGrupo, todosPartidosUsuario, identidad);
+  const rondas = agruparPartidosEnRondas(grupoPartidos, todosPartidosGrupo, todosPartidosUsuario, identidad);
   
   // Generar frases únicas para fechas libres
   const totalFechasLibres = rondas.filter(r => r.tengoFechaLibre).length;
@@ -1401,7 +1407,40 @@ function renderPartidosCargar(partidosPendientes, todosPartidosGrupo, todosParti
       `;
     }
   });
-  
+
+  // Partidos de copa pendientes (fuera del sistema de rondas)
+  if (copaPartidos.length > 0) {
+    html += `
+      <div class="ronda-separator">
+        <div class="ronda-titulo">🏆 Copa</div>
+      </div>
+    `;
+    copaPartidos.forEach(p => {
+      const oponente = getOponenteName(p, identidad);
+      const rondalabel = _RONDA_COPA_LABEL[p.ronda_copa] || p.ronda_copa || 'Copa';
+      const esperandoConfirmacion = p.estado === 'a_confirmar' && p.cargado_por_pareja_id === identidad.parejaId;
+      html += `
+        <div class="partido partido-cargar" data-partido-id="${p.id}">
+          <div class="partido-header">
+            <div class="partido-vs">vs ${escapeHtml(oponente)}</div>
+            <div class="partido-badge badge-copa">${escapeHtml(rondalabel)}</div>
+          </div>
+          ${esperandoConfirmacion ? `
+            <div class="resultado-cargado">
+              <div class="resultado-label">Tu resultado cargado:</div>
+              <div class="resultado-score">${formatearResultado(p)}</div>
+            </div>
+          ` : ''}
+          <div class="partido-actions">
+            <button class="btn-primary" onclick="app.cargarResultado('${p.id}')">
+              ${esperandoConfirmacion ? '✏️ Editar resultado' : '📝 Cargar resultado'}
+            </button>
+          </div>
+        </div>
+      `;
+    });
+  }
+
   container.innerHTML = html;
 }
 
@@ -1421,11 +1460,15 @@ function renderPartidosConfirmados(partidos, identidad) {
     const oponente = getOponenteName(p, identidad);
     const ganador = getGanador(p, identidad);
     const esperandoConfirmacion = p.estado === 'a_confirmar' && p.cargado_por_pareja_id === identidad.parejaId;
-    
+    const copaLabel = p.copa_id ? (_RONDA_COPA_LABEL[p.ronda_copa] || p.ronda_copa || 'Copa') : null;
+
     return `
       <div class="partido partido-confirmado ${ganador ? 'ganador-' + ganador : ''}">
         <div class="partido-simple">
-          <div class="partido-vs">vs ${escapeHtml(oponente)}</div>
+          <div class="partido-vs">
+            ${copaLabel ? `<span class="badge-mini badge-copa" style="margin-right:4px;">🏆 ${escapeHtml(copaLabel)}</span>` : ''}
+            vs ${escapeHtml(oponente)}
+          </div>
           <div class="resultado-info">
             <div class="resultado-score ${ganador === 'yo' ? 'ganador' : ganador === 'rival' ? 'perdedor' : ''}">
               ${formatearResultado(p)}

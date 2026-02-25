@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-02-24
+**Última actualización**: 2026-02-25
 
 ---
 
@@ -35,29 +35,13 @@
 
 > Máximo 3 ítems a la vez. Para agregar uno, sacar uno primero. Obliga a priorizar.
 
-1. **Rediseño sistema de copas** — más flexible, menos intervención manual en el torneo
-2. **Múltiples torneos** — historial entre torneos sin borrar la BD
+1. **Múltiples torneos** — historial entre torneos sin borrar la BD
+2. *(libre — agregar próxima prioridad)*
 3. *(libre — agregar próxima prioridad)*
 
 ---
 
 ## Backlog
-
-### Rediseño sistema de copas `📋 PRIORIZADA`
-
-**Plan de diseño**: [`docs/plan-reingenieria-copas.md`](plan-reingenieria-copas.md)
-
-**Problema**: Sistema actual es ad hoc. Un botón por formato, poco flexible. En torneos reales muchas copas no se completan. Durante el torneo no hay tiempo para programar cruces. El ajuste manual de posiciones no alcanza.
-
-**Objetivo**: Sistema flexible, inteligente y adaptable en tiempo real con mínima intervención manual del organizador.
-
-**Preguntas clave**:
-- ¿Cuáles son los formatos de copa más comunes que hay que soportar?
-- ¿Cómo manejar automáticamente copas incompletas (ausencias, desistimientos)?
-- ¿Qué información mínima necesita el organizador para generar cruces en tiempo real?
-- ¿Se pueden sugerir cruces automáticos basados en posiciones de grupo?
-
----
 
 ### Múltiples torneos `🔍 EN ANÁLISIS`
 
@@ -136,6 +120,17 @@
 ---
 
 ## Historial — Implementado / Validado
+
+### Re-ingeniería sistema de copas `✅ IMPLEMENTADA`
+
+**Implementado**: 2026-02-25
+**Qué se hizo**: Reemplazo completo del sistema de copas. Nuevo modelo plan→propuesta→aprobación. El admin define un plan de copas (esquemas_copa) una vez; el motor genera propuestas automáticamente cuando grupos terminan; el admin revisa y aprueba antes de publicar. Finales se generan automáticamente cuando las semis están confirmadas.
+**Módulos nuevos**: `presets.js`, `planService.js`, `planEditor.js`, `statusView.js`, `bracketLogic.js`, `utils/tablaGrupoDB.js`
+**Migración**: `20260225000000_add_esquemas_copa.sql` (tablas `esquemas_copa`, `propuestas_copa`, funciones RPC)
+**Vistas actualizadas**: fixture.html (copa en cola), index.html (copa en vista jugador)
+**Plan de diseño**: [`docs/plan-reingenieria-copas.md`](plan-reingenieria-copas.md)
+
+---
 
 ### Seguridad — BD (Row Level Security) `✅ IMPLEMENTADA`
 

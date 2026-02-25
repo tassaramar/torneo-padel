@@ -41,11 +41,11 @@ async function init(mostrarSkeleton = true) {
     setStatus('Cargando fixture...');
 
     // Fetch datos en paralelo
-    const [partidosRes, gruposRes, parejasRes, torneoRes] = await Promise.all([
+    const [partidosRes, gruposRes, parejasRes, torneoRes, copasRes] = await Promise.all([
       supabase
         .from('partidos')
         .select(`
-          id, estado, ronda,
+          id, estado, ronda, copa_id, ronda_copa, orden_copa,
           set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
           sets_a, sets_b,
           games_totales_a, games_totales_b,
@@ -54,8 +54,7 @@ async function init(mostrarSkeleton = true) {
           pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre, presentes ),
           pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre, presentes )
         `)
-        .eq('torneo_id', TORNEO_ID)
-        .is('copa_id', null),
+        .eq('torneo_id', TORNEO_ID),
 
       supabase
         .from('grupos')
@@ -73,7 +72,12 @@ async function init(mostrarSkeleton = true) {
         .from('torneos')
         .select('presentismo_activo')
         .eq('id', TORNEO_ID)
-        .single()
+        .single(),
+
+      supabase
+        .from('copas')
+        .select('id, nombre')
+        .eq('torneo_id', TORNEO_ID)
     ]);
 
     if (partidosRes.error) throw partidosRes.error;
@@ -81,7 +85,13 @@ async function init(mostrarSkeleton = true) {
     if (parejasRes.error) throw parejasRes.error;
     if (torneoRes.error) throw torneoRes.error;
 
-    const partidos = partidosRes.data || [];
+    const todosPartidos = partidosRes.data || [];
+    const copas = copasRes.data || [];
+    const copaNombrePorId = Object.fromEntries(copas.map(c => [c.id, c.nombre]));
+    const partidos = todosPartidos.filter(p => !p.copa_id);
+    const partidosCopa = todosPartidos
+      .filter(p => p.copa_id)
+      .map(p => ({ ...p, copa_nombre: copaNombrePorId[p.copa_id] || 'Copa' }));
     const grupos = gruposRes.data || [];
     const parejas = parejasRes.data || [];
     const presentismoActivo = torneoRes.data?.presentismo_activo || false;
@@ -98,6 +108,7 @@ async function init(mostrarSkeleton = true) {
     // Guardar en cache para uso en ambas vistas
     cacheDatos = {
       partidos,
+      partidosCopa,
       grupos,
       parejas: parejasConGrupo,
       data,
@@ -106,7 +117,7 @@ async function init(mostrarSkeleton = true) {
 
     // Renderizar según la vista actual
     if (vistaActual === 'cola') {
-      renderColaFixture(partidos, grupos, parejasConGrupo);
+      renderColaFixture(partidos, grupos, parejasConGrupo, partidosCopa);
     } else {
       renderFixtureGrid(data);
     }
@@ -380,7 +391,7 @@ async function refrescarYRenderizar() {
     const partidosRes = await supabase
       .from('partidos')
       .select(`
-        id, estado, ronda,
+        id, estado, ronda, copa_id, ronda_copa, orden_copa,
         set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
         sets_a, sets_b,
         games_totales_a, games_totales_b,
@@ -389,15 +400,26 @@ async function refrescarYRenderizar() {
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre, presentes ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre, presentes )
       `)
-      .eq('torneo_id', TORNEO_ID)
-      .is('copa_id', null);
+      .eq('torneo_id', TORNEO_ID);
     if (partidosRes.error) throw partidosRes.error;
-    const partidosActualizados = partidosRes.data || [];
+    const todosActualizados = partidosRes.data || [];
+    // Reusar mapa de nombres de copa del cache
+    const copaNombrePorId = Object.fromEntries(
+      (cacheDatos.partidosCopa || []).reduce((acc, p) => {
+        if (p.copa_id && p.copa_nombre) acc.push([p.copa_id, p.copa_nombre]);
+        return acc;
+      }, [])
+    );
+    const partidosActualizados = todosActualizados.filter(p => !p.copa_id);
+    const partidosCopaActualizados = todosActualizados
+      .filter(p => p.copa_id)
+      .map(p => ({ ...p, copa_nombre: copaNombrePorId[p.copa_id] || 'Copa' }));
     cacheDatos.partidos = partidosActualizados;
+    cacheDatos.partidosCopa = partidosCopaActualizados;
     const data = agruparPorRondaYGrupo(partidosActualizados, cacheDatos.grupos, cacheDatos.parejas);
     cacheDatos.data = data;
     if (vistaActual === 'cola') {
-      renderColaFixture(partidosActualizados, cacheDatos.grupos, cacheDatos.parejas);
+      renderColaFixture(partidosActualizados, cacheDatos.grupos, cacheDatos.parejas, partidosCopaActualizados);
     } else {
       renderFixtureGrid(data);
     }
@@ -523,7 +545,7 @@ async function siguenJugando(partidoId) {
 function toggleFiltroParejas() {
   filtroParejasCompletas = !filtroParejasCompletas;
   if (cacheDatos) {
-    renderColaFixture(cacheDatos.partidos, cacheDatos.grupos, cacheDatos.parejas);
+    renderColaFixture(cacheDatos.partidos, cacheDatos.grupos, cacheDatos.parejas, cacheDatos.partidosCopa);
   }
 }
 
@@ -708,13 +730,56 @@ function renderColaItem(partido, gruposOrdenados, opts = {}) {
   return html;
 }
 
+const RONDA_COPA_LABEL = { SF: 'Semi', F: 'Final', '3P': '3° Puesto', direct: 'Cruce' };
+
+/**
+ * Renderiza una card de partido de copa en la cola
+ */
+function renderCopaItem(partido, opts = {}) {
+  const copaLabel = partido.copa_nombre || 'Copa';
+  const rondaLabel = RONDA_COPA_LABEL[partido.ronda_copa] || partido.ronda_copa || '?';
+  const nombreA = partido.pareja_a?.nombre || '—';
+  const nombreB = partido.pareja_b?.nombre || '—';
+  const resultado = esPartidoFinalizado(partido) ? formatearResultado(partido) : null;
+  const searchable = `${copaLabel} ${rondaLabel} ${nombreA} ${nombreB}`;
+
+  let html = `<div class="fixture-cola-item" data-search="${escapeHtml(searchable)}">`;
+  html += '<div class="fixture-cola-item-header">';
+  html += `<span class="fixture-pill-copa">🏆 ${escapeHtml(copaLabel)}</span>`;
+  html += `<span class="fixture-cola-ronda">${escapeHtml(rondaLabel)}</span>`;
+  html += '</div>';
+  html += '<div class="fixture-cola-item-content">';
+  html += `<span class="fixture-cola-equipo">${escapeHtml(nombreA)}</span>`;
+  html += '<span class="fixture-cola-vs">vs</span>';
+  html += `<span class="fixture-cola-equipo">${escapeHtml(nombreB)}</span>`;
+  if (resultado) html += `<span class="fixture-cola-resultado">${resultado}</span>`;
+  html += '</div>';
+
+  if (opts.acciones === 'en_juego') {
+    html += '<div class="fixture-cola-acciones">';
+    html += `<button type="button" class="fixture-cola-btn-link" onclick="window.desmarcarEnJuego('${partido.id}')">Desmarcar en juego</button>`;
+    html += `<button type="button" class="fixture-cola-btn-finalizado" onclick="window.marcarComoFinalizado('${partido.id}')">Finalizar</button>`;
+    html += '</div>';
+  } else if (opts.acciones === 'pendiente') {
+    html += `<button type="button" class="fixture-cola-btn-en-juego" onclick="window.marcarEnJuego('${partido.id}')">Marcar en juego</button>`;
+  }
+
+  html += '</div>';
+  return html;
+}
+
 /**
  * Renderiza la vista de cola sugerida (secciones: En juego | Pendientes | Ya jugados)
  */
-function renderColaFixture(partidos, grupos, parejas) {
+function renderColaFixture(partidos, grupos, parejas, partidosCopa = []) {
   const enJuego = partidos.filter(p => p.estado === 'en_juego');
   const cola = calcularColaSugerida(partidos, grupos);
   const yaJugados = partidos.filter(p => esPartidoYaJugado(p));
+
+  // Copa partidos separados por estado
+  const copaEnJuego   = partidosCopa.filter(p => p.estado === 'en_juego');
+  const copaPendientes = partidosCopa.filter(p => esPartidoPendiente(p));
+  const copaYaJugados = partidosCopa.filter(p => esPartidoYaJugado(p));
   const stats = calcularEstadisticasPorGrupo(partidos, grupos);
   const gruposOrdenados = grupos.map(g => g.nombre).sort();
 
@@ -759,8 +824,10 @@ function renderColaFixture(partidos, grupos, parejas) {
   html += '<details class="fixture-cola-seccion fixture-cola-seccion-en-juego" open>';
   html += '<summary class="fixture-cola-seccion-titulo">En juego</summary>';
   html += '<div class="fixture-cola-lista">';
-  if (enJuego.length) {
+  const todoEnJuego = [...enJuego, ...copaEnJuego];
+  if (todoEnJuego.length) {
     enJuego.forEach(p => { html += renderColaItem(p, gruposOrdenados, { acciones: 'en_juego' }); });
+    copaEnJuego.forEach(p => { html += renderCopaItem(p, { acciones: 'en_juego' }); });
   } else {
     html += '<p class="fixture-cola-vacio">Ninguno</p>';
   }
@@ -787,15 +854,28 @@ function renderColaFixture(partidos, grupos, parejas) {
   }
   html += '</div></details>';
 
+  // Sección: Copas pendientes – solo si hay copa partidos pendientes
+  if (copaPendientes.length > 0) {
+    html += '<details class="fixture-cola-seccion fixture-cola-seccion-copas" open>';
+    html += '<summary class="fixture-cola-seccion-titulo">🏆 Copas pendientes</summary>';
+    html += '<div class="fixture-cola-lista">';
+    copaPendientes
+      .sort((a, b) => (a.orden_copa || 0) - (b.orden_copa || 0))
+      .forEach(p => { html += renderCopaItem(p, { acciones: 'pendiente' }); });
+    html += '</div></details>';
+  }
+
   // Sección: Ya jugados (abajo) – colapsable, acento verde
   html += '<details class="fixture-cola-seccion fixture-cola-seccion-ya-jugados" open>';
   html += '<summary class="fixture-cola-seccion-titulo">Ya jugados</summary>';
   html += '<div class="fixture-cola-lista">';
-  if (yaJugados.length) {
+  const todoYaJugado = [...yaJugados, ...copaYaJugados];
+  if (todoYaJugado.length) {
     yaJugados.forEach(p => {
       const sinResultado = p.estado === 'terminado';
       html += renderColaItem(p, gruposOrdenados, { acciones: sinResultado ? 'siguen_jugando' : undefined });
     });
+    copaYaJugados.forEach(p => { html += renderCopaItem(p); });
   } else {
     html += '<p class="fixture-cola-vacio">Ninguno</p>';
   }
@@ -872,7 +952,8 @@ function cambiarVista(nuevaVista) {
       renderColaFixture(
         cacheDatos.partidos,
         cacheDatos.grupos,
-        cacheDatos.parejas
+        cacheDatos.parejas,
+        cacheDatos.partidosCopa
       );
     } else {
       renderFixtureGrid(cacheDatos.data);

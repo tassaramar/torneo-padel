@@ -1497,6 +1497,12 @@ a.btn-action-secondary:hover {
   color: var(--muted);
 }
 
+.badge-copa {
+  background: rgba(180, 83, 9, 0.1);
+  border-color: rgba(180, 83, 9, 0.4);
+  color: #92400e;
+}
+
 .badge-esperando {
   background: var(--primary-soft);
   border-color: var(--primary-900);
@@ -2980,6 +2986,19 @@ a.btn-action-secondary:hover {
   background: #f3e5f5;
   border-color: #8e24aa;
   color: #6a1b9a;
+}
+
+/* Pill de copa (dorado) */
+.fixture-pill-copa {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  border: 1.5px solid #b45309;
+  font-size: 11px;
+  font-weight: 600;
+  background: #fef3c7;
+  color: #92400e;
+  line-height: 1.3;
 }
 
 /* Lista de cola */

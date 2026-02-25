@@ -52,9 +52,6 @@ function initAdmin() {
   // Debug de clicks clave
   debugClick('reset-grupos', 'Reset grupos');
   debugClick('gen-grupos', 'Generar grupos');
-  debugClick('reset-copas', 'Reset copas');
-  debugClick('gen-copas', 'Generar copas');
-  debugClick('gen-finales', 'Generar finales');
   debugClick('reset-resultados', 'Reset resultados');
 
   // Conectar botón de reset resultados
