@@ -229,6 +229,69 @@ export async function resetCopas(supabase, torneoId) {
 }
 
 /**
+ * Carga todos los presets de copa (defaults + custom) de la BD.
+ *
+ * @param {Object} supabase - Cliente de Supabase
+ * @returns {Array} - Array de presets ordenados (defaults primero)
+ */
+export async function cargarPresets(supabase) {
+  const { data, error } = await supabase
+    .from('presets_copa')
+    .select('id, nombre, clave, descripcion, esquemas, es_default')
+    .order('es_default', { ascending: false })  // defaults primero
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('Error cargando presets_copa:', error);
+    return [];
+  }
+  return data || [];
+}
+
+/**
+ * Guarda un preset custom en la BD.
+ *
+ * @param {Object} supabase  - Cliente de Supabase
+ * @param {Object} preset    - { nombre, clave, descripcion?, esquemas }
+ * @returns {{ ok: boolean, id?: string, msg?: string }}
+ */
+export async function guardarPreset(supabase, { nombre, clave, descripcion, esquemas }) {
+  const { data, error } = await supabase
+    .from('presets_copa')
+    .insert({ nombre, clave, descripcion: descripcion ?? null, esquemas, es_default: false })
+    .select('id')
+    .single();
+
+  if (error) {
+    console.error('Error guardando preset:', error);
+    return { ok: false, msg: error.message };
+  }
+  return { ok: true, id: data.id };
+}
+
+/**
+ * Elimina un preset custom de la BD.
+ * Solo puede eliminar presets no-default (es_default = false).
+ *
+ * @param {Object} supabase  - Cliente de Supabase
+ * @param {string} presetId  - ID del preset a eliminar
+ * @returns {{ ok: boolean, msg?: string }}
+ */
+export async function eliminarPreset(supabase, presetId) {
+  const { error } = await supabase
+    .from('presets_copa')
+    .delete()
+    .eq('id', presetId)
+    .eq('es_default', false);  // seguridad: no se pueden borrar los defaults
+
+  if (error) {
+    console.error('Error eliminando preset:', error);
+    return { ok: false, msg: error.message };
+  }
+  return { ok: true };
+}
+
+/**
  * Modifica el seeding de una propuesta pendiente (swap de parejas entre cruces).
  * Permite que el admin ajuste quién juega contra quién antes de aprobar.
  *

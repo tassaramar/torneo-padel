@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-02-25
+**Última actualización**: 2026-02-28
 
 ---
 
@@ -119,7 +119,33 @@
 
 ---
 
+### Round Robin en copas `💡 CRUDA`
+
+**Idea**: Agregar formato Round Robin como opción en el wizard de copas, además de Mata-mata (bracket/cruce directo).
+
+**Contexto**: El wizard actual solo soporta `equipos: 2/4/8` (cruce directo o bracket). Round Robin agregaría un `formato: 'round_robin'` donde todos los equipos de la copa se enfrentan entre sí.
+
+**Preguntas clave**:
+- ¿Cómo se combinan grupos y sistema de puntos para Round Robin de copa? ¿Es lo mismo que la fase de grupos?
+- ¿La fase final de la copa también sería bracket? ¿O solo el Round Robin?
+- ¿Cómo afecta al motor RPC `verificar_y_proponer_copas` que hoy solo soporta bracket/direct?
+
+**Dependencia**: Requiere extender el motor de propuestas (RPC) y el modelo de datos de `copas/partidos`.
+
+---
+
 ## Historial — Implementado / Validado
+
+### Wizard de Copas + Presets en BD `✅ IMPLEMENTADA`
+
+**Implementado**: 2026-02-28
+**Qué se hizo**: Reescritura de `planEditor.js` como wizard de 4 paneles. Panel 1: lista de presets compatibles (filtrados por formato) + presets guardados + "Crear personalizado". Panel 2: cuántas copas + nombres. Panel 3: por copa — formato (2/4/8 eq) + seeding (por posición de grupo o por tabla general del torneo). Panel 4: preview + guardar preset + aplicar. Presets migrados de localStorage a tabla `presets_copa` en BD.
+**Motor extendido**: RPC `verificar_y_proponer_copas` ahora soporta `modo:'global'` — seeding por ranking global del torneo, requiere que todos los grupos estén completos.
+**Tabla nueva**: `presets_copa` con 9 presets por defecto sembrados (2x3 → 4x4, incluyendo `2x4-dos-brackets`).
+**Migración**: `20260227000000_add_presets_copa.sql`
+**Plan de diseño**: `C:\Users\Martin\.claude\plans\indexed-snuggling-llama.md`
+
+---
 
 ### Re-ingeniería sistema de copas `✅ IMPLEMENTADA`
 

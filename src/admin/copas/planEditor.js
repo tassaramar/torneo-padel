@@ -9,7 +9,7 @@
  */
 
 import { supabase, TORNEO_ID, logMsg } from '../context.js';
-import { guardarEsquemas, esPlanBloqueado } from './planService.js';
+import { guardarEsquemas, esPlanBloqueado, cargarPresets, guardarPreset, eliminarPreset } from './planService.js';
 import { detectarYSugerirPreset, obtenerPresetsCompatibles } from './presets.js';
 
 // ─── Colores de copa (índice 0–5) ─────────────────────────────────────────────
@@ -22,13 +22,12 @@ const COPA_COLORS = [
   { bg: '#fce7f3', fg: '#831843' },
 ];
 const COPA_DEFAULTS = ['Copa Oro', 'Copa Plata', 'Copa Bronce', 'Copa Madera', 'Copa Cartón', 'Copa Papel'];
-const LOCAL_PRESETS_KEY = 'copa_presets_custom';
-
 // ─── Módule-level state ────────────────────────────────────────────────────────
 let _c      = null;  // container HTMLElement
 let _onSaved = null;
 let _ctx    = { numGrupos: 0, equiposPorGrupo: 0 };
-let _presets = [];   // compatible presets from presets.js
+let _dbPresets = [];  // todos los presets cargados desde BD
+let _presets = [];    // presets compatibles con el formato actual (subset de _dbPresets o fallback estático)
 
 // Wizard state
 let _wiz = null;   // { numCopas, copas: [{nombre, equipos, modo, posiciones, desde, hasta}] }
@@ -44,9 +43,10 @@ export async function renderPlanEditor(container, onSaved) {
 
   container.innerHTML = '<p style="color:var(--muted);padding:12px 0;">⏳ Cargando…</p>';
 
-  const [info, bloqueado] = await Promise.all([
+  const [info, bloqueado, dbPresets] = await Promise.all([
     detectarYSugerirPreset(supabase, TORNEO_ID),
     esPlanBloqueado(supabase, TORNEO_ID),
+    cargarPresets(supabase),
   ]);
 
   if (bloqueado) {
@@ -58,11 +58,17 @@ export async function renderPlanEditor(container, onSaved) {
     return;
   }
 
+  _dbPresets = dbPresets;
   _ctx = {
-    numGrupos:      info.numGrupos,
+    numGrupos:       info.numGrupos,
     equiposPorGrupo: Math.round(info.parejasPorGrupo),
   };
-  _presets = obtenerPresetsCompatibles(info.numGrupos, info.parejasPorGrupo);
+
+  // Presets compatibles: desde BD si hay seed, sino fallback a estáticos
+  const compatiblesDb = _filterDbCompatible(_dbPresets, info.numGrupos, info.parejasPorGrupo);
+  _presets = compatiblesDb.length > 0
+    ? compatiblesDb
+    : obtenerPresetsCompatibles(info.numGrupos, info.parejasPorGrupo);
 
   _initWiz(2);
   _showPresets();
@@ -110,20 +116,20 @@ function _showPresets() {
         </div>
       `).join('');
 
-  const localPresets = _loadLocalPresets();
-  const localHtml = localPresets.length === 0
+  const customPresets = _dbPresets.filter(p => !p.es_default);
+  const localHtml = customPresets.length === 0
     ? `<p class="helper" style="text-align:center; padding:8px 0; opacity:0.65;">
          No hay presets guardados todavía.
        </p>`
-    : localPresets.map((p, i) => `
+    : customPresets.map(p => `
         <div class="wiz-card">
           <div class="wiz-card-header">
             <div class="wiz-card-title">${_esc(p.nombre)}</div>
           </div>
           <div class="wiz-card-actions">
-            <button type="button" class="btn-sm wiz-btn-local-edit" data-idx="${i}">✏️ Editar</button>
-            <button type="button" class="btn-sm btn-primary wiz-btn-local-apply" data-idx="${i}">✓ Aplicar</button>
-            <button type="button" class="btn-sm wiz-btn-local-del" data-idx="${i}"
+            <button type="button" class="btn-sm wiz-btn-local-edit" data-preset-id="${_esc(p.id)}">✏️ Editar</button>
+            <button type="button" class="btn-sm btn-primary wiz-btn-local-apply" data-preset-id="${_esc(p.id)}">✓ Aplicar</button>
+            <button type="button" class="btn-sm wiz-btn-local-del" data-preset-id="${_esc(p.id)}"
               style="border-color:#fca5a5; color:#dc2626; background:transparent;">✕</button>
           </div>
         </div>
@@ -178,7 +184,7 @@ function _showPresets() {
 
   _c.querySelectorAll('.wiz-btn-local-apply').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const p = localPresets[parseInt(btn.dataset.idx)];
+      const p = _dbPresets.find(p => p.id === btn.dataset.presetId);
       btn.disabled = true;
       btn.textContent = '⏳';
       if (p) await _applyEsquemas(p.esquemas, btn);
@@ -187,7 +193,7 @@ function _showPresets() {
 
   _c.querySelectorAll('.wiz-btn-local-edit').forEach(btn => {
     btn.addEventListener('click', () => {
-      const p = localPresets[parseInt(btn.dataset.idx)];
+      const p = _dbPresets.find(p => p.id === btn.dataset.presetId);
       if (!p) return;
       _fromEsquemasToWiz(p.esquemas);
       _showPreview(() => _showPresets());
@@ -195,9 +201,15 @@ function _showPresets() {
   });
 
   _c.querySelectorAll('.wiz-btn-local-del').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       if (!confirm('¿Borrar este preset guardado?')) return;
-      _deleteLocalPreset(parseInt(btn.dataset.idx));
+      const presetId = btn.dataset.presetId;
+      const result = await eliminarPreset(supabase, presetId);
+      if (!result.ok) {
+        logMsg(`❌ Error borrando preset: ${result.msg}`);
+        return;
+      }
+      _dbPresets = _dbPresets.filter(p => p.id !== presetId);
       _showPresets();
     });
   });
@@ -258,11 +270,15 @@ function _renderNumGrid() {
       _wiz.numCopas = n;
       const totalEquipos = _ctx.numGrupos * _ctx.equiposPorGrupo || 4;
       while (_wiz.copas.length < n) {
-        const i = _wiz.copas.length;
+        const i    = _wiz.copas.length;
+        const prev = _wiz.copas[i - 1];
         _wiz.copas.push({
-          nombre: COPA_DEFAULTS[i] ?? `Copa ${i + 1}`,
-          equipos: 4, modo: 'grupo', posiciones: [],
-          desde: 1, hasta: Math.min(totalEquipos, 4),
+          nombre:    COPA_DEFAULTS[i] ?? `Copa ${i + 1}`,
+          equipos:   prev?.equipos ?? 4,
+          modo:      prev?.modo    ?? 'grupo',
+          posiciones: [],
+          desde:     prev?.desde ?? 1,
+          hasta:     prev?.hasta ?? Math.min(totalEquipos, 4),
         });
       }
       _wiz.copas = _wiz.copas.slice(0, n);
@@ -321,6 +337,9 @@ function _showWizCopa(idx) {
       </div>
 
       <div id="wiz-copa-content"></div>
+      <div id="wiz-copa-err" style="display:none; margin-top:8px; padding:8px 12px;
+           background:#fef2f2; border:1px solid #fca5a5; border-radius:8px;
+           font-size:13px; font-weight:600; color:var(--danger);"></div>
 
       <div style="margin-top:14px;">
         <button type="button" class="btn-primary" style="width:100%; padding:12px;" id="wiz-copa-next">
@@ -339,6 +358,19 @@ function _showWizCopa(idx) {
   });
 
   _c.querySelector('#wiz-copa-next').addEventListener('click', () => {
+    const copa = _wiz.copas[idx];
+    const nG   = _ctx.numGrupos || 1;
+    const teams = copa.modo === 'global'
+      ? Math.max(0, (copa.hasta ?? 1) - (copa.desde ?? 1) + 1)
+      : copa.posiciones.length * nG;
+    if (teams !== copa.equipos) {
+      const errEl = _c.querySelector('#wiz-copa-err');
+      if (errEl) {
+        errEl.textContent = `Seleccioná exactamente ${copa.equipos} equipos — tenés ${teams} seleccionados.`;
+        errEl.style.display = 'block';
+      }
+      return;
+    }
     _showWizCopa(idx + 1);
   });
 }
@@ -349,6 +381,10 @@ function _renderCopaContent(idx) {
   const maxPos = _ctx.equiposPorGrupo || 4;
   const content = _c.querySelector('#wiz-copa-content');
   if (!content) return;
+
+  // Ocultar error al re-renderizar (el usuario cambió algo)
+  const errEl = _c.querySelector('#wiz-copa-err');
+  if (errEl) errEl.style.display = 'none';
 
   // Positions already taken by other copas
   const taken = new Set();
@@ -623,12 +659,21 @@ function _showPreview(backFn) {
   _c.querySelector('#wiz-btn-confirm').addEventListener('click', async () => {
     const btn    = _c.querySelector('#wiz-btn-confirm');
     const saveOn = _c.querySelector('#wiz-toggle-sw').classList.contains('on');
-    if (saveOn) {
-      const nombre = _c.querySelector('#wiz-preset-name-input').value.trim();
-      if (nombre) _saveLocalPreset(nombre, _wizToEsquemas());
-    }
     btn.disabled = true;
     btn.textContent = '⏳ Guardando…';
+    if (saveOn) {
+      const nombre = _c.querySelector('#wiz-preset-name-input').value.trim();
+      if (nombre) {
+        const claveCtx = `${_ctx.numGrupos}x${_ctx.equiposPorGrupo}-custom`;
+        const esquemas = _wizToEsquemas();
+        const result = await guardarPreset(supabase, { nombre, clave: claveCtx, esquemas });
+        if (result.ok) {
+          _dbPresets.push({ id: result.id, nombre, clave: claveCtx, descripcion: null, esquemas, es_default: false });
+        } else {
+          logMsg(`⚠️ No se pudo guardar el preset: ${result.msg}`);
+        }
+      }
+    }
     await _applyEsquemas(_wizToEsquemas(), btn);
   });
 }
@@ -714,22 +759,19 @@ function _renderProgressDots(containerId, currentStep, totalSteps) {
   el.innerHTML = html;
 }
 
-// ─── Local preset storage (localStorage) ─────────────────────────────────────
-function _loadLocalPresets() {
-  try { return JSON.parse(localStorage.getItem(LOCAL_PRESETS_KEY) || '[]'); }
-  catch { return []; }
-}
+// ─── DB preset helpers ────────────────────────────────────────────────────────
 
-function _saveLocalPreset(nombre, esquemas) {
-  const list = _loadLocalPresets();
-  list.push({ nombre, esquemas });
-  localStorage.setItem(LOCAL_PRESETS_KEY, JSON.stringify(list));
-}
-
-function _deleteLocalPreset(idx) {
-  const list = _loadLocalPresets();
-  list.splice(idx, 1);
-  localStorage.setItem(LOCAL_PRESETS_KEY, JSON.stringify(list));
+/**
+ * Filtra los presets por defecto de la BD compatibles con el formato actual.
+ * Usa el mismo criterio de prefijo que obtenerPresetsCompatibles() en presets.js.
+ */
+function _filterDbCompatible(dbPresets, numGrupos, ppg) {
+  const ppgR   = Math.round(ppg);
+  const prefix = `${numGrupos}x${ppgR}`;
+  return dbPresets.filter(p =>
+    p.es_default &&
+    (p.clave === prefix || p.clave.startsWith(prefix + '-'))
+  );
 }
 
 // ─── Log visibility ──────────────────────────────────────────────────────────
