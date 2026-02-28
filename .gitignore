@@ -34,3 +34,16 @@ playwright/.cache/
 
 # Debug
 debug/
+
+# Claude Code
+.claude/settings.json
+.claude/settings.local.json
+
+# Prototipos / throwaway
+_prototype/
+
+# Tests automáticos / reportes locales
+tests/AutomaticAgent/
+
+# Artefacto Windows
+nul
