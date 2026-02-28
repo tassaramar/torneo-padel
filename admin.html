@@ -20,21 +20,37 @@
   </div>
 
   <div class="container">
-    <h1>Admin – Operación del torneo</h1>
+    <h1>Admin</h1>
 
-    <!-- Modo seguro -->
-    <div id="admin-safe-bar" class="admin-safety">
-      <label class="admin-safety-label">
-        <input id="admin-safe-toggle" type="checkbox" />
-        Desbloquear acciones peligrosas
-      </label>
-      <span id="admin-safe-badge" class="admin-safety-badge">Modo seguro</span>
+    <!-- Tabs de navegación -->
+    <div class="admin-tab-bar" role="tablist">
+      <button class="tab-btn active" data-tab="grupos" role="tab">🎾 Grupos</button>
+      <button class="tab-btn" data-tab="copas" role="tab">🏆 Copas</button>
+      <button class="tab-btn" data-tab="setup" role="tab">🧰 Setup</button>
     </div>
 
-    <!-- SETUP -->
-    <details class="admin-section">
-      <summary>🧰 Setup previo (antes del torneo)</summary>
+    <!-- TAB: GRUPOS -->
+    <div class="tab-panel active" id="tab-grupos">
+      <h2 style="margin-top:14px;">Cierre de grupos (ranking + orden final)</h2>
+      <p class="helper" style="margin-top:0;">
+        Las tablas de posiciones se cargan automáticamente. Usá los botones ▲▼ de cada grupo para resolver empates.
+      </p>
 
+      <div id="grupos-admin" style="margin-top:12px;"></div>
+
+      <div class="admin-actions" style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
+        <button id="gen-grupos" type="button">🔄 Reset partidos de grupo</button>
+        <button id="reset-resultados" type="button">🧹 Reset Resultados</button>
+      </div>
+    </div>
+
+    <!-- TAB: COPAS -->
+    <div class="tab-panel" id="tab-copas">
+      <div id="copas-admin" style="margin-top:12px;"></div>
+    </div>
+
+    <!-- TAB: SETUP -->
+    <div class="tab-panel" id="tab-setup">
       <h2 style="margin-top:14px;">Parejas (import rápido)</h2>
       <p class="helper" style="margin-top:0;">
         Pegá desde Excel en formato: <code>Pareja[TAB]Grupo</code>.
@@ -66,7 +82,7 @@ Andy - Ger	d"></textarea>
 
         <div class="admin-actions" style="margin-top:10px;">
           <button id="parejas-preview" type="button">👀 Previsualizar</button>
-          <button id="parejas-import" type="button" data-danger="hard">💣 Importar (borra y recrea)</button>
+          <button id="parejas-import" type="button">💣 Importar (borra y recrea)</button>
         </div>
 
         <div id="parejas-preview-out" style="margin-top:12px;"></div>
@@ -86,58 +102,38 @@ Andy - Ger	d"></textarea>
           <div id="parejas-list" style="margin-top:12px;"></div>
         </div>
       </div>
+    </div>
+
+    <!-- Log (siempre visible, debajo de todos los tabs) -->
+    <details class="admin-log-details" style="margin-top:24px;" open>
+      <summary style="cursor:pointer; font-weight:600; font-size:13px; color:var(--muted); letter-spacing:0.04em; text-transform:uppercase;">
+        Actividad reciente
+      </summary>
+      <div id="log" class="log" style="margin-top:8px;"></div>
     </details>
-
-    <!-- OPERACION -->
-    <details class="admin-section" open>
-      <summary>🎾 Operación (durante el torneo)</summary>
-
-      <h2 style="margin-top:14px;">Grupos</h2>
-      <div class="admin-actions">
-        <button id="gen-grupos" type="button" data-danger="hard">🔄 Reset partidos de grupo</button>
-      </div>
-      <p class="helper" style="margin-top:4px;">
-        ⚠️ Elimina todos los partidos de grupos existentes y los regenera desde cero.
-      </p>
-
-      <h2 style="margin-top:18px;">Cierre de grupos (ranking + orden final)</h2>
-      <p class="helper" style="margin-top:0;">
-        Las tablas de posiciones se cargan automáticamente. Usá los botones ▲▼ de cada grupo para resolver empates.
-      </p>
-
-      <div id="grupos-admin" style="margin-top:12px;"></div>
-
-      <h2 style="margin-top:18px;">Copas</h2>
-
-      <div id="copas-admin" style="margin-top:12px;"></div>
-    </details>
-
-    <!-- ZONA PELIGROSA -->
-    <details class="admin-section admin-danger">
-      <summary>☠️ Zona peligrosa (reset / borrar)</summary>
-
-      <p class="helper" style="margin-top:8px;">
-        Esto borra cosas. Si tocás acá sin querer, te ganaste una noche larga.
-      </p>
-
-      <div class="admin-actions">
-        <button id="reset-resultados" type="button" data-danger="medium">🧹 Resetear Resultados</button>
-        <button id="reset-copas" type="button" data-danger="hard">🧹 Reset Copas</button>
-      </div>
-    </details>
-
-    <h2>Log</h2>
-    <div id="log" class="log"></div>
   </div>
+
+  <!-- Toast container -->
+  <div id="admin-toast" class="toast" role="status" aria-live="polite"></div>
 
   <script type="module" src="/src/admin.js"></script>
   <script>
     (function () {
+      // Topnav active link
       const path = (location.pathname.endsWith('/') ? location.pathname : location.pathname + '/');
       document.querySelectorAll('.topnav-link').forEach(a => {
         const href = a.getAttribute('href');
         const norm = (href.endsWith('/') ? href : href + '/');
         if (norm === path) a.classList.add('is-active');
+      });
+
+      // Tab switching
+      document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const tab = btn.dataset.tab;
+          document.querySelectorAll('.tab-btn[data-tab]').forEach(b => b.classList.toggle('active', b === btn));
+          document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
+        });
       });
     })();
   </script>

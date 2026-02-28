@@ -10,8 +10,14 @@ export function initGroups() {
 
   if (btnGen) {
     btnGen.onclick = async () => {
-      const ok = await generarPartidosGrupos();
-      if (ok) await cargarCierreGrupos();
+      const ok = confirm(
+        'RESET PARTIDOS DE GRUPO\n\n' +
+        'Esto borra todos los partidos de grupos existentes y los regenera desde cero.\n\n' +
+        '¿Continuar?'
+      );
+      if (!ok) return;
+      const result = await generarPartidosGrupos();
+      if (result) await cargarCierreGrupos();
     };
   }
 

@@ -1,5 +1,4 @@
 import { logMsg, supabase, TORNEO_ID } from './admin/context.js';
-import { initSafetyLock } from './admin/safetyLock.js';
 
 import { initGroups } from './admin/groups/index.js';
 import { initCopas } from './admin/copas/index.js';
@@ -43,16 +42,10 @@ function debugClick(id, label) {
 }
 
 function initAdmin() {
-  safeInit('SafetyLock', initSafetyLock);
   safeInit('ParejasImport', () => (parejasImport.initParejasImport ?? parejasImport.initParejas)?.());
   safeInit('ParejasEdit', initParejasEdit);
   safeInit('Groups', initGroups);
   safeInit('Copas', initCopas);
-
-  // Debug de clicks clave
-  debugClick('reset-grupos', 'Reset grupos');
-  debugClick('gen-grupos', 'Generar grupos');
-  debugClick('reset-resultados', 'Reset resultados');
 
   // Conectar botón de reset resultados
   const btnResetResultados = document.getElementById('reset-resultados');

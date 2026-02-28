@@ -6,11 +6,26 @@
  *   [{"posicion": N}]                                     → N-ésimo de cada grupo
  *   [{"posicion": N, "cantidad": K, "criterio": "mejor"}] → K mejores N-ésimos (ranking cruzado)
  *   [{"posicion": N, "cantidad": K, "criterio": "peor"}]  → K peores N-ésimos (ranking cruzado)
+ *   [{"modo": "global", "desde": D, "hasta": H}]          → puestos D-H del ranking del torneo
  */
 
 /**
- * Presets para torneos de 2 grupos — cruces directos
- * 1°A vs 1°B, 2°A vs 2°B, etc.
+ * Metadatos de presets (nombre legible, descripción, badge de recomendado).
+ */
+const PRESETS_META = {
+  '2x3':              { nombre: '2x3 — Cruces directos',    descripcion: '3 copas de 1 partido: 1°vs1°, 2°vs2°, 3°vs3°' },
+  '2x4':              { nombre: '2x4 — Cruces directos',    descripcion: '4 copas de 1 partido: 1°vs1°, 2°vs2°, 3°vs3°, 4°vs4°' },
+  '2x4-dos-brackets': { nombre: '2x4 — Dos brackets de 4', descripcion: '2 copas semi+final: Oro con 1°+2° de cada grupo, Plata con 3°+4°', recomendado: true },
+  '2x5':              { nombre: '2x5 — Cruces directos',    descripcion: '5 copas de 1 partido cada una' },
+  '2x6':              { nombre: '2x6 — Cruces directos',    descripcion: '6 copas de 1 partido cada una' },
+  '3x3':              { nombre: '3x3 — Brackets de 3',      descripcion: '3 copas en bracket de 3 equipos (bye al mejor 1°)' },
+  '3x4':              { nombre: '3x4 — Ranking cruzado',    descripcion: '3 copas de 4 equipos con mejor/peor 2° y 3°' },
+  '4x3':              { nombre: '4x3 — Brackets de 4',      descripcion: '3 copas en bracket de 4 equipos cada una' },
+  '4x4':              { nombre: '4x4 — Brackets de 4',      descripcion: '4 copas en bracket de 4 equipos cada una' },
+};
+
+/**
+ * Presets para torneos de 2 grupos.
  */
 const PRESETS_2_GRUPOS = {
   '2x3': [
@@ -23,6 +38,10 @@ const PRESETS_2_GRUPOS = {
     { nombre: 'Copa Plata',  orden: 2, formato: 'direct', reglas: [{ posicion: 2 }] },
     { nombre: 'Copa Bronce', orden: 3, formato: 'direct', reglas: [{ posicion: 3 }] },
     { nombre: 'Copa Madera', orden: 4, formato: 'direct', reglas: [{ posicion: 4 }] }
+  ],
+  '2x4-dos-brackets': [
+    { nombre: 'Copa Oro',   orden: 1, formato: 'bracket', reglas: [{ posicion: 1 }, { posicion: 2 }] },
+    { nombre: 'Copa Plata', orden: 2, formato: 'bracket', reglas: [{ posicion: 3 }, { posicion: 4 }] }
   ],
   '2x5': [
     { nombre: 'Copa Oro',    orden: 1, formato: 'direct', reglas: [{ posicion: 1 }] },
@@ -123,11 +142,34 @@ export function sugerirPreset(numGrupos, parejasPorGrupo) {
 }
 
 /**
- * Detecta el formato del torneo desde Supabase y sugiere un preset.
+ * Retorna todos los presets compatibles con un formato de torneo dado.
+ * "Compatible" significa que la clave base coincide (ej: todos los '2x4*' para un torneo 2x4).
+ *
+ * @param {number} numGrupos       - Cantidad de grupos
+ * @param {number} parejasPorGrupo - Promedio de parejas por grupo
+ * @returns {Array<{ clave, nombre, descripcion, recomendado?, esquemas }>}
+ */
+export function obtenerPresetsCompatibles(numGrupos, parejasPorGrupo) {
+  const ppg = Math.round(parejasPorGrupo);
+  const prefijo = `${numGrupos}x${ppg}`;
+
+  return Object.entries(PRESETS)
+    .filter(([clave]) => clave === prefijo || clave.startsWith(prefijo + '-'))
+    .map(([clave, esquemas]) => {
+      const meta = PRESETS_META[clave];
+      if (!meta) return null;
+      return { clave, esquemas, ...meta };
+    })
+    .filter(Boolean);
+}
+
+/**
+ * Detecta el formato del torneo desde Supabase y retorna el contexto completo.
+ * Siempre retorna un objeto con numGrupos y parejasPorGrupo (aunque sea 0).
  *
  * @param {Object} supabase  - Cliente de Supabase
  * @param {string} torneoId  - ID del torneo
- * @returns {{ clave: string, esquemas: Array, numGrupos: number, numParejas: number } | null}
+ * @returns {{ numGrupos, numParejas, parejasPorGrupo, sugerencia: object|null }}
  */
 export async function detectarYSugerirPreset(supabase, torneoId) {
   const [{ data: grupos }, { data: parejas }] = await Promise.all([
@@ -139,13 +181,10 @@ export async function detectarYSugerirPreset(supabase, torneoId) {
   const numParejas = parejas?.length || 0;
   const parejasPorGrupo = numGrupos > 0 ? numParejas / numGrupos : 0;
 
-  const sugerencia = sugerirPreset(numGrupos, parejasPorGrupo);
-  if (!sugerencia) return null;
-
   return {
-    ...sugerencia,
     numGrupos,
     numParejas,
-    parejasPorGrupo
+    parejasPorGrupo,
+    sugerencia: sugerirPreset(numGrupos, parejasPorGrupo)
   };
 }

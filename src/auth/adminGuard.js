@@ -18,6 +18,14 @@ import { checkAdmin, loginWithGoogle, logout } from './adminAuth.js';
  * @param {string} [options.containerId] - ID del container principal (para ocultar/mostrar)
  */
 export async function requireAdmin(supabase, { onReady, containerId = null }) {
+  // En modo desarrollo local (npm run dev), saltear la autenticación
+  // import.meta.env.DEV es eliminado por Vite en el build de producción
+  if (import.meta.env.DEV) {
+    mostrarContenido(containerId);
+    onReady({ isAdmin: true, user: { email: 'dev@local' }, nombre: 'Dev Local', rol: 'admin' });
+    return;
+  }
+
   const result = await checkAdmin(supabase);
 
   if (result.isAdmin) {
