@@ -1,7 +1,14 @@
 import { state } from './state.js';
+import { TORNEO_ID } from './context.js';
 import { crearCardEditable } from './cardEditable.js';
 import { obtenerFrasesUnicas } from '../utils/frasesFechaLibre.js';
 import { formatearResultado, tieneResultado, calcularSetsGanados, calcularGamesTotales } from '../utils/formatoResultado.js';
+
+/** Fire-and-forget: lanza el motor de copas sin bloquear la UI */
+function dispararMotorCopas(supabase) {
+  supabase.rpc('verificar_y_proponer_copas', { p_torneo_id: TORNEO_ID })
+    .then(({ error }) => { if (error) console.warn('Motor copas (carga):', error.message); });
+}
 
 /**
  * Guarda resultado como set1 (partido a 1 set) - para uso de admin
@@ -334,7 +341,8 @@ function crearCardParaPartido(p, supabase, onAfterSave) {
         alert('Error guardando el resultado');
         return false;
       }
-      
+
+      dispararMotorCopas(supabase);
       if (onAfterSave) await onAfterSave();
       return true;
     }
@@ -431,6 +439,7 @@ function crearCardRevision(p, supabase, onAfterSave) {
       return;
     }
 
+    dispararMotorCopas(supabase);
     alert('✅ Conflicto resuelto');
     if (onAfterSave) await onAfterSave();
   });
@@ -471,6 +480,7 @@ function crearCardRevision(p, supabase, onAfterSave) {
       return;
     }
 
+    dispararMotorCopas(supabase);
     alert('✅ Conflicto resuelto');
     if (onAfterSave) await onAfterSave();
   });
@@ -518,6 +528,7 @@ function crearCardRevision(p, supabase, onAfterSave) {
           alert('Error guardando');
           return;
         }
+        dispararMotorCopas(supabase);
         alert('✅ Resultado guardado');
         if (onAfterSave) onAfterSave();
       });
