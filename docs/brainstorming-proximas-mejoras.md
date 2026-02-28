@@ -119,6 +119,44 @@
 
 ---
 
+### [BUG] Wizard copas — esquema custom se aplica pero no queda guardado `🔍 EN ANÁLISIS`
+
+**Síntoma**: Al crear un esquema personalizado en el wizard (sin guardarlo como preset), el sistema no da error pero los esquemas de copa no persisten en la BD. Probablemente `_applyEsquemas()` en `planEditor.js` falla silenciosamente o hay un problema con la llamada a `guardarEsquemas()` en `planService.js`.
+
+**Para investigar**:
+- Revisar si `guardarEsquemas()` retorna `ok: false` y el mensaje no se muestra
+- Verificar si el problema es de permisos RLS (el admin necesita estar autenticado para escribir `esquemas_copa`)
+- Agregar feedback visual explícito si falla
+
+**Archivo clave**: `src/admin/copas/planEditor.js` → `_applyEsquemas()`, `src/admin/copas/planService.js` → `guardarEsquemas()`
+
+---
+
+### [BUG] Wizard copas — "Editar" desde statusView no permite navegar el wizard `🔍 EN ANÁLISIS`
+
+**Síntoma**: Cuando hay un esquema aplicado y los partidos están finalizados, el botón "Editar" en la vista admin lleva directamente al Panel 4 (Resumen del Plan) sin permitir navegar el wizard. El botón "‹" vuelve al panel de presets, no a los pasos del wizard donde el admin podría hacer cambios.
+
+**Causa probable**: `_fromEsquemasToWiz(esquemas)` carga el estado del wizard y llama `_showPreview(() => _showPresets())` — el `backFn` apunta a `_showPresets` en lugar de `_showWizNum()` o `_showWizCopa(0)`.
+
+**Fix esperado**: En modo "editar esquema existente", el back desde el preview debería ir a `_showWizNum()` para que el usuario pueda navegar los pasos del wizard y hacer cambios antes de aplicar.
+
+**Archivo clave**: `src/admin/copas/planEditor.js` → `_showPresets()` handlers `.wiz-btn-edit`, y `statusView.js` donde se llama a `renderPlanEditor`.
+
+---
+
+### [REVISAR] Botón "Reset Resultados" — posible duplicado `🔍 EN ANÁLISIS`
+
+**Síntoma**: Existe un botón "Reset Resultados" en admin que parece solaparse funcionalmente con "Reset partidos de grupos". Posible duplicado o mal ubicado.
+
+**Para investigar**:
+- Verificar qué hace exactamente cada botón (`resetearResultados()` en `src/admin.js` vs. reset de grupos en `src/admin/groups/index.js`)
+- Si son equivalentes, eliminar el duplicado
+- Si difieren, evaluar si tiene sentido mantener ambos y mejorar los labels para que quede claro la diferencia
+
+**Archivos clave**: `admin.html`, `src/admin.js` → `resetearResultados()`, `src/admin/groups/index.js`
+
+---
+
 ### Round Robin en copas `💡 CRUDA`
 
 **Idea**: Agregar formato Round Robin como opción en el wizard de copas, además de Mata-mata (bracket/cruce directo).
