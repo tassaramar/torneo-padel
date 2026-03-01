@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-02-28
+**Última actualización**: 2026-03-01
 
 ---
 
@@ -116,6 +116,76 @@
 - ¿Dónde vive en la UI? ¿Tab nuevo en el modal de consulta del jugador?
 
 **Dependencia**: Múltiples torneos + Gestión de usuarios individuales para que sea útil a largo plazo.
+
+---
+
+### [BUG] Partidos de copa no aparecen en "Todos los resultados" (fixture.html) `🔍 EN ANÁLISIS`
+
+**Síntoma**: En fixture.html, la sección "Todos los resultados" no muestra los partidos de copa — ni los pendientes ni los jugados. Sí aparecen en la cola de fixture normalmente.
+
+**Pregunta clave**: ¿Es comportamiento esperado o bug? La sección debería mostrar TODOS los partidos del torneo (grupos + copas), tanto los jugados como los por jugar.
+
+**Archivo clave**: `src/fixture.js` o el módulo que renderiza "Todos los resultados"
+
+---
+
+### [MEJORA] fixture.html — ocultar secciones de grupos cuando no quedan partidos pendientes `💡 CRUDA`
+
+**Idea**: Cuando ya no quedan partidos de grupos pendientes ni en juego, las secciones "Resumen por Grupo", "En Juego" y "Pendientes" dejan de tener utilidad. Ocultarlas y mostrar solo la sección de copas + ya jugados limpia la interfaz y reduce el ruido visual para el organizador.
+
+**Condición de activación**: `partidos_grupos_pendientes === 0 && partidos_grupos_en_juego === 0`
+
+**Archivo clave**: `src/fixture.js`
+
+---
+
+### [BUG] Modal "Tablas/Grupos" en index.html no muestra partidos de copa `🔍 EN ANÁLISIS`
+
+**Síntoma**: Al abrir el modal "Tablas/Grupos/Fixture" desde index.html, la pestaña de fixture no incluye los partidos de copa — solo muestra los de grupos.
+
+**Archivo clave**: `src/viewer/modalConsulta.js`
+
+---
+
+### [MEJORA] Admin copas — indicador claro del paso del flujo `💡 CRUDA`
+
+**Problema**: El flujo de copas tiene pasos bien definidos pero la UI admin no es explícita sobre en qué paso estamos.
+
+**Flujo propuesto (a mostrar al admin)**:
+1. **Definir plan** — elegir o armar un esquema de copas
+2. **Esperar grupos** — aguardar que finalicen los partidos de grupos necesarios
+3. **Aprobar copas** — revisar las propuestas generadas automáticamente y confirmar
+4. **Partidos en curso** — se juegan los partidos de copa; el motor genera las siguientes rondas automáticamente
+5. **Final** — todos los partidos terminados
+
+**Mejora esperada**: En la pantalla de admin, mostrar un indicador de progreso o un banner claro que diga "Paso 2 de 5 — Esperando que finalicen los grupos" (o similar). Evitar que el admin tenga que inferir el estado leyendo las propuestas.
+
+**Archivo clave**: `src/admin/copas/statusView.js`, posiblemente `src/admin/copas/index.js`
+
+---
+
+### [MEJORA] Partidos de copa en index.html sin distinción visual `💡 CRUDA`
+
+**Problema**: Los partidos de copa aparecen en la vista del jugador igual que los partidos de grupos, sin ninguna señal visual que indique que es un partido especial.
+
+**Idea**: Agregar un badge o etiqueta ("Copa Oro", "Copa Plata", etc.) visible en la card del partido de copa. Podría incluir un ícono de trofeo 🏆 y el nombre de la copa.
+
+**Archivo clave**: `src/viewer/vistaPersonal.js`
+
+---
+
+### [MEJORA] Colores en tablas/copas — verde para ganar, otro para perder `💡 CRUDA`
+
+**Problema**: En la sección "Tablas/Copas" del modal en index.html, todos los resaltados del jugador usan el mismo verde — tanto las victorias como las derrotas como la posición en tabla.
+
+**Idea**:
+- Verde → victorias (partidos ganados) y posición en tabla
+- Rojo o naranja → derrotas (partidos perdidos)
+- Sin cambio → fila de posición en tabla (mantener verde o neutro)
+
+**Pregunta a resolver**: ¿La distinción de colores aplica también en la tabla de posiciones o solo en el listado de partidos jugados?
+
+**Archivo clave**: `src/viewer/modalConsulta.js`, `src/utils/tablaPosiciones.js`
 
 ---
 
