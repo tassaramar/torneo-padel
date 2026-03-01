@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-01
+**Última actualización**: 2026-03-01 (bugs copa vistas públicas implementados)
 
 ---
 
@@ -35,9 +35,8 @@
 
 > Máximo 3 ítems a la vez. Para agregar uno, sacar uno primero. Obliga a priorizar.
 
-1. **Múltiples torneos** — historial entre torneos sin borrar la BD
-2. *(libre — agregar próxima prioridad)*
-3. *(libre — agregar próxima prioridad)*
+1. **Bugs wizard copas (admin)** — esquema no persiste, editar no navega wizard, reset duplicado
+2. **Polish visual copa** — distinción badge en vista jugador, colores victoria/derrota en modal
 
 ---
 
@@ -55,6 +54,8 @@
 - ¿Cómo afecta a la estructura de BD (foreign keys en partidos, grupos, parejas)?
 
 **Dependencia**: Conviene resolver identificación de jugadores (ver Gestión de usuarios individuales) antes para que el historial sea útil por jugador.
+
+**Nota (2026-03-01)**: Fuera del roadmap activo hasta que "Gestión de usuarios individuales" esté definida. Es la feature más grande del backlog y requiere decisiones de diseño previas.
 
 ---
 
@@ -119,7 +120,7 @@
 
 ---
 
-### Tabla general del torneo `💡 CRUDA`
+### Tabla general del torneo `📋 PRIORIZADA`
 
 **Idea**: Una tabla de posiciones global que agrupe a todas las parejas del torneo, no solo por grupo.
 
@@ -224,7 +225,7 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 
 ---
 
-### [MEJORA] index.html — mensaje final cuando el jugador no tiene más partidos `💡 CRUDA`
+### [MEJORA] index.html — mensaje final cuando el jugador no tiene más partidos `📋 PRIORIZADA`
 
 **Problema**: Cuando un jugador ya jugó todos sus partidos, la app muestra "No tenés partidos pendientes" — un mensaje frío que no refleja lo que vivió ni le da cierre.
 
@@ -247,7 +248,7 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 
 ---
 
-### [MEJORA] Presentismo — acciones masivas debajo del control por pareja `💡 CRUDA`
+### [MEJORA] Presentismo — acciones masivas debajo del control por pareja `📋 PRIORIZADA`
 
 **Idea**: En la pantalla de presentismo, mover los botones de acciones masivas ("Marcar todos presentes", etc.) para que queden debajo de la lista de control por pareja, no arriba. Mejora el flujo natural: primero se ve el estado individual, luego las acciones globales.
 
@@ -255,7 +256,7 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 
 ---
 
-### [MEJORA] Presentismo — botones del dashboard como filtros o drill-down `💡 CRUDA`
+### [MEJORA] Presentismo — botones del dashboard como filtros o drill-down `📋 PRIORIZADA`
 
 **Problema**: Los botones del dashboard de presentismo (ej. "3 presentes", "2 ausentes") muestran contadores pero no hacen nada útil al tocarlos.
 
@@ -275,7 +276,7 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 
 ---
 
-### [BUG] Partidos de copa no aparecen en "Todos los resultados" (fixture.html) `🔍 EN ANÁLISIS`
+### [BUG] Partidos de copa no aparecen en "Todos los resultados" (fixture.html) `📋 PRIORIZADA`
 
 **Síntoma**: En fixture.html, la sección "Todos los resultados" no muestra los partidos de copa — ni los pendientes ni los jugados. Sí aparecen en la cola de fixture normalmente.
 
@@ -285,7 +286,7 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 
 ---
 
-### [MEJORA] fixture.html — ocultar secciones de grupos cuando no quedan partidos pendientes `💡 CRUDA`
+### [MEJORA] fixture.html — ocultar secciones de grupos cuando no quedan partidos pendientes `📋 PRIORIZADA`
 
 **Idea**: Cuando ya no quedan partidos de grupos pendientes ni en juego, las secciones "Resumen por Grupo", "En Juego" y "Pendientes" dejan de tener utilidad. Ocultarlas y mostrar solo la sección de copas + ya jugados limpia la interfaz y reduce el ruido visual para el organizador.
 
@@ -295,7 +296,7 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 
 ---
 
-### [BUG] Modal "Tablas/Grupos" en index.html no muestra partidos de copa `🔍 EN ANÁLISIS`
+### [BUG] Modal "Tablas/Grupos" en index.html no muestra partidos de copa `📋 PRIORIZADA`
 
 **Síntoma**: Al abrir el modal "Tablas/Grupos/Fixture" desde index.html, la pestaña de fixture no incluye los partidos de copa — solo muestra los de grupos.
 
@@ -303,7 +304,7 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 
 ---
 
-### [MEJORA] Admin copas — indicador claro del paso del flujo `💡 CRUDA`
+### [MEJORA] Admin copas — indicador claro del paso del flujo `📋 PRIORIZADA`
 
 **Problema**: El flujo de copas tiene pasos bien definidos pero la UI admin no es explícita sobre en qué paso estamos.
 
@@ -320,7 +321,7 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 
 ---
 
-### [MEJORA] Partidos de copa en index.html sin distinción visual `💡 CRUDA`
+### [MEJORA] Partidos de copa en index.html sin distinción visual `📋 PRIORIZADA`
 
 **Problema**: Los partidos de copa aparecen en la vista del jugador igual que los partidos de grupos, sin ninguna señal visual que indique que es un partido especial.
 
@@ -330,7 +331,7 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 
 ---
 
-### [MEJORA] Colores en tablas/copas — verde para ganar, otro para perder `💡 CRUDA`
+### [MEJORA] Colores en tablas/copas — verde para ganar, otro para perder `📋 PRIORIZADA`
 
 **Problema**: En la sección "Tablas/Copas" del modal en index.html, todos los resaltados del jugador usan el mismo verde — tanto las victorias como las derrotas como la posición en tabla.
 
@@ -345,7 +346,7 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 
 ---
 
-### [BUG] Wizard copas — esquema custom se aplica pero no queda guardado `🔍 EN ANÁLISIS`
+### [BUG] Wizard copas — esquema custom se aplica pero no queda guardado `📋 PRIORIZADA`
 
 **Síntoma**: Al crear un esquema personalizado en el wizard (sin guardarlo como preset), el sistema no da error pero los esquemas de copa no persisten en la BD. Probablemente `_applyEsquemas()` en `planEditor.js` falla silenciosamente o hay un problema con la llamada a `guardarEsquemas()` en `planService.js`.
 
@@ -358,7 +359,7 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 
 ---
 
-### [BUG] Wizard copas — "Editar" desde statusView no permite navegar el wizard `🔍 EN ANÁLISIS`
+### [BUG] Wizard copas — "Editar" desde statusView no permite navegar el wizard `📋 PRIORIZADA`
 
 **Síntoma**: Cuando hay un esquema aplicado y los partidos están finalizados, el botón "Editar" en la vista admin lleva directamente al Panel 4 (Resumen del Plan) sin permitir navegar el wizard. El botón "‹" vuelve al panel de presets, no a los pasos del wizard donde el admin podría hacer cambios.
 
@@ -370,7 +371,7 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 
 ---
 
-### [REVISAR] Botón "Reset Resultados" — posible duplicado `🔍 EN ANÁLISIS`
+### [REVISAR] Botón "Reset Resultados" — posible duplicado `📋 PRIORIZADA`
 
 **Síntoma**: Existe un botón "Reset Resultados" en admin que parece solaparse funcionalmente con "Reset partidos de grupos". Posible duplicado o mal ubicado.
 
@@ -399,6 +400,16 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 ---
 
 ## Historial — Implementado / Validado
+
+### Bugs copa en vistas públicas `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-01
+**Spec**: [docs/spec-bugs-copa-vistas-publicas.md](spec-bugs-copa-vistas-publicas.md)
+
+- **fixture.html vista "Tabla"**: `renderFixtureGrid()` ahora recibe `partidosCopa` como segundo parámetro y agrega sección "🏆 Copas" al final del grid, agrupada por copa y ordenada por `orden_copa`. Reutiliza `renderCopaItem()` existente.
+- **index.html modal tab "Fixture"**: `cargarDatosModal()` carga copas y partidos de copa en paralelo; `renderFixture()` llama `renderCopasEnModal()` al final mostrando copas agrupadas por nombre con ronda y resultado.
+
+---
 
 ### Wizard de Copas + Presets en BD `✅ IMPLEMENTADA`
 

@@ -119,7 +119,7 @@ async function init(mostrarSkeleton = true) {
     if (vistaActual === 'cola') {
       renderColaFixture(partidos, grupos, parejasConGrupo, partidosCopa);
     } else {
-      renderFixtureGrid(data);
+      renderFixtureGrid(data, partidosCopa);
     }
 
     setStatus(`Actualizado ${nowStr()}`);
@@ -238,7 +238,7 @@ function agregarGrupoAParejas(parejas, grupos) {
 /**
  * Renderiza el grid completo del fixture
  */
-function renderFixtureGrid(data) {
+function renderFixtureGrid(data, partidosCopa = []) {
   const { rondas, grupos, matriz } = data;
 
   if (!rondas.length || !grupos.length) {
@@ -294,7 +294,29 @@ function renderFixtureGrid(data) {
   html += '</tbody>';
   
   html += '</table>';
-  
+
+  if (partidosCopa.length > 0) {
+    const copasPorNombre = {};
+    partidosCopa.forEach(p => {
+      const nombre = p.copa_nombre || 'Copa';
+      if (!copasPorNombre[nombre]) copasPorNombre[nombre] = [];
+      copasPorNombre[nombre].push(p);
+    });
+    const copaEntries = Object.entries(copasPorNombre);
+    const multiCopa = copaEntries.length > 1;
+
+    html += '<div style="margin-top: 24px;">';
+    html += '<h3 style="font-size: 1rem; font-weight: 700; margin-bottom: 12px; padding: 0 4px;">🏆 Copas</h3>';
+    copaEntries.forEach(([nombre, ps]) => {
+      if (multiCopa) {
+        html += `<h4 style="font-size: 0.85rem; font-weight: 600; margin: 8px 4px; color: #6B7280;">${escapeHtml(nombre)}</h4>`;
+      }
+      ps.sort((a, b) => (a.orden_copa || 0) - (b.orden_copa || 0))
+        .forEach(p => { html += renderCopaItem(p); });
+    });
+    html += '</div>';
+  }
+
   gridEl.innerHTML = html;
 }
 
@@ -421,7 +443,7 @@ async function refrescarYRenderizar() {
     if (vistaActual === 'cola') {
       renderColaFixture(partidosActualizados, cacheDatos.grupos, cacheDatos.parejas, partidosCopaActualizados);
     } else {
-      renderFixtureGrid(data);
+      renderFixtureGrid(data, cacheDatos.partidosCopa);
     }
   } catch (e) {
     console.error('Error refrescando fixture:', e);
@@ -956,7 +978,7 @@ function cambiarVista(nuevaVista) {
         cacheDatos.partidosCopa
       );
     } else {
-      renderFixtureGrid(cacheDatos.data);
+      renderFixtureGrid(cacheDatos.data, cacheDatos.partidosCopa);
     }
   }
 }

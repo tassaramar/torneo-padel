@@ -103,7 +103,7 @@ async function cargarDatosModal() {
   if (!supabase || !torneoId) return;
   
   try {
-    const [gruposRes, partidosRes, parejasRes] = await Promise.all([
+    const [gruposRes, partidosRes, parejasRes, copasRes, partidosCopaRes] = await Promise.all([
       supabase
         .from('grupos')
         .select('id, nombre')
@@ -128,17 +128,34 @@ async function cargarDatosModal() {
         .from('parejas')
         .select('id, nombre, orden')
         .eq('torneo_id', torneoId)
-        .order('orden')
+        .order('orden'),
+      supabase
+        .from('copas')
+        .select('id, nombre')
+        .eq('torneo_id', torneoId),
+      supabase
+        .from('partidos')
+        .select(`
+          id, copa_id, ronda_copa, orden_copa, estado,
+          set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
+          sets_a, sets_b, games_totales_a, games_totales_b,
+          pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
+          pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
+        `)
+        .eq('torneo_id', torneoId)
+        .not('copa_id', 'is', null)
     ]);
-    
+
     if (gruposRes.error) throw gruposRes.error;
     if (partidosRes.error) throw partidosRes.error;
     if (parejasRes.error) throw parejasRes.error;
-    
+
     modalState.cache = {
       grupos: gruposRes.data || [],
       partidos: partidosRes.data || [],
-      parejas: parejasRes.data || []
+      parejas: parejasRes.data || [],
+      copas: copasRes.data || [],
+      partidosCopa: partidosCopaRes.data || []
     };
     
   } catch (error) {
@@ -403,6 +420,53 @@ async function renderOtrosGrupos(container) {
   });
 }
 
+const RONDA_COPA_LABEL = { SF: 'Semifinal', F: 'Final', '3P': '3° Puesto', direct: 'Cruce' };
+
+/**
+ * Renderiza la sección de copas para el modal de fixture
+ */
+function renderCopasEnModal(partidosCopa, copaMap) {
+  const copasPorNombre = {};
+  partidosCopa.forEach(p => {
+    const nombre = copaMap[p.copa_id] || 'Copa';
+    if (!copasPorNombre[nombre]) copasPorNombre[nombre] = [];
+    copasPorNombre[nombre].push(p);
+  });
+
+  const copaEntries = Object.entries(copasPorNombre);
+  if (copaEntries.length === 0) return '';
+
+  let html = '<div class="modal-section" style="margin-top: 16px;">';
+  html += '<h3 class="modal-section-title">🏆 Copas</h3>';
+
+  copaEntries.forEach(([nombre, ps]) => {
+    html += `<details class="modal-details" open>`;
+    html += `<summary>${escapeHtml(nombre)}</summary>`;
+    html += '<div class="modal-partidos-list">';
+    ps.sort((a, b) => (a.orden_copa || 0) - (b.orden_copa || 0))
+      .forEach(p => {
+        const nombreA = p.pareja_a?.nombre || '—';
+        const nombreB = p.pareja_b?.nombre || '—';
+        const jugado = tieneResultado(p);
+        const rondaLabel = RONDA_COPA_LABEL[p.ronda_copa] || p.ronda_copa || '?';
+        html += `<div class="modal-partido ${jugado ? 'jugado' : 'pendiente'}">`;
+        html += `<span class="modal-partido-ronda">${escapeHtml(rondaLabel)}</span>`;
+        html += `<span class="modal-partido-equipos">`;
+        html += `${escapeHtml(nombreA)} <span class="vs">vs</span> ${escapeHtml(nombreB)}`;
+        html += `</span>`;
+        html += `<span class="modal-partido-resultado">`;
+        html += jugado ? formatearResultado(p) : 'Pendiente';
+        html += `</span>`;
+        html += `</div>`;
+      });
+    html += '</div>';
+    html += '</details>';
+  });
+
+  html += '</div>';
+  return html;
+}
+
 /**
  * Renderiza el tab "Fixture"
  */
@@ -485,6 +549,11 @@ function renderFixture(container) {
   `;
   
   container.innerHTML = html;
+
+  if (cache.partidosCopa && cache.partidosCopa.length > 0) {
+    const copaMap = Object.fromEntries((cache.copas || []).map(c => [c.id, c.nombre]));
+    container.insertAdjacentHTML('beforeend', renderCopasEnModal(cache.partidosCopa, copaMap));
+  }
 }
 
 /**
