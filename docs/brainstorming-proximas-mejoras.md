@@ -119,6 +119,76 @@
 
 ---
 
+### Tabla general del torneo `💡 CRUDA`
+
+**Idea**: Una tabla de posiciones global que agrupe a todas las parejas del torneo, no solo por grupo.
+
+**Pregunta clave — criterio de ordenamiento**:
+- **Opción A (preferida)**: Respetar primero la posición dentro del grupo (1ro de A > 2do de A > 1ro de B…) y dentro de cada posición desempatar por puntos/DS/GF. Esto preserva el valor del resultado "quedar primero en tu grupo".
+- **Opción B**: Rankear puramente por puntos/DS/GF sin importar el grupo. Más simple pero puede "premiar" a un grupo más fácil.
+- **Opción C**: Configurable por torneo (toggle en setup).
+
+**Dónde mostrarla**:
+- Tab nuevo en el modal "Tablas/Grupos/Fixture" de index.html
+- También visible en analytics.html
+
+**Dependencia**: Setup de torneo configurable (ver ítem siguiente) — el criterio de tabla general podría ser uno de los parámetros.
+
+---
+
+### [MEJORA] Setup de torneo — panel de configuración centralizado `💡 CRUDA`
+
+**Problema**: Varios comportamientos del torneo están hardcodeados o dispersos en la BD sin UI para cambiarlos fácilmente.
+
+**Idea**: Una sección "Setup" o "Configuración" en admin.html (ya existe el tab Setup) que permita controlar:
+
+| Parámetro | Opciones | Estado actual |
+|-----------|----------|---------------|
+| Nombre del torneo | Texto libre | En BD, sin UI |
+| Presentismo activo | Sí / No | En BD, hay toggle |
+| Formato de sets | 1 set / Mejor de 3 / Opcional | Hardcodeado |
+| Puntos por partido | (2,1) / (3,0) / (2,0) | Hardcodeado |
+| Nombre de grupos | Texto por grupo (A, B, C…) | Hardcodeado |
+| Nombre de copas | Texto por copa | En BD como `copas.nombre` |
+| Criterio tabla general | Por posición de grupo / Por puntos globales | Sin implementar |
+| ¿Algo más? | — | — |
+
+**Impacto**: Muchos módulos deberían leer estos parámetros de BD en lugar de tener valores fijos. Requiere migración para agregar columnas a `torneos`.
+
+**Archivos clave**: `admin.html` (tab Setup), `src/admin/setup/` (a crear), tabla `torneos`
+
+---
+
+### Análisis de tabla con IA `💡 CRUDA`
+
+**Idea**: Un botón en la vista del jugador (index.html) — "¿Cómo estoy?" o "Analizá mi situación" — que llama a una IA con el contexto del torneo y devuelve un mensaje corto, divertido y útil sobre las chances del jugador.
+
+**Qué le pasaríamos a la IA**:
+- Tabla de posiciones del grupo (puntos, DS, GF de cada pareja)
+- Partidos ya jugados del grupo
+- Partidos que quedan por jugar
+- Sistema de puntos del torneo (2,1 o 2,0)
+- El nombre e identidad del jugador que consulta
+
+**Qué esperamos que responda**:
+- ¿Puede quedar primero? ¿Qué necesita que pase?
+- ¿Ya está clasificado a alguna copa?
+- Tono: corto, buena onda, estilo argentino — no un informe técnico
+
+**Implementación técnica**:
+- Llamada a Claude API (o similar) desde el frontend o desde un Edge Function de Supabase
+- El prompt incluye los datos estructurados del torneo + pregunta fija
+- Cachear la respuesta por X minutos para no llamar en cada refresh
+
+**Preguntas a resolver**:
+- ¿Llamada directa desde el browser (con API key expuesta) o via Edge Function?
+- ¿Costo de API por torneo? ¿Limitar a N consultas por jugador?
+- ¿El análisis es solo de grupos o también incluye copas?
+
+**Archivos clave**: `src/viewer/vistaPersonal.js`, posiblemente nueva Edge Function en Supabase
+
+---
+
 ### [MEJORA] Barra de navegación admin — unificar y hacer mobile-friendly `💡 CRUDA`
 
 **Problema**: Hay dos barras de admin distintas e inconsistentes:
