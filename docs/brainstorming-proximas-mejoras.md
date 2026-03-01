@@ -119,6 +119,64 @@
 
 ---
 
+### [MEJORA] Barra de navegación admin — unificar y hacer mobile-friendly `💡 CRUDA`
+
+**Problema**: Hay dos barras de admin distintas e inconsistentes:
+- En `index.html` (si estás logueado como admin): barra negra **abajo** con links de navegación
+- En `admin.html`: barra negra **arriba** sin links, solo botón de logout
+
+Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
+
+**Idea**: Unificar en una solución mobile-friendly que no ocupe pantalla siempre. Opciones a evaluar:
+- **FAB (Floating Action Button)** con menú desplegable al tocar — mínima ocupación
+- **Bottom sheet** que aparece al deslizar desde abajo — patrón mobile estándar
+- **Hamburger menu** minimalista en una esquina
+
+**Contenido del menú unificado**: Links a todas las páginas de gestión (admin, fixture, carga, analytics) + botón de logout visible.
+
+**Archivos clave**: `admin.html`, `index.html`, posiblemente un componente compartido nuevo en `src/`
+
+---
+
+### [MEJORA] Versionado semántico de la app `💡 CRUDA`
+
+**Idea**: Implementar un número de versión visible en la app con el esquema `Major.Minor.Patch`:
+- **Major**: cambios importantes (nuevas funcionalidades grandes, rediseños)
+- **Minor**: mejoras y features menores
+- **Patch**: ajustes, bugfixes
+
+**Implementación sugerida**:
+- Versión centralizada en `package.json` (campo `"version"`)
+- Visible en algún lugar discreto de la UI (footer de admin, o pantalla "about")
+- Podría mostrarse en el menú de navegación admin unificado (ver ítem anterior)
+
+**Beneficio**: Da contexto al equipo y a los usuarios cuando reportan bugs ("esto pasó en v1.2.3").
+
+---
+
+### [MEJORA] index.html — mensaje final cuando el jugador no tiene más partidos `💡 CRUDA`
+
+**Problema**: Cuando un jugador ya jugó todos sus partidos, la app muestra "No tenés partidos pendientes" — un mensaje frío que no refleja lo que vivió ni le da cierre.
+
+**Idea**: Reemplazarlo por un mensaje contextual y emotivo según el resultado final:
+- Si ganó una copa → "🏆 ¡Campeón! Ganaste la Copa Oro"
+- Si fue subcampeón → "🥈 ¡Finalista! Quedaste subcampeón de la Copa Plata"
+- Si terminó sin copa → "✅ ¡Torneo completado! Quedaste Nº en el Grupo A"
+- Con buena onda, estilo argentino — "¡Ya diste todo, crack!"
+
+**Lógica a implementar**:
+- Detectar si la pareja tiene partidos de copa → mostrar resultado de copa
+- Si no tiene copa → mostrar posición final en el grupo
+- Solo activar cuando no quedan partidos pendientes para esa pareja
+
+**Preguntas a resolver**:
+- ¿Cómo saber si una copa ya terminó o puede haber más rondas para esa pareja?
+- ¿El nombre de la copa lo tomamos de `copas.nombre`?
+
+**Archivo clave**: `src/viewer/vistaPersonal.js`
+
+---
+
 ### [MEJORA] Presentismo — acciones masivas debajo del control por pareja `💡 CRUDA`
 
 **Idea**: En la pantalla de presentismo, mover los botones de acciones masivas ("Marcar todos presentes", etc.) para que queden debajo de la lista de control por pareja, no arriba. Mejora el flujo natural: primero se ve el estado individual, luego las acciones globales.
