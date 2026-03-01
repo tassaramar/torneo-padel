@@ -119,6 +119,34 @@
 
 ---
 
+### [MEJORA] Presentismo — acciones masivas debajo del control por pareja `💡 CRUDA`
+
+**Idea**: En la pantalla de presentismo, mover los botones de acciones masivas ("Marcar todos presentes", etc.) para que queden debajo de la lista de control por pareja, no arriba. Mejora el flujo natural: primero se ve el estado individual, luego las acciones globales.
+
+**Archivo clave**: `src/viewer/presentismo.js` o el HTML/template de la sección de presentismo
+
+---
+
+### [MEJORA] Presentismo — botones del dashboard como filtros o drill-down `💡 CRUDA`
+
+**Problema**: Los botones del dashboard de presentismo (ej. "3 presentes", "2 ausentes") muestran contadores pero no hacen nada útil al tocarlos.
+
+**Dos opciones a evaluar**:
+
+1. **Filtro**: Al tocar un botón del dashboard, filtra la lista "por Jugador" mostrando solo las parejas en ese estado (ej. tocar "Ausentes" → lista solo muestra parejas con algún jugador ausente). Tocar de nuevo desfiltrar.
+
+2. **Drill-down / popover**: Al tocar el botón, aparece una lista compacta de las parejas/jugadores que están detrás de ese número, sin abandonar la pantalla.
+
+**Preferencia inicial**: La opción 2 (drill-down) parece más útil para acción rápida — ver de un vistazo quiénes faltan sin scrollear toda la lista.
+
+**Preguntas a resolver**:
+- ¿El filtro reemplaza o convive con el listado completo?
+- ¿El drill-down es un popover, un modal pequeño, o una expansión inline?
+
+**Archivo clave**: `src/viewer/presentismo.js`, template del dashboard de presentismo
+
+---
+
 ### [BUG] Partidos de copa no aparecen en "Todos los resultados" (fixture.html) `🔍 EN ANÁLISIS`
 
 **Síntoma**: En fixture.html, la sección "Todos los resultados" no muestra los partidos de copa — ni los pendientes ni los jugados. Sí aparecen en la cola de fixture normalmente.
