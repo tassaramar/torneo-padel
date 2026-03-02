@@ -53,10 +53,32 @@ export async function renderPlanEditor(container, onSaved, esquemaExistente = nu
 
   if (bloqueado) {
     container.innerHTML = `
-      <p class="helper" style="margin:12px 0; padding:10px 12px; background:var(--bg);
-         border-radius:8px; border:1px solid var(--border);">
-        🔒 Plan bloqueado — hay copas aprobadas. Usá <strong>Reset</strong> para empezar de nuevo.
-      </p>`;
+      <div style="margin:12px 0; padding:14px; background:var(--bg);
+           border-radius:8px; border:1px solid var(--border);">
+        <p style="margin:0 0 12px 0;">
+          🔒 El plan de copas es de un ciclo anterior. Hacé Reset para empezar de nuevo.
+        </p>
+        <button type="button" id="btn-reset-bloqueado" class="btn-sm btn-danger">
+          🗑 Reset copas (borrar plan anterior)
+        </button>
+      </div>`;
+
+    container.querySelector('#btn-reset-bloqueado')?.addEventListener('click', async () => {
+      const btn = container.querySelector('#btn-reset-bloqueado');
+      btn.disabled = true;
+      btn.textContent = '⏳ Reseteando...';
+
+      const { resetCopas } = await import('./planService.js');
+      const result = await resetCopas(supabase, TORNEO_ID);
+      if (result.ok) {
+        logMsg('✅ Plan anterior borrado — podés definir un nuevo plan');
+        _onSaved?.();
+      } else {
+        logMsg(`❌ Error: ${result.msg}`);
+        btn.disabled = false;
+        btn.textContent = '🗑 Reset copas (borrar plan anterior)';
+      }
+    });
     return;
   }
 

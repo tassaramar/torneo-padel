@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-01 (integración de copas en vistas públicas — fixture + modal)
+**Última actualización**: 2026-03-02 (bug: estado inconsistente al importar parejas con copas ya aprobadas)
 
 ---
 
@@ -35,11 +35,36 @@
 
 > Máximo 3 ítems a la vez. Para agregar uno, sacar uno primero. Obliga a priorizar.
 
-1. **Polish visual copa** — distinción badge en vista jugador, colores victoria/derrota en modal
+1. **Bug scores + labels ronda + polish copa** — fix bug admin, centralizar `labelRonda()`, Doc 3 (badge copa + colores victoria/derrota)
+2. **Mensaje de cierre + fixture copa** — Doc 7 (mensaje final jugador) + Doc 5 (ocultar grupos en fase copa)
+3. **Presentismo UX** — Doc 8 (semántica toggle, mover botones, drill-down dashboard)
 
 ---
 
 ## Backlog
+
+### [BUG] Tab Copas — estado inconsistente al importar nuevas parejas con copas ya aprobadas `🔍 EN ANÁLISIS`
+
+**Reproducción**: Hay 3 parejas, con copas aprobadas del ciclo anterior. Se importan 4 parejas nuevas (Setup → Importar). Se va al tab Copas.
+
+**Síntoma observado** (screenshot disponible):
+- Breadcrumb muestra "2. Esperar grupos" como paso activo
+- Texto: "Esperando que finalicen los grupos (0 de 1 completados)"
+- Texto: "🔒 Plan bloqueado — hay copas aprobadas. Usá Reset para empezar de nuevo."
+
+**Problema**: Los dos mensajes son contradictorios. El breadcrumb dice "esperar grupos" pero el cuerpo dice "bloqueado por copas aprobadas". El usuario no entiende en qué estado está ni qué hacer.
+
+**Causa probable**: Al importar parejas nuevas, los grupos se regeneran (partidos frescos, 0 jugados) pero las copas/esquemas del ciclo anterior persisten. `index.js` detecta que hay copas → va a `statusView`. Pero `statusView` también evalúa si los grupos terminaron → muestra el mensaje de "esperar grupos". Resultado: ambos textos aparecen al mismo tiempo.
+
+**Síntoma adicional**: El botón "🗑 Reset copas" **no aparece en pantalla** en este estado. El mensaje dice "Usá Reset" pero el botón está ausente — el usuario queda sin salida visible.
+
+**Workaround actual**: Tab Setup → "Regenerar torneo" (que incluye reset de copas), o manipular la BD directamente.
+
+**Idea de fix**: Cuando `statusView` detecta grupos incompletos + copas del ciclo anterior, mostrar un único mensaje claro con el botón Reset visible: "El plan de copas es del ciclo anterior. Hacé Reset para empezar de nuevo con la nueva configuración."
+
+**Archivos clave**: `src/admin/copas/index.js`, `src/admin/copas/statusView.js`
+
+---
 
 ### Múltiples torneos `🔍 EN ANÁLISIS`
 
@@ -278,6 +303,16 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 
 ---
 
+### [MEJORA] Modal index.html — pareja del jugador siempre primero en la lista de partidos `💡 CRUDA`
+
+**Idea**: En el tab Fixture del modal (y en el listado de partidos del grupo), los partidos se muestran con las parejas en el orden en que están en la BD. Para el jugador, sería más natural ver siempre su pareja listada primero ("Yo vs Rival"), no "Rival vs Yo" según cómo quedó guardado el partido.
+
+**Alcance**: Aplica al listado de partidos dentro del modal (`src/viewer/modalConsulta.js`), no necesariamente al fixture del organizador.
+
+**Archivo clave**: `src/viewer/modalConsulta.js`
+
+---
+
 ### [MEJORA] Colores en tablas/copas — verde para ganar, otro para perder `📋 PRIORIZADA`
 
 **Problema**: En la sección "Tablas/Copas" del modal en index.html, todos los resaltados del jugador usan el mismo verde — tanto las victorias como las derrotas como la posición en tabla.
@@ -290,6 +325,87 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 **Pregunta a resolver**: ¿La distinción de colores aplica también en la tabla de posiciones o solo en el listado de partidos jugados?
 
 **Archivo clave**: `src/viewer/modalConsulta.js`, `src/utils/tablaPosiciones.js`
+
+---
+
+### [MEJORA] Admin copas — UX del wizard de presets `💡 CRUDA`
+
+**Problemas identificados en testing**:
+
+1. **Presets hardcodeados vs BD son indistinguibles para el código pero generan duplicación**: Hoy `presets.js` tiene presets estáticos como fallback y `presets_copa` en BD tiene los mismos datos. Migrar los hardcodeados a BD y eliminar `presets.js` simplificaría el código y haría que todos los presets se gestionen igual.
+
+2. **No se indica cuál preset está activo**: Después de aplicar un preset, la vista vuelve a la lista sin indicar cuál fue seleccionado. El admin no tiene feedback de qué plan está activo. **Propuesta**: cuando hay un plan aplicado, mostrarlo prominentemente en una sección separada ("Plan activo") con detalle de seeds y cruces, y ocultar o minimizar la lista de presets alternativos.
+
+3. **Falta descripción de cada preset**: El nombre solo ("1ro vs 3ro - 2do Out") no alcanza para entender qué hace. Cada preset debería mostrar un resumen de sus reglas: cuántas copas, quiénes entran a cada una, qué formato tienen.
+
+4. **Representación visual de presets** *(más ambicioso)*: Mostrar una mini-vista del bracket/cruces de cada preset, para que el admin pueda elegir con mayor claridad.
+
+5. **Botón "Reset copas" solo visible en pasos 3-4**: El botón no aparece en el paso 2 (plan seleccionado, grupos en curso), pero el admin puede necesitar cambiar el plan. **Propuesta**: mostrar el botón de reset desde que hay un esquema seleccionado (paso 2+). En paso 2 sin partidos de copa, el reset solo elimina el esquema y vuelve al paso 1.
+
+**Sugerencia de implementación por etapas**:
+- Etapa 1: Migrar hardcodeados a BD + botón reset visible desde paso 2
+- Etapa 2: Sección "Plan activo" con detalle de seeds/cruces + ocultar lista de alternativos
+- Etapa 3: Descripción textual generada dinámicamente + representación visual (requiere diseño)
+
+**Archivos clave**: `src/admin/copas/planEditor.js`, `src/admin/copas/presets.js`, `src/admin/copas/planService.js`, `src/admin/copas/index.js`
+
+---
+
+### [BUG] Admin copas — scores muestran sets ganados en lugar de games `📋 PRIORIZADA`
+
+**Problema**: En `admin.html` > Copas > partidos en curso, el resultado se muestra como "1–0" (sets ganados) en lugar de "6–4, 4–6" (games por set). Causa: `statusView.js` usa `p.sets_a–p.sets_b` directamente en lugar de llamar a `formatearResultado()`.
+
+**Fix**: Agregar campos de sets a la query SELECT + usar `formatearResultado(p)` en `renderPartido()`.
+
+**Archivo clave**: `src/admin/copas/statusView.js`
+
+---
+
+### [MEJORA] Admin copas — estado "Finalizado" con podio de campeones `🔍 EN ANÁLISIS`
+
+**Problema**: El breadcrumb de copas tiene 4 pasos (Definir plan → Esperar grupos → Aprobar → En curso). El paso 4 nunca termina — cuando se jugaron todos los partidos de copa, sigue diciendo "En curso". No hay cierre visual ni se muestra quién ganó.
+
+**Idea**: Agregar un paso 5 "Finalizado" que se active cuando todos los partidos de copa estén confirmados/terminados. Mostrar una pantalla de podio por copa: Campeón, Subcampeón, 3° Puesto (si hubo).
+
+**Preguntas abiertas**:
+- ¿Qué pasa si una copa terminó pero otra no? ¿Paso 5 parcial o solo cuando TODAS terminan?
+- ¿El admin puede "volver atrás" desde Finalizado (ej. resetear una copa)?
+- ¿Esta pantalla de podio también debería existir en la vista del jugador (index.html)?
+- ¿El estado Finalizado persiste en BD o es derivado de los partidos?
+- ¿Interacción con el mensaje de cierre del jugador (Doc 7)?
+
+**Archivos clave**: `src/admin/copas/index.js`, `src/admin/copas/statusView.js`
+
+---
+
+---
+
+### [MEJORA] Admin copas — opción de 3er y 4to puesto en el wizard `📋 PRIORIZADA`
+
+**Problema**: El partido por 3er y 4to puesto se genera siempre para brackets de 4 y 8 equipos. No hay forma de desactivarlo desde el wizard.
+
+**Idea**: Agregar un toggle "¿Incluir partido por 3er y 4to puesto?" en el Panel 3 del wizard cuando `equipos >= 4`. Requiere guardar la preferencia en el esquema y que el RPC `aprobar_propuestas_copa` la respete.
+
+**Complejidad**: Requiere migración SQL para modificar el RPC. Diferido a próxima ronda de implementación.
+
+**Archivos clave**: `src/admin/copas/planEditor.js`, `src/admin/copas/planService.js`, migración SQL
+
+---
+
+### [BUG POTENCIAL] Múltiples sets no se pueden cargar en partidos de copa `🔍 EN ANÁLISIS`
+
+**Síntoma**: Al intentar cargar el resultado de un partido de copa, la UI no permite ingresar más de 1 set. El fix de `statusView.js` (mostrar games en vez de sets ganados) no se pudo validar para partidos multi-set porque no existe forma de generarlos.
+
+**Hipótesis**: La pantalla de carga de resultados (`src/viewer/cargarResultado.js` o `src/carga/copas.js`) tiene la cantidad de sets hardcodeada a 1, o deriva el `num_sets` del esquema de copa que siempre se inicializa en 1.
+
+**Impacto**: Los partidos de copa quedan forzados a 1 set. Si el torneo usa 3 sets, los resultados de copa son inconsistentes con los de grupos.
+
+**Para investigar**:
+- ¿De dónde toma `num_sets` el flujo de carga de copa?
+- ¿El RPC `aprobar_propuestas_copa` crea partidos con `num_sets = 1` siempre?
+- ¿El wizard de copas tiene campo para configurar cantidad de sets por copa?
+
+**Archivos sospechosos**: `src/viewer/cargarResultado.js`, `src/carga/copas.js`, migración SQL del RPC `aprobar_propuestas_copa`
 
 ---
 
@@ -309,6 +425,14 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 ---
 
 ## Historial — Implementado / Validado
+
+### Centralizar labels de rondas de copa `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-02
+
+Creado `src/utils/copaRondas.js` con `labelRonda(ronda, corto)`. Labels largo: SF→Semifinal, F→Final, 3P→3er y 4to puesto, direct→Final, QF→Cuartos de final. Labels corto: SF→Semi, F→Final, 3P→3° Puesto, direct→Final, QF→Cuartos. Eliminada duplicación en `statusView.js`, `vistaPersonal.js`, `carga/copas.js`, `planEditor.js`. Corregido label de `direct`: era "Cruce" en vistaPersonal, ahora es "Final" consistentemente.
+
+---
 
 ### Bugs wizard copas (admin) — 3 bugs resueltos `✅ IMPLEMENTADA`
 

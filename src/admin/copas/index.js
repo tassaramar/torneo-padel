@@ -69,7 +69,11 @@ async function cargarCopasAdmin() {
   const paso = determinarPaso(esquemas, propuestas, copas);
 
   let infoPaso2 = '';
-  if (paso === 2 && grupos && grupos.length > 0) {
+
+  // Estado inconsistente: hay propuestas aprobadas pero no copas (plan de ciclo anterior)
+  if (paso === 2 && propuestas.some(p => p.estado === 'aprobado')) {
+    infoPaso2 = 'Plan anterior detectado — hacé Reset para empezar de nuevo';
+  } else if (paso === 2 && grupos && grupos.length > 0) {
     const { data: partidos } = await supabase
       .from('partidos')
       .select('grupo_id, estado')
