@@ -10,6 +10,7 @@ import {
   modificarPropuesta,
   resetCopas
 } from './planService.js';
+import { formatearResultado } from '../../utils/formatoResultado.js';
 
 /**
  * Renderiza el estado actual de las copas.
@@ -30,6 +31,8 @@ export async function renderStatusView(container, esquemas, propuestas, copas, o
       .select(`
         id, copa_id, ronda_copa, orden_copa, estado,
         sets_a, sets_b,
+        set1_a, set1_b, set2_a, set2_b, set3_a, set3_b,
+        stb_puntos_a, stb_puntos_b,
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
       `)
@@ -166,7 +169,7 @@ function _renderEsquemaEnCurso(esquema, copa, partidos) {
   const renderPartido = (p, label) => {
     if (!p) return '';
     const resultado = p.sets_a !== null
-      ? `<span style="font-size:13px; color:var(--muted);">${p.sets_a}–${p.sets_b}</span>`
+      ? `<span style="font-size:13px; color:var(--muted);">${formatearResultado(p, { incluirSTB: true })}</span>`
       : `<span style="font-size:12px; color:var(--muted);">pendiente</span>`;
     return `
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;
