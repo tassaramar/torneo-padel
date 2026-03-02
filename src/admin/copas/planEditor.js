@@ -11,6 +11,7 @@
 import { supabase, TORNEO_ID, logMsg } from '../context.js';
 import { guardarEsquemas, esPlanBloqueado, cargarPresets, guardarPreset, eliminarPreset } from './planService.js';
 import { detectarYSugerirPreset, obtenerPresetsCompatibles } from './presets.js';
+import { labelRonda } from '../../utils/copaRondas.js';
 
 // ─── Colores de copa (índice 0–5) ─────────────────────────────────────────────
 const COPA_COLORS = [
@@ -405,7 +406,7 @@ function _renderCopaContent(idx) {
 
   // ── Format selector (2 / 4 / 8 teams) ──────────────────────────────────────
   const segHtml = [2, 4, 8].map(n => {
-    const sub = n === 2 ? '1 partido' : n === 4 ? 'semi+final' : 'cuartos';
+    const sub = n === 2 ? '1 partido' : n === 4 ? `${labelRonda('SF', true)}+${labelRonda('F', true)}` : labelRonda('QF', true);
     return `
       <button type="button" class="wiz-seg-opt${copa.equipos === n ? ' active' : ''}" data-eq="${n}">
         <div style="font-weight:600;">${n}</div>

@@ -11,6 +11,7 @@ import {
   resetCopas
 } from './planService.js';
 import { formatearResultado } from '../../utils/formatoResultado.js';
+import { labelRonda } from '../../utils/copaRondas.js';
 
 /**
  * Renderiza el estado actual de las copas.
@@ -109,13 +110,13 @@ export async function renderStatusView(container, esquemas, propuestas, copas, o
 }
 
 function _renderEsquemaPropuestas(esquema, propuestas) {
-  const formatoLabel = esquema.formato === 'direct' ? 'cruce directo' : `${propuestas.length} semi${propuestas.length > 1 ? 's' : ''}`;
+  const formatoLabel = esquema.formato === 'direct' ? labelRonda('direct') : `${propuestas.length} ${labelRonda('SF', true).toLowerCase()}${propuestas.length > 1 ? 's' : ''}`;
   const crucesHtml = propuestas.map((p, i) => `
     <div class="copa-propuesta-fila" data-propuesta-id="${p.id}"
          style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;
                 padding:6px 0; border-bottom:1px solid var(--border,#e5e7eb);">
       <span style="font-size:13px; color:var(--muted); min-width:40px;">
-        ${esquema.formato === 'direct' ? '⚔️' : `Semi ${i + 1}`}
+        ${esquema.formato === 'direct' ? labelRonda('direct') : `${labelRonda('SF', true)} ${i + 1}`}
       </span>
       <span class="copa-prop-a" style="font-size:14px; font-weight:500;">
         ${_esc(p.pareja_a?.nombre || '?')}
@@ -184,10 +185,10 @@ function _renderEsquemaEnCurso(esquema, copa, partidos) {
   };
 
   const partidosHtml = [
-    ...semis.map((s, i) => renderPartido(s, `Semi ${i + 1}`)),
-    renderPartido(directo, '⚔️'),
-    renderPartido(final, 'Final'),
-    renderPartido(tercer, '3° Puesto')
+    ...semis.map((s, i) => renderPartido(s, `${labelRonda('SF', true)} ${i + 1}`)),
+    renderPartido(directo, labelRonda('direct')),
+    renderPartido(final, labelRonda('F')),
+    renderPartido(tercer, labelRonda('3P'))
   ].filter(Boolean).join('');
 
   // Indicador de si la final se va a generar automáticamente

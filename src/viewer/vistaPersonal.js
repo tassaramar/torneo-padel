@@ -32,6 +32,7 @@ import {
   crearMapaPosiciones
 } from '../utils/colaFixture.js';
 import { showToast } from '../utils/toast.js';
+import { labelRonda } from '../utils/copaRondas.js';
 import {
   initPresentismo,
   obtenerPresentes,
@@ -1335,7 +1336,6 @@ function agruparPartidosEnRondas(misPartidosPendientes, todosPartidosGrupo, todo
 /**
  * Renderiza partidos por jugar agrupados en rondas
  */
-const _RONDA_COPA_LABEL = { SF: 'Semi', F: 'Final', '3P': '3° Puesto', direct: 'Cruce' };
 
 function renderPartidosCargar(partidosPendientes, todosPartidosGrupo, todosPartidosUsuario, identidad) {
   const container = document.getElementById('partidos-cargar');
@@ -1417,7 +1417,7 @@ function renderPartidosCargar(partidosPendientes, todosPartidosGrupo, todosParti
     `;
     copaPartidos.forEach(p => {
       const oponente = getOponenteName(p, identidad);
-      const rondalabel = _RONDA_COPA_LABEL[p.ronda_copa] || p.ronda_copa || 'Copa';
+      const rondalabel = labelRonda(p.ronda_copa, true) || 'Copa';
       const esperandoConfirmacion = p.estado === 'a_confirmar' && p.cargado_por_pareja_id === identidad.parejaId;
       html += `
         <div class="partido partido-cargar" data-partido-id="${p.id}">
@@ -1460,7 +1460,7 @@ function renderPartidosConfirmados(partidos, identidad) {
     const oponente = getOponenteName(p, identidad);
     const ganador = getGanador(p, identidad);
     const esperandoConfirmacion = p.estado === 'a_confirmar' && p.cargado_por_pareja_id === identidad.parejaId;
-    const copaLabel = p.copa_id ? (_RONDA_COPA_LABEL[p.ronda_copa] || p.ronda_copa || 'Copa') : null;
+    const copaLabel = p.copa_id ? (labelRonda(p.ronda_copa, true) || 'Copa') : null;
 
     return `
       <div class="partido partido-confirmado ${ganador ? 'ganador-' + ganador : ''}">

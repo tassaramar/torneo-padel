@@ -1,14 +1,7 @@
 import { state } from './state.js';
 import { crearCardEditable } from './cardEditable.js';
 import { tieneResultado } from '../utils/formatoResultado.js';
-
-function labelRonda(r) {
-  if (!r) return '';
-  if (r === 'SF') return 'Semi';
-  if (r === 'F') return 'Final';
-  if (r === '3P') return '3/4';
-  return r;
-}
+import { labelRonda } from '../utils/copaRondas.js';
 
 /**
  * Guarda resultado como set1 (partido a 1 set) - para uso de admin en copas
@@ -110,7 +103,7 @@ function renderCopas({ supabase, copasCont, partidos, onAfterSave }) {
     c.partidos
       .sort((a, b) => (a.orden_copa ?? 999) - (b.orden_copa ?? 999))
       .forEach(p => {
-        const header = `<strong>${c.nombre}</strong> · ${labelRonda(p.ronda_copa) || 'Partido'}`;
+        const header = `<strong>${c.nombre}</strong> · ${labelRonda(p.ronda_copa, true) || 'Partido'}`;
 
         // Para la card editable, mostrar el set1 (o null si no hay resultado)
         const gamesA = p.set1_a;
