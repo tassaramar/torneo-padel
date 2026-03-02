@@ -55,6 +55,12 @@ export async function guardarEsquemas(supabase, torneoId, esquemas) {
     return { ok: true };
   }
 
+  // Verificar que todos los esquemas tienen reglas
+  const esquemasInvalidos = esquemas.filter(e => !e.reglas || e.reglas.length === 0);
+  if (esquemasInvalidos.length > 0) {
+    return { ok: false, msg: `Copa(s) sin reglas: ${esquemasInvalidos.map(e => e.nombre).join(', ')}` };
+  }
+
   // Insertar nuevos esquemas
   const rows = esquemas.map((e, i) => ({
     torneo_id: torneoId,

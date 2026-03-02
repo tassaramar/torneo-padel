@@ -77,7 +77,7 @@ window.addEventListener('homeRefresh', () => {
 });
 
 window.addEventListener('abrirModalConsulta', () => {
-  abrirModal('mi-grupo');
+  abrirModal('grupos');
 });
 
 /**

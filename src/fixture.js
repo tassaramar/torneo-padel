@@ -754,6 +754,8 @@ function renderColaItem(partido, gruposOrdenados, opts = {}) {
 
 const RONDA_COPA_LABEL = { SF: 'Semi', F: 'Final', '3P': '3° Puesto', direct: 'Cruce' };
 
+const RONDA_COPA_SORT_ORDER = { direct: 0, SF: 1, F: 2, '3P': 3 };
+
 /**
  * Renderiza una card de partido de copa en la cola
  */
@@ -767,6 +769,7 @@ function renderCopaItem(partido, opts = {}) {
 
   let html = `<div class="fixture-cola-item" data-search="${escapeHtml(searchable)}">`;
   html += '<div class="fixture-cola-item-header">';
+  if (opts.posicion != null) html += `<span class="fixture-cola-posicion">${opts.posicion}</span>`;
   html += `<span class="fixture-pill-copa">🏆 ${escapeHtml(copaLabel)}</span>`;
   html += `<span class="fixture-cola-ronda">${escapeHtml(rondaLabel)}</span>`;
   html += '</div>';
@@ -869,23 +872,21 @@ function renderColaFixture(partidos, grupos, parejas, partidosCopa = []) {
     });
   }
 
-  if (colaFiltrada.length) {
+  // Ordenar copa pendientes: por nombre de copa, luego por ronda (SF antes que F)
+  const copaPendientesOrdenados = [...copaPendientes].sort((a, b) => {
+    const cmpNombre = (a.copa_nombre || '').localeCompare(b.copa_nombre || '');
+    if (cmpNombre !== 0) return cmpNombre;
+    return (RONDA_COPA_SORT_ORDER[a.ronda_copa] ?? 99) - (RONDA_COPA_SORT_ORDER[b.ronda_copa] ?? 99);
+  });
+
+  const hayPendientes = colaFiltrada.length > 0 || copaPendientesOrdenados.length > 0;
+  if (hayPendientes) {
     colaFiltrada.forEach((p, i) => { html += renderColaItem(p, gruposOrdenados, { posicion: i + 1, acciones: 'pendiente' }); });
+    copaPendientesOrdenados.forEach((p, i) => { html += renderCopaItem(p, { posicion: colaFiltrada.length + i + 1, acciones: 'pendiente' }); });
   } else {
     html += '<p class="fixture-cola-vacio">Ninguno</p>';
   }
   html += '</div></details>';
-
-  // Sección: Copas pendientes – solo si hay copa partidos pendientes
-  if (copaPendientes.length > 0) {
-    html += '<details class="fixture-cola-seccion fixture-cola-seccion-copas" open>';
-    html += '<summary class="fixture-cola-seccion-titulo">🏆 Copas pendientes</summary>';
-    html += '<div class="fixture-cola-lista">';
-    copaPendientes
-      .sort((a, b) => (a.orden_copa || 0) - (b.orden_copa || 0))
-      .forEach(p => { html += renderCopaItem(p, { acciones: 'pendiente' }); });
-    html += '</div></details>';
-  }
 
   // Sección: Ya jugados (abajo) – colapsable, acento verde
   html += '<details class="fixture-cola-seccion fixture-cola-seccion-ya-jugados" open>';

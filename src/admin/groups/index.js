@@ -1,4 +1,4 @@
-import { dom, logMsg } from '../context.js';
+import { dom, logMsg, supabase, TORNEO_ID } from '../context.js';
 import { fetchGrupos, cargarGrupoCierre, resetPartidosGrupos, generarPartidosGrupos } from './service.js';
 import { renderOrUpdateGrupoCard, renderGrupoError } from './ui.js';
 import { state } from '../state.js';
@@ -11,11 +11,27 @@ export function initGroups() {
   if (btnGen) {
     btnGen.onclick = async () => {
       const ok = confirm(
-        'RESET PARTIDOS DE GRUPO\n\n' +
-        'Esto borra todos los partidos de grupos existentes y los regenera desde cero.\n\n' +
-        '¿Continuar?'
+        '🔥 REGENERAR TORNEO\n\n' +
+        'Borra TODO y regenera desde cero:\n' +
+        '🗑️ Partidos de grupos (y los regenera)\n' +
+        '🗑️ Copas: partidos, copas, propuestas y plan\n\n' +
+        '✅ Mantiene: parejas y grupos\n\n' +
+        'Usá esto para empezar el torneo de cero. ¿Continuar?'
       );
       if (!ok) return;
+
+      logMsg('🔥 Regenerando torneo...');
+
+      // 1. Reset copas (partidos, copas, propuestas, esquemas)
+      const { resetCopas } = await import('../copas/planService.js');
+      const resetResult = await resetCopas(supabase, TORNEO_ID);
+      if (!resetResult.ok) {
+        logMsg(`❌ Error reseteando copas: ${resetResult.msg}`);
+        return;
+      }
+      logMsg(`✅ Copas reseteadas (${resetResult.partidos_borrados ?? 0} partidos, ${resetResult.copas_borradas ?? 0} copas)`);
+
+      // 2. Regenerar partidos de grupos
       const result = await generarPartidosGrupos();
       if (result) await cargarCierreGrupos();
     };

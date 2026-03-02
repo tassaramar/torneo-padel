@@ -36,8 +36,9 @@ let _wiz = null;   // { numCopas, copas: [{nombre, equipos, modo, posiciones, de
 /**
  * @param {HTMLElement} container
  * @param {Function} onSaved - callback para re-render tras aplicar el plan
+ * @param {Array|null} esquemaExistente - esquemas actuales del torneo (para editar un plan vigente)
  */
-export async function renderPlanEditor(container, onSaved) {
+export async function renderPlanEditor(container, onSaved, esquemaExistente = null) {
   _c       = container;
   _onSaved = onSaved;
 
@@ -70,8 +71,13 @@ export async function renderPlanEditor(container, onSaved) {
     ? compatiblesDb
     : obtenerPresetsCompatibles(info.numGrupos, info.parejasPorGrupo);
 
-  _initWiz(2);
-  _showPresets();
+  if (esquemaExistente && esquemaExistente.length > 0) {
+    _fromEsquemasToWiz(esquemaExistente);
+    _showWizNum();
+  } else {
+    _initWiz(2);
+    _showPresets();
+  }
 }
 
 // ─── Wizard state helpers ──────────────────────────────────────────────────────
@@ -178,7 +184,7 @@ function _showPresets() {
       const preset = _presets.find(p => p.clave === btn.dataset.clave);
       if (!preset) return;
       _fromEsquemasToWiz(preset.esquemas);
-      _showPreview(() => _showPresets());
+      _showPreview(() => _showWizNum());
     });
   });
 
@@ -196,7 +202,7 @@ function _showPresets() {
       const p = _dbPresets.find(p => p.id === btn.dataset.presetId);
       if (!p) return;
       _fromEsquemasToWiz(p.esquemas);
-      _showPreview(() => _showPresets());
+      _showPreview(() => _showWizNum());
     });
   });
 
@@ -603,6 +609,9 @@ function _showPreview(backFn) {
       </div>`;
   }).join('');
 
+  // Copas inválidas: modo grupo sin posiciones seleccionadas
+  const copasInvalidas = _wiz.copas.filter(c => c.modo === 'grupo' && c.posiciones.length === 0);
+
   _c.innerHTML = `
     <div class="wiz-panel">
       <div class="wiz-topbar">
@@ -629,8 +638,15 @@ function _showPreview(backFn) {
         </div>
       </div>
 
+      ${copasInvalidas.length > 0 ? `
+        <div style="margin-top:12px; padding:10px 12px; background:#fef2f2;
+             border:1px solid #fca5a5; border-radius:8px; font-size:13px; color:#dc2626;">
+          ⚠️ ${copasInvalidas.map(c => `${_esc(c.nombre)}: sin posiciones seleccionadas`).join(' · ')}
+        </div>` : ''}
+
       <div style="margin-top:16px; display:flex; flex-direction:column; gap:8px;">
-        <button type="button" class="btn-primary" style="padding:12px;" id="wiz-btn-confirm">
+        <button type="button" class="btn-primary" style="padding:12px;" id="wiz-btn-confirm"
+                ${copasInvalidas.length > 0 ? 'disabled' : ''}>
           ✓ Aplicar este plan
         </button>
         <button type="button" class="btn-sm" style="padding:10px;" id="wiz-btn-cancel">
@@ -691,7 +707,6 @@ async function _applyEsquemas(esquemas, btn) {
       btn.disabled = false;
       btn.textContent = '✓ Aplicar este plan';
     }
-    _showPresets();
   }
 }
 

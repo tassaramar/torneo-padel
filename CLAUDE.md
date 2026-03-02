@@ -10,6 +10,8 @@ App web para gestión de torneos de pádel con sistema de autogestión para juga
 
 **Design Philosophy**: Mobile-first. Todas las features deben diseñarse primero para mobile y luego escalar a desktop.
 
+**Product Philosophy**: Pensar siempre desde el usuario, no desde el código. Antes de diseñar una solución, preguntarse: "¿Qué pregunta tiene el usuario cuando llega a esta pantalla? ¿Qué información le falta?" Las decisiones de UX son decisiones de producto — no tomarlas sin validar con el owner. Presentar alternativas funcionales (no código) y pedir feedback antes de implementar.
+
 ## Commands
 
 ```bash
@@ -50,7 +52,8 @@ La app tiene **múltiples puntos de entrada HTML** (no un SPA clásico con routi
 
 - **`admin.html`** → Gestión del torneo
   - Entry point: `src/admin.js`
-  - Crea/edita: grupos, parejas, copas
+  - Tabs superiores: **Grupos** | **Copas** | **Setup**
+  - Log de acciones como `<details open>` siempre visible (logMsg con timestamp, toast ✅/❌/⚠️)
 
 - **`carga.html`** → Carga rápida de resultados
   - Entry point: `src/carga.js`
@@ -63,6 +66,15 @@ La app tiene **múltiples puntos de entrada HTML** (no un SPA clásico con routi
 ```
 src/
 ├── admin/          # Gestión de torneo (grupos, parejas, copas)
+│   ├── copas/
+│   │   ├── index.js          # Orquestador — determina estado y delega a planEditor o statusView
+│   │   ├── planEditor.js     # Wizard de 4 paneles (presets → num copas → config → preview)
+│   │   ├── statusView.js     # Vista de propuestas pendientes y copas en curso
+│   │   ├── planService.js    # CRUD esquemas_copa, presets_copa + llamadas a RPCs
+│   │   ├── bracketLogic.js   # Seeding, winner/loser para brackets
+│   │   └── presets.js        # Presets estáticos (fallback si BD vacía)
+│   ├── groups/               # Gestión de grupos y parejas
+│   └── context.js            # supabase, TORNEO_ID, logMsg (compartidos admin)
 ├── carga/          # Módulos de carga de resultados
 ├── viewer/         # Vista del jugador (home único)
 │   ├── vistaPersonal.js      # Renderiza home del jugador
@@ -70,11 +82,14 @@ src/
 │   ├── cargarResultado.js    # Flujo de carga de resultado
 │   └── presentismo.js        # Gestión de presentismo individual
 ├── analytics/      # Estadísticas y rankings
+├── auth/           # Autenticación
+│   └── adminGuard.js         # requireAdmin() con Google OAuth, bypass DEV
 ├── identificacion/ # Sistema de identificación de jugadores
 ├── utils/          # Utilidades compartidas
 │   ├── colaFixture.js        # Lógica compartida de fixture (SINGLE SOURCE OF TRUTH)
 │   ├── formatoResultado.js   # Formateo y validación de resultados
-│   └── tablaPosiciones.js    # Cálculo de tabla de posiciones
+│   ├── tablaPosiciones.js    # Cálculo de tabla de posiciones por grupo
+│   └── tablaGrupoDB.js       # calcularTablaGrupoDB — cálculo desde BD (reutilizable)
 └── [otros .js]     # Entry points de cada HTML
 ```
 
@@ -85,7 +100,20 @@ PostgreSQL con migraciones en `supabase/migrations/`. Tablas principales:
 - **`torneos`**: Configuración del torneo (formato, presentismo activo)
 - **`grupos`**: Grupos del torneo (A, B, C...)
 - **`parejas`**: Parejas de jugadores con campo `presentes TEXT[]` (presentismo individual)
-- **`partidos`**: Partidos con estados de resultado (ver Key Pattern #6) + campos de sets + campos temporales para disputa
+- **`partidos`**: Partidos con estados de resultado (ver Key Pattern #7) + campos de sets + campos temporales para disputa
+  - `copa_id` (UUID, nullable): NULL = partido de grupo, NOT NULL = partido de copa
+  - `ronda_copa` (TEXT): `'SF'`, `'F'`, `'3P'`, `'direct'` — solo para partidos de copa
+- **`copas`**: Copas del torneo (nombre, esquema_copa_id, torneo_id)
+- **`esquemas_copa`**: Plan de copas definido por el admin (nombre, formato, reglas JSON de seeding)
+- **`propuestas_copa`**: Propuestas generadas automáticamente por el motor (estado: pendiente/aprobada)
+- **`presets_copa`**: Presets de configuración de copas (9 por defecto + custom del admin)
+
+**RPCs de copa** (funciones PostgreSQL):
+- `verificar_y_proponer_copas(p_torneo_id)`: Genera propuestas cuando grupos terminan. Soporta `modo:'global'` (seeding por ranking) y por posición de grupo.
+- `aprobar_propuestas_copa(p_torneo_id)`: Aprueba propuestas pendientes y genera partidos de copa.
+- `generar_finales_copa(p_torneo_id)`: Genera finales automáticamente cuando semis están confirmadas.
+- `reset_copas_torneo(p_torneo_id)`: Borra partidos y copas del torneo.
+- `obtener_standings_torneo(p_torneo_id)`: Retorna tabla de posiciones cross-grupos (grupo_id, pareja_id, puntos, ds, gf, posicion_en_grupo, grupo_completo).
 
 ### Key Patterns
 
@@ -133,10 +161,15 @@ Las vistas usan polling cada 30 segundos:
 
 #### 5. Modal Full-Screen (Vista Jugador)
 
-En `index.html`, botón "Tablas/Grupos/Fixture" abre modal full-screen con tabs:
-- Mi grupo
-- Otros grupos
-- Fixture completo
+En `index.html`, botón "Tablas/Grupos/Fixture" abre modal full-screen con tabs principales:
+
+```
+[Grupos]         [Copas]         [Fixture]
+```
+
+- **Grupos**: Sub-tabs por grupo (Grupo A, B, C...) + "General" (tabla cross-grupos). Mi grupo seleccionado por defecto.
+- **Copas**: Solo visible si hay copas con partidos creados. Muestra estructura de llaves por copa.
+- **Fixture**: Todos los partidos (grupos + copas) en orden cronológico/operacional.
 
 Implementación: `src/viewer/modalConsulta.js`
 
@@ -191,6 +224,31 @@ en_juego    en_revision → confirmado
 - La pareja que cargó primero puede editar su carga mientras está `a_confirmar`
 - Una vez `confirmado`, el resultado es inmutable desde la vista del jugador
 
+#### 8. Sistema de Copas (plan → propuesta → aprobación)
+
+Flujo automatizado donde el admin define un plan y el motor genera copas cuando los grupos terminan.
+
+**Flujo completo**:
+1. **Admin define plan**: Wizard en `planEditor.js` → elige preset o crea esquema custom → se guarda en `esquemas_copa`
+2. **Motor genera propuestas**: Cuando grupos terminan, `verificar_y_proponer_copas` crea propuestas automáticamente en `propuestas_copa`
+3. **Admin aprueba**: Revisa propuestas en `statusView.js` → `aprobar_propuestas_copa` genera las copas y sus partidos
+4. **Partidos se juegan**: Igual que partidos de grupos (misma tabla `partidos`, con `copa_id` no nulo)
+5. **Finales automáticas**: `generar_finales_copa` genera finales cuando semis están confirmadas
+
+**Trigger automático**: `cargarResultado.js` llama `verificar_y_proponer_copas` (fire-and-forget) al confirmar resultado — si los grupos ya terminaron, las propuestas aparecen automáticamente.
+
+**Seeding**: Dos modos en `reglas` de `esquemas_copa`:
+- Por posición de grupo: `[{ posicion: 1 }, { posicion: 2 }]` — toma N-ésimo de cada grupo
+- Global: `{ modo: 'global', desde: 1, hasta: 4 }` — toma del ranking general del torneo
+
+**Formatos de copa**: `direct` (2 equipos, cruce directo) o `bracket` (4/8 equipos, eliminación)
+
+**Módulos**: `src/admin/copas/` — ver Module Organization para detalle de cada archivo.
+
+**Documentación detallada**: `docs/plan-reingenieria-copas.md`
+
+---
+
 ## Code Quality Principles
 
 ### Avoid Code Duplication
@@ -216,8 +274,9 @@ Si estas funciones aparecen duplicadas en otro archivo, eliminar la duplicación
 
 - **`docs/home-unico-especificacion.md`**: Especificación completa del Home Único
 - **`docs/fixture-presentismo-visual.md`**: Diseño de badges de presentismo
-- **`docs/implementacion-presentismo-index-html.md`**: Plan de integración de presentismo
-- **`C:\Users\Martin\.claude\plans\purrfect-herding-aurora.md`**: Plan maestro del proyecto con todas las decisiones
+- **`docs/plan-reingenieria-copas.md`**: Plan canónico del sistema de copas
+- **`docs/spec-*.md`**: Especificaciones funcionales para implementar (bugs, mejoras, features)
+- **`docs/brainstorming-proximas-mejoras.md`**: Backlog completo del producto (fuente única de verdad para ideas)
 
 ## Development Workflow
 
@@ -241,10 +300,12 @@ Migraciones en `supabase/migrations/`. Para aplicar:
 ```
 
 Migraciones recientes importantes:
+- `20260130000000_refactor_games_to_sets_model.sql`: Modelo de sets
 - `20260130010000_add_presentes_to_parejas.sql`: Campo de presentismo individual
 - `20260130020000_add_presentismo_activo_to_torneos.sql`: Toggle de presentismo por torneo
-- `20260130000000_refactor_games_to_sets_model.sql`: Modelo de sets
 - `20260224000000_fix_rls_policies.sql`: RLS policies alineadas con modelo de auth (función `is_admin()`, restricciones por rol)
+- `20260225000000_add_esquemas_copa.sql`: Tablas `esquemas_copa`, `propuestas_copa`, RPCs de copa
+- `20260227000000_add_presets_copa.sql`: Tabla `presets_copa` con 9 presets por defecto
 
 ## Environment Variables
 

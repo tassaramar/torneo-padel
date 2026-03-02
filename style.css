@@ -5716,3 +5716,138 @@ a.btn-action-secondary:hover {
 /* Misc */
 .wiz-divider { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 .wiz-copa-step-header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+
+/* Indicador de progreso del flujo de copas */
+.indicador-pasos {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 14px;
+  background: #F8FAFC;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.paso-item {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.paso-activo     { background: #1D4ED8; color: white; font-weight: 600; }
+.paso-completado { color: #16A34A; }
+.paso-futuro     { color: #9CA3AF; }
+.paso-sep        { color: #CBD5E1; font-size: 0.75rem; }
+
+/* ─── Modal: sub-tabs dentro de Grupos ─────────────────────────────────────── */
+
+.modal-grupos-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.modal-sub-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 12px 0 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.modal-sub-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.modal-sub-tab {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  box-shadow: none;
+  white-space: nowrap;
+}
+
+.modal-sub-tab:hover {
+  border-color: var(--primary-900);
+  color: var(--primary-900);
+}
+
+.modal-sub-tab.active {
+  background: var(--primary);
+  border-color: var(--primary-900);
+  color: white;
+}
+
+/* ─── Modal: tab Copas ──────────────────────────────────────────────────────── */
+
+.modal-copa-seccion {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-copa-seccion:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.modal-copa-titulo {
+  font-size: 16px;
+  font-weight: 800;
+  margin: 0 0 10px 0;
+}
+
+/* ─── Modal: tabla general ──────────────────────────────────────────────────── */
+
+.modal-aviso-provisional {
+  font-size: 13px;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+
+.tabla-general-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tabla-general-separador td {
+  height: 8px;
+  background: var(--border);
+  padding: 0;
+}
+
+/* ─── Modal: fixture tab — pill de copa ─────────────────────────────────────── */
+
+.modal-fixture-copa-pill {
+  flex-shrink: 0;
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  border: 1.5px solid #b45309;
+  font-size: 11px;
+  font-weight: 600;
+  background: #fef3c7;
+  color: #92400e;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+/* Resaltado de item en fixture */
+.modal-fixture-item.es-mio {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+}
+.paso-info       { font-size: 0.85rem; color: #64748B; margin: 0 0 12px 0; }

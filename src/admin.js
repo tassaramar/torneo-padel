@@ -62,16 +62,11 @@ requireAdmin(supabase, { onReady: initAdmin });
 
 export async function resetearResultados() {
   const confirmacion = confirm(
-    'RESETEAR RESULTADOS\n\n' +
-    'Esto va a:\n' +
-    '• Borrar todos los resultados de partidos de grupos\n' +
-    '• Volver todos los partidos de grupos a estado "pendiente"\n' +
-    '• Eliminar TODOS los partidos de copas\n\n' +
-    'MANTIENE:\n' +
-    '✅ Parejas\n' +
-    '✅ Grupos\n' +
-    '✅ Copas (estructura)\n' +
-    '✅ Estructura de partidos de grupos\n\n' +
+    '🧹 LIMPIAR RESULTADOS DE GRUPOS\n\n' +
+    'Pone en cero los resultados de todos los partidos de grupo.\n' +
+    'Los partidos siguen existiendo, solo se borran los scores.\n\n' +
+    '✅ Mantiene: parejas, grupos, partidos, copas\n' +
+    '🗑️ Borra: resultados (sets) de partidos de grupo\n\n' +
     '¿Continuar?'
   );
 
@@ -117,23 +112,6 @@ export async function resetearResultados() {
 
   logMsg(`✅ Partidos de grupos reseteados: ${countGrupos || 0}`);
 
-  // Eliminar partidos de COPAS (no solo resetear, sino borrarlos completamente)
-  logMsg('🧹 Eliminando partidos de copas...');
-  const { data: delPartidosCopas, error: errorCopas } = await supabase
-    .from('partidos')
-    .delete()
-    .eq('torneo_id', TORNEO_ID)
-    .not('copa_id', 'is', null)
-    .select('id');
-
-  if (errorCopas) {
-    console.error(errorCopas);
-    logMsg('❌ Error eliminando partidos de copas (ver consola)');
-    return;
-  }
-
-  logMsg(`✅ Partidos de copas eliminados: ${delPartidosCopas?.length || 0}`);
-
   // Limpiar posiciones manuales (opcional pero recomendado)
   const { error: errorPos, count: countPos } = await supabase
     .from('posiciones_manual')
@@ -149,8 +127,8 @@ export async function resetearResultados() {
   }
 
   logMsg('');
-  logMsg('🎯 Sistema listo para el torneo');
-  logMsg('💡 Todos los partidos están en estado pendiente');
+  logMsg('🎯 Resultados de grupos limpiados');
+  logMsg('💡 Todos los partidos de grupo están en estado pendiente');
   
   // Refrescar vistas si existen
   if (window.refreshPartidos) {

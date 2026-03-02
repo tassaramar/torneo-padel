@@ -1,127 +1,130 @@
-# Spec: Partidos de copa no visibles en vistas públicas
+# Spec: Integración de partidos de copa en vistas públicas
 
 **Estado**: 📋 PRIORIZADA
-**Prioridad**: Tier 1 — Bug
+**Prioridad**: Tier 1
 **Ítems del backlog**: "Partidos de copa no aparecen en fixture.html" + "Modal index.html no muestra partidos de copa"
 
 ---
 
-## Contexto
+## Principio de diseño
 
-El sistema de copas está implementado y funciona correctamente. Sin embargo, hay dos vistas públicas donde los partidos de copa son invisibles para los usuarios:
-
-1. **fixture.html** — La vista "Tabla" no renderiza partidos de copa en absoluto
-2. **index.html modal** — El tab "Fixture completo" los excluye explícitamente de la query
-
-Ambos bugs tienen la misma causa conceptual: las funciones de renderizado de fixture no fueron actualizadas cuando se implementó el sistema de copas.
+> El usuario no debería tener que hacer un "click mental" para encontrar partidos de copa en un lugar separado. La información debe fluir naturalmente: si hay partidos por jugar, aparecen en la cola — sean de grupo o de copa.
 
 ---
 
-## Bug 1 — fixture.html: sección "Todos los resultados" no muestra copas
+## Cambio 1 — fixture.html: Cola unificada
 
-### Causa raíz
+### Qué ve el organizador hoy
 
-En `src/fixture.js` (línea ~91-94), los partidos se separan en dos arrays:
+Vista Cola (la principal): los partidos de copa están en una sección separada "🏆 Copas pendientes" al final. El organizador tiene que scrollear pasando los de grupo y buscar la sección de copas para ver si hay algo.
 
-```javascript
-const partidos = todosPartidos.filter(p => !p.copa_id);           // grupos
-const partidosCopa = todosPartidos
-  .filter(p => p.copa_id)
-  .map(p => ({ ...p, copa_nombre: copaNombrePorId[p.copa_id] || 'Copa' }));
+### Qué debería ver
+
+**Una sola cola** donde los partidos de copa aparecen al final (después de todos los de grupo), **integrados en la misma lista**, con un badge 🏆 que los distingue. No hay sección separada.
+
+```
+Cola de partidos (orden sugerido):
+
+#5   Grupo A R3       Tincho-Max vs Pedro-Lucho      ⚡ En juego
+#6   Grupo B R3       Nico-Fede vs Gaby-Santi        ⏳ Pendiente
+#7   Grupo C R3       Rafa-Javi vs Lucas-Mati         ⏳ Pendiente
+#8   🏆 Copa Oro SF   Tincho-Max vs Rafa-Javi         ⏳ Pendiente
+#9   🏆 Copa Plata SF Pedro-Lucho vs Gaby-Santi      ⏳ Pendiente
 ```
 
-`partidosCopa` existe y está cargado, pero **`renderFixtureGrid()` (línea ~241) solo recibe `partidos`** — el array de grupos. Nunca se le pasan los partidos de copa.
+### Comportamiento específico
 
-La vista "Cola" (sugerida) SÍ muestra copas en su propia sección. El bug es específico a la vista "Tabla".
+- Los partidos de copa se **numeran** como parte de la cola global (#8, #9...), continuando la numeración de los de grupo
+- Los partidos de copa van **siempre al final** de la cola, después de todos los de grupo. Esto es coherente porque las copas se generan cuando los grupos terminan (o están por terminar)
+- Dentro de los de copa: ordenar por nombre de copa, luego por ronda (SF antes de F)
+- Badge visible: "🏆 Copa Oro — Semi", "🏆 Copa Plata — Final"
+- Los botones de acción del organizador ("Marcar en juego", etc.) funcionan igual que para partidos de grupo
 
-### Fix
+### Vista Tabla
 
-En `renderFixtureGrid()`, después del grid de grupos, agregar una sección "Copas" que renderice `partidosCopa`:
-
-**Enfoque recomendado**: Pasar `partidosCopa` como segundo parámetro a `renderFixtureGrid()` y, si hay partidos de copa, agregar al final del HTML una sección separada similar a la de "Copas pendientes" en la vista Cola.
-
-```javascript
-// Cambiar firma de:
-function renderFixtureGrid(partidos, grupos, stats)
-// A:
-function renderFixtureGrid(partidos, grupos, stats, partidosCopa = [])
-```
-
-Al final del HTML generado por `renderFixtureGrid()`, si `partidosCopa.length > 0`:
-
-```html
-<section class="copa-section">
-  <h3>🏆 Copas</h3>
-  <!-- por cada copa distinta: nombre + partidos agrupados por ronda -->
-</section>
-```
-
-El formato de cada partido de copa puede reutilizar el template de `renderCopaItem()` que ya existe en `fixture.js` (línea ~738-769).
-
-**Caller a actualizar**: La llamada a `renderFixtureGrid()` en `init()` o en la función de refresh debe pasar `partidosCopa`.
+La vista Tabla (grid por grupos) puede opcionalmente mostrar una sección "🏆 Copas" al final del grid, o no mostrar copas y dejar que el organizador use la Cola para gestionarlas. **Decisión**: dejarlo como mejora menor — la Cola es la vista principal del organizador y es donde importa.
 
 ---
 
-## Bug 2 — modal index.html: tab "Fixture completo" excluye copas
+## Cambio 2 — index.html modal: Reestructuración de tabs
 
-### Causa raíz
+### Qué ve el jugador hoy
 
-En `src/viewer/modalConsulta.js` (línea ~112-126), la query de Supabase filtra explícitamente los partidos de copa:
+El modal tiene 3 tabs: "Mi grupo" | "Otros grupos" | "Fixture".
 
-```javascript
-supabase
-  .from('partidos')
-  .select(`...`)
-  .eq('torneo_id', torneoId)
-  .is('copa_id', null)   // ← filtro explícito que excluye toda copa
+### Qué debería ver
+
+**3 tabs principales** (caben en cualquier celular):
+
+```
+[Grupos]         [Copas]         [Fixture]
 ```
 
-`modalState.cache.partidos` nunca contiene partidos de copa. La función `renderFixture()` (línea ~409) solo puede mostrar lo que está en caché.
+**Tab "Grupos"** — Unifica "Mi grupo", "Otros grupos" y la tabla general (Doc 4) en sub-tabs:
 
-### Fix
-
-**Paso 1 — Cargar partidos de copa en paralelo**
-
-En `cargarDatosModal()` (línea ~112), agregar una segunda query para partidos de copa y una query para los nombres de copas:
-
-```javascript
-const [gruposRes, partidosRes, parejasRes, copasRes, partidosCopaRes] = await Promise.all([
-  // ... queries existentes ...
-  supabase.from('copas').select('id, nombre').eq('torneo_id', torneoId),
-  supabase
-    .from('partidos')
-    .select('id, copa_id, ronda_copa, estado, pareja1_id, pareja2_id, set1_p1, set1_p2, set2_p1, set2_p2, pareja1:parejas!pareja1_id(nombre), pareja2:parejas!pareja2_id(nombre)')
-    .eq('torneo_id', torneoId)
-    .not('copa_id', 'is', null)
-]);
-
-modalState.cache = {
-  grupos: gruposRes.data || [],
-  partidos: partidosRes.data || [],      // solo grupos (mantener filtro actual)
-  parejas: parejasRes.data || [],
-  copas: copasRes.data || [],
-  partidosCopa: partidosCopaRes.data || []
-};
+```
+[Grupos]
+  ┌──────────────────────────────────────────┐
+  │ [Grupo A] [Grupo B] [Grupo C] [General]  │  ← sub-tabs
+  │                                           │
+  │   Tabla de posiciones                     │
+  │   Partidos jugados...                     │
+  └───────────────────────────────────────────┘
 ```
 
-**Paso 2 — Actualizar `renderFixture()`**
+- "Mi grupo" aparece primero y seleccionado por defecto (se identifica por la identidad del jugador)
+- Los sub-tabs usan la letra/nombre del grupo
+- "General" al final muestra la tabla cross-grupos (Doc 4)
+- Si hay muchos grupos, los sub-tabs tienen scroll horizontal
 
-Al final de la función, si `cache.partidosCopa.length > 0`, agregar una sección de copas:
+**Tab "Copas"** — Solo visible si hay copas con partidos creados. Si no hay copas activas, el tab no aparece (quedan 2 tabs: Grupos + Fixture).
 
-```javascript
-function renderFixture(container) {
-  const { cache } = modalState;
-  // ... renderizado actual de grupos ...
+Responde a las preguntas del jugador curioso:
+- ¿Quién juega contra quién en las copas?
+- ¿Qué cruces ya se jugaron y con qué resultado?
+- ¿En cuántas copas se dividió el torneo?
 
-  if (cache.partidosCopa && cache.partidosCopa.length > 0) {
-    const copaMap = Object.fromEntries((cache.copas || []).map(c => [c.id, c.nombre]));
-    // Agrupar por copa y ronda, renderizar sección separada
-    container.insertAdjacentHTML('beforeend', renderCopasEnModal(cache.partidosCopa, copaMap));
-  }
-}
+Contenido: una sección por copa, con lista secuencial de partidos:
+
+```
+🏆 Copa Oro (4 equipos)
+
+  Semifinal 1
+    Tincho-Max  6-4 6-2  Pedro-Lucho    ✅ Confirmado
+
+  Semifinal 2
+    Nico-Fede  vs  Gaby-Santi           ⏳ Pendiente
+
+  Final
+    Tincho-Max  vs  ?                    ⏳ Esperando semifinal 2
+
+  3er Puesto
+    Pedro-Lucho  vs  ?                   ⏳ Esperando semifinal 2
+
+────────────────────────────
+
+🏆 Copa Plata (2 equipos)
+
+  Cruce
+    Lucas-Mati  vs  Rafa-Javi            ⏳ Pendiente
 ```
 
-**Scope**: Solo cambia el tab "Fixture completo". Los tabs "Mi grupo" y "Otros grupos" no se tocan.
+**Tab "Fixture"** — Todos los partidos (grupos + copas) en orden cronológico/operacional. El jugador que va a Fixture quiere ver "¿qué se juega próximo?", sin importar si es grupo o copa. Misma lógica de cola unificada que fixture.html.
+
+### Comportamiento específico del tab Copas
+
+- Cada copa tiene su sección con nombre y cantidad de equipos
+- Partidos ordenados por jerarquía de ronda: SF → F → 3P → direct
+- Si un partido tiene resultado confirmado: mostrar score
+- Si un partido tiene resultado pendiente/en revisión: mostrar estado
+- Si un partido depende de otro que no se jugó: "Esperando [ronda]"
+- **Resaltado**: Si la pareja del jugador identificado participa en un partido de copa, resaltarla (verde, como en las tablas de grupo)
+- **Mejora futura**: Reemplazar la lista secuencial por un mini-bracket visual (llave de torneo) — no incluir en esta iteración
+
+### Diferencia entre Fixture y Copas
+
+- **Fixture** = "¿Qué se juega próximo?" — vista cronológica/operacional, todos los partidos mezclados
+- **Copas** = "¿Cómo están las llaves?" — vista de estructura de cada copa
 
 ---
 
@@ -129,25 +132,37 @@ function renderFixture(container) {
 
 | Campo | Tabla | Significado |
 |-------|-------|-------------|
-| `copa_id` | `partidos` | UUID de la copa. NULL si es partido de grupos |
+| `copa_id` | `partidos` | UUID de la copa. NULL = grupo, NOT NULL = copa |
 | `ronda_copa` | `partidos` | `'SF'`, `'F'`, `'3P'`, `'direct'` |
-| `copas.nombre` | `copas` | Nombre legible: "Copa Oro", "Copa Plata", etc. |
-
-El campo `copa_id` es la única forma de distinguir si un partido es de copa o de grupos.
+| `orden_copa` | `partidos` | Orden dentro de la ronda (1, 2...) |
+| `copas.nombre` | `copas` | Nombre legible: "Copa Oro", "Copa Plata" |
 
 ---
 
 ## Criterios de aceptación
 
-- [ ] **fixture.html, vista "Tabla"**: Aparece sección "🏆 Copas" después del grid de grupos. Muestra los partidos de copa con estado y resultado.
-- [ ] **index.html modal, tab "Fixture completo"**: Aparece sección de copas al final del tab. Cada partido muestra "🏆 [Copa Nombre] — [Ronda]".
-- [ ] Los partidos de copa se distinguen visualmente de los de grupos (badge de copa y nombre).
-- [ ] La vista de grupos existente no se rompe (mis grupos, otros grupos, cola de fixture).
-- [ ] Si no hay partidos de copa, las secciones de copa no aparecen (cero ruido visual).
+### fixture.html
+- [ ] La cola muestra partidos de grupo Y copa en una sola lista
+- [ ] Los partidos de copa aparecen al final de la cola, después de todos los de grupo
+- [ ] Los partidos de copa tienen numeración global continua (#8, #9...)
+- [ ] Cada partido de copa muestra badge "🏆 [Copa] — [Ronda]"
+- [ ] Los botones de acción ("Marcar en juego", etc.) funcionan para partidos de copa
+- [ ] Si no hay partidos de copa, la cola se ve exactamente como hoy (sin regresión)
+
+### index.html modal — Reestructuración de tabs
+- [ ] Los tabs principales son: "Grupos", "Copas" (condicional), "Fixture"
+- [ ] Tab "Grupos" tiene sub-tabs: uno por grupo + "General" al final
+- [ ] El sub-tab del grupo del jugador está seleccionado por defecto
+- [ ] Sub-tab "General" muestra la tabla cross-grupos (Doc 4)
+- [ ] Tab "Copas" solo aparece si hay copas con partidos creados en BD
+- [ ] Tab "Copas" muestra cada copa con sus partidos en lista secuencial
+- [ ] Los partidos de copa muestran: equipos, resultado (si hay), estado, ronda
+- [ ] La pareja del jugador aparece resaltada si participa en una copa
+- [ ] Tab "Fixture" muestra todos los partidos (grupos + copas) en orden cronológico
 
 ---
 
 ## Archivos a modificar
 
-- `src/fixture.js` — `renderFixtureGrid()`: firma + sección de copas al final
-- `src/viewer/modalConsulta.js` — `cargarDatosModal()`: agregar queries de copa; `renderFixture()`: sección de copas
+- `src/fixture.js` — integrar `partidosCopa` en la cola sugerida (función `calcularColaSugerida` o post-append)
+- `src/viewer/modalConsulta.js` — agregar tab "Copas", cargar datos de copas, crear `renderCopas()`, sacar copas de `renderFixture()`

@@ -293,33 +293,85 @@ function _wireStatusEvents(container, esquemas, propuestasPorEsquema, onRefresh)
   container.querySelector('#btn-editar-plan')?.addEventListener('click', async () => {
     const { renderPlanEditor } = await import('./planEditor.js');
     const co = document.getElementById('copas-admin');
-    if (co) renderPlanEditor(co, onRefresh);
+    if (co) renderPlanEditor(co, onRefresh, esquemas);
   });
 
-  // Reset copas
-  container.querySelector('#btn-reset-copas')?.addEventListener('click', async () => {
-    const ok = confirm(
-      'RESET COPAS\n\n' +
-      'Esto va a borrar todos los partidos de copa y las copas.\n' +
-      'El plan (esquema de copas) se conserva.\n\n' +
-      '¿Continuar?'
-    );
-    if (!ok) return;
-
+  // Reset copas — dialog con dos opciones de alcance
+  container.querySelector('#btn-reset-copas')?.addEventListener('click', () => {
     const btn = container.querySelector('#btn-reset-copas');
-    btn.disabled = true;
-    btn.textContent = '⏳ Reseteando...';
 
-    const { resetCopas } = await import('./planService.js');
-    const result = await resetCopas(supabase, TORNEO_ID);
-    if (result.ok) {
-      logMsg(`✅ Reset listo — ${result.partidos_borrados} partidos y ${result.copas_borradas} copas borradas`);
-      onRefresh?.();
-    } else {
-      logMsg(`❌ Error en reset: ${result.msg}`);
+    const dialog = document.createElement('div');
+    dialog.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;';
+    dialog.innerHTML = `
+      <div style="background:#fff;border-radius:12px;padding:20px;max-width:340px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+        <div style="font-weight:700;font-size:16px;margin-bottom:6px;">🔄 RESET COPAS</div>
+        <p style="font-size:14px;color:#374151;margin-bottom:14px;">¿Qué querés resetear?</p>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button id="dlg-solo-resultados" style="text-align:left;padding:12px 14px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;cursor:pointer;">
+            <div style="font-weight:600;font-size:14px;">Solo resultados</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:3px;">Limpia scores de partidos de copa. Mantiene partidos, cruces y plan.</div>
+          </button>
+          <button id="dlg-todo-copas" style="text-align:left;padding:12px 14px;border:1px solid #fca5a5;border-radius:8px;background:#fff7f7;cursor:pointer;">
+            <div style="font-weight:600;font-size:14px;color:#dc2626;">Todo (partidos + plan)</div>
+            <div style="font-size:12px;color:#6b7280;margin-top:3px;">Borra partidos de copa, copas, propuestas y esquemas. Vuelve al paso "Definir plan".</div>
+          </button>
+          <button id="dlg-cancelar" style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;background:transparent;cursor:pointer;font-size:14px;">Cancelar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(dialog);
+
+    const closeDialog = () => dialog.remove();
+    dialog.querySelector('#dlg-cancelar').addEventListener('click', closeDialog);
+    dialog.addEventListener('click', e => { if (e.target === dialog) closeDialog(); });
+
+    dialog.querySelector('#dlg-solo-resultados').addEventListener('click', async () => {
+      closeDialog();
+      btn.disabled = true;
+      btn.textContent = '⏳ Limpiando...';
+
+      const { error } = await supabase
+        .from('partidos')
+        .update({
+          set1_a: null, set1_b: null,
+          set2_a: null, set2_b: null,
+          set3_a: null, set3_b: null,
+          set1_temp_a: null, set1_temp_b: null,
+          set2_temp_a: null, set2_temp_b: null,
+          set3_temp_a: null, set3_temp_b: null,
+          estado: 'pendiente',
+          cargado_por_pareja_id: null,
+          notas_revision: null,
+        })
+        .eq('torneo_id', TORNEO_ID)
+        .not('copa_id', 'is', null);
+
+      if (error) {
+        logMsg(`❌ Error limpiando resultados de copas: ${error.message}`);
+      } else {
+        logMsg('✅ Resultados de copas limpiados — partidos y plan conservados');
+        onRefresh?.();
+      }
       btn.disabled = false;
       btn.textContent = '🗑 Reset copas';
-    }
+    });
+
+    dialog.querySelector('#dlg-todo-copas').addEventListener('click', async () => {
+      closeDialog();
+      btn.disabled = true;
+      btn.textContent = '⏳ Reseteando...';
+
+      const { resetCopas } = await import('./planService.js');
+      const result = await resetCopas(supabase, TORNEO_ID);
+      if (result.ok) {
+        logMsg(`✅ Reset listo — ${result.partidos_borrados} partidos y ${result.copas_borradas} copas borradas`);
+        onRefresh?.();
+      } else {
+        logMsg(`❌ Error en reset: ${result.msg}`);
+        btn.disabled = false;
+        btn.textContent = '🗑 Reset copas';
+      }
+    });
   });
 }
 

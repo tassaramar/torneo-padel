@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-01 (bugs copa vistas públicas implementados)
+**Última actualización**: 2026-03-01 (integración de copas en vistas públicas — fixture + modal)
 
 ---
 
@@ -35,8 +35,7 @@
 
 > Máximo 3 ítems a la vez. Para agregar uno, sacar uno primero. Obliga a priorizar.
 
-1. **Bugs wizard copas (admin)** — esquema no persiste, editar no navega wizard, reset duplicado
-2. **Polish visual copa** — distinción badge en vista jugador, colores victoria/derrota en modal
+1. **Polish visual copa** — distinción badge en vista jugador, colores victoria/derrota en modal
 
 ---
 
@@ -117,23 +116,6 @@
 - ¿Dónde vive en la UI? ¿Tab nuevo en el modal de consulta del jugador?
 
 **Dependencia**: Múltiples torneos + Gestión de usuarios individuales para que sea útil a largo plazo.
-
----
-
-### Tabla general del torneo `📋 PRIORIZADA`
-
-**Idea**: Una tabla de posiciones global que agrupe a todas las parejas del torneo, no solo por grupo.
-
-**Pregunta clave — criterio de ordenamiento**:
-- **Opción A (preferida)**: Respetar primero la posición dentro del grupo (1ro de A > 2do de A > 1ro de B…) y dentro de cada posición desempatar por puntos/DS/GF. Esto preserva el valor del resultado "quedar primero en tu grupo".
-- **Opción B**: Rankear puramente por puntos/DS/GF sin importar el grupo. Más simple pero puede "premiar" a un grupo más fácil.
-- **Opción C**: Configurable por torneo (toggle en setup).
-
-**Dónde mostrarla**:
-- Tab nuevo en el modal "Tablas/Grupos/Fixture" de index.html
-- También visible en analytics.html
-
-**Dependencia**: Setup de torneo configurable (ver ítem siguiente) — el criterio de tabla general podría ser uno de los parámetros.
 
 ---
 
@@ -276,16 +258,6 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 
 ---
 
-### [BUG] Partidos de copa no aparecen en "Todos los resultados" (fixture.html) `📋 PRIORIZADA`
-
-**Síntoma**: En fixture.html, la sección "Todos los resultados" no muestra los partidos de copa — ni los pendientes ni los jugados. Sí aparecen en la cola de fixture normalmente.
-
-**Pregunta clave**: ¿Es comportamiento esperado o bug? La sección debería mostrar TODOS los partidos del torneo (grupos + copas), tanto los jugados como los por jugar.
-
-**Archivo clave**: `src/fixture.js` o el módulo que renderiza "Todos los resultados"
-
----
-
 ### [MEJORA] fixture.html — ocultar secciones de grupos cuando no quedan partidos pendientes `📋 PRIORIZADA`
 
 **Idea**: Cuando ya no quedan partidos de grupos pendientes ni en juego, las secciones "Resumen por Grupo", "En Juego" y "Pendientes" dejan de tener utilidad. Ocultarlas y mostrar solo la sección de copas + ya jugados limpia la interfaz y reduce el ruido visual para el organizador.
@@ -293,31 +265,6 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 **Condición de activación**: `partidos_grupos_pendientes === 0 && partidos_grupos_en_juego === 0`
 
 **Archivo clave**: `src/fixture.js`
-
----
-
-### [BUG] Modal "Tablas/Grupos" en index.html no muestra partidos de copa `📋 PRIORIZADA`
-
-**Síntoma**: Al abrir el modal "Tablas/Grupos/Fixture" desde index.html, la pestaña de fixture no incluye los partidos de copa — solo muestra los de grupos.
-
-**Archivo clave**: `src/viewer/modalConsulta.js`
-
----
-
-### [MEJORA] Admin copas — indicador claro del paso del flujo `📋 PRIORIZADA`
-
-**Problema**: El flujo de copas tiene pasos bien definidos pero la UI admin no es explícita sobre en qué paso estamos.
-
-**Flujo propuesto (a mostrar al admin)**:
-1. **Definir plan** — elegir o armar un esquema de copas
-2. **Esperar grupos** — aguardar que finalicen los partidos de grupos necesarios
-3. **Aprobar copas** — revisar las propuestas generadas automáticamente y confirmar
-4. **Partidos en curso** — se juegan los partidos de copa; el motor genera las siguientes rondas automáticamente
-5. **Final** — todos los partidos terminados
-
-**Mejora esperada**: En la pantalla de admin, mostrar un indicador de progreso o un banner claro que diga "Paso 2 de 5 — Esperando que finalicen los grupos" (o similar). Evitar que el admin tenga que inferir el estado leyendo las propuestas.
-
-**Archivo clave**: `src/admin/copas/statusView.js`, posiblemente `src/admin/copas/index.js`
 
 ---
 
@@ -346,44 +293,6 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 
 ---
 
-### [BUG] Wizard copas — esquema custom se aplica pero no queda guardado `📋 PRIORIZADA`
-
-**Síntoma**: Al crear un esquema personalizado en el wizard (sin guardarlo como preset), el sistema no da error pero los esquemas de copa no persisten en la BD. Probablemente `_applyEsquemas()` en `planEditor.js` falla silenciosamente o hay un problema con la llamada a `guardarEsquemas()` en `planService.js`.
-
-**Para investigar**:
-- Revisar si `guardarEsquemas()` retorna `ok: false` y el mensaje no se muestra
-- Verificar si el problema es de permisos RLS (el admin necesita estar autenticado para escribir `esquemas_copa`)
-- Agregar feedback visual explícito si falla
-
-**Archivo clave**: `src/admin/copas/planEditor.js` → `_applyEsquemas()`, `src/admin/copas/planService.js` → `guardarEsquemas()`
-
----
-
-### [BUG] Wizard copas — "Editar" desde statusView no permite navegar el wizard `📋 PRIORIZADA`
-
-**Síntoma**: Cuando hay un esquema aplicado y los partidos están finalizados, el botón "Editar" en la vista admin lleva directamente al Panel 4 (Resumen del Plan) sin permitir navegar el wizard. El botón "‹" vuelve al panel de presets, no a los pasos del wizard donde el admin podría hacer cambios.
-
-**Causa probable**: `_fromEsquemasToWiz(esquemas)` carga el estado del wizard y llama `_showPreview(() => _showPresets())` — el `backFn` apunta a `_showPresets` en lugar de `_showWizNum()` o `_showWizCopa(0)`.
-
-**Fix esperado**: En modo "editar esquema existente", el back desde el preview debería ir a `_showWizNum()` para que el usuario pueda navegar los pasos del wizard y hacer cambios antes de aplicar.
-
-**Archivo clave**: `src/admin/copas/planEditor.js` → `_showPresets()` handlers `.wiz-btn-edit`, y `statusView.js` donde se llama a `renderPlanEditor`.
-
----
-
-### [REVISAR] Botón "Reset Resultados" — posible duplicado `📋 PRIORIZADA`
-
-**Síntoma**: Existe un botón "Reset Resultados" en admin que parece solaparse funcionalmente con "Reset partidos de grupos". Posible duplicado o mal ubicado.
-
-**Para investigar**:
-- Verificar qué hace exactamente cada botón (`resetearResultados()` en `src/admin.js` vs. reset de grupos en `src/admin/groups/index.js`)
-- Si son equivalentes, eliminar el duplicado
-- Si difieren, evaluar si tiene sentido mantener ambos y mejorar los labels para que quede claro la diferencia
-
-**Archivos clave**: `admin.html`, `src/admin.js` → `resetearResultados()`, `src/admin/groups/index.js`
-
----
-
 ### Round Robin en copas `💡 CRUDA`
 
 **Idea**: Agregar formato Round Robin como opción en el wizard de copas, además de Mata-mata (bracket/cruce directo).
@@ -401,13 +310,41 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 
 ## Historial — Implementado / Validado
 
-### Bugs copa en vistas públicas `✅ IMPLEMENTADA`
+### Bugs wizard copas (admin) — 3 bugs resueltos `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-01
+**Spec**: [docs/spec-bugs-wizard-copas-admin.md](spec-bugs-wizard-copas-admin.md)
+
+- **Bug 1 — Esquema custom no persiste**: `guardarEsquemas()` en `planService.js` ahora valida que ningún esquema tenga `reglas: []` antes de insertar. `_showPreview()` en `planEditor.js` muestra aviso inline y deshabilita "Aplicar" si alguna copa (modo grupo) no tiene posiciones seleccionadas. `_applyEsquemas()` ya no redirige a presets en caso de error — el admin se queda en el panel actual para corregir.
+- **Bug 2 — "Editar" no navega el wizard**: `renderPlanEditor()` acepta tercer parámetro `esquemaExistente`; si hay esquema, carga el wizard en Panel 2 (cuántas copas) en lugar de Panel 1 (presets). `statusView.js` pasa los esquemas actuales al llamar a `renderPlanEditor`. Los botones "Editar" de presets (`.wiz-btn-edit`, `.wiz-btn-local-edit`) ahora pasan `() => _showWizNum()` como backFn del Panel 4, no `() => _showPresets()`.
+- **Bug 3 — Botones de reset redistribuidos por tab**: Tab Grupos → "Limpiar resultados de grupos" (solo limpia scores, no toca copas). Tab Copas → "Reset copas" con modal de 2 opciones: "Solo resultados" (limpia scores de copa, conserva estructura) o "Todo (partidos + plan)" (llama `reset_copas_torneo` RPC). Tab Setup → "Regenerar torneo" (reset copas + regenera partidos de grupos desde parejas).
+
+---
+
+### Admin copas — indicador de progreso del flujo `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-01
+**Spec**: [docs/spec-admin-copas-indicador-flujo.md](spec-admin-copas-indicador-flujo.md)
+
+Breadcrumb de 4 pasos (Definir plan → Esperar grupos → Aprobar → En curso) siempre visible en la parte superior del panel de copas en `admin.html`. El paso activo se resalta en azul, los completados muestran ✓ en verde, los futuros en gris. Debajo del breadcrumb, mensaje contextual de acción. En paso 2, muestra "X de Y grupos completados" consultando los partidos de cada grupo. Implementado en `src/admin/copas/index.js` + CSS en `style.css`.
+
+---
+
+### Copa en vistas públicas — integración completa `✅ IMPLEMENTADA`
 
 **Fecha**: 2026-03-01
 **Spec**: [docs/spec-bugs-copa-vistas-publicas.md](spec-bugs-copa-vistas-publicas.md)
 
-- **fixture.html vista "Tabla"**: `renderFixtureGrid()` ahora recibe `partidosCopa` como segundo parámetro y agrega sección "🏆 Copas" al final del grid, agrupada por copa y ordenada por `orden_copa`. Reutiliza `renderCopaItem()` existente.
-- **index.html modal tab "Fixture"**: `cargarDatosModal()` carga copas y partidos de copa en paralelo; `renderFixture()` llama `renderCopasEnModal()` al final mostrando copas agrupadas por nombre con ronda y resultado.
+**fixture.html — cola unificada**:
+- Los partidos de copa pendientes se integran al final de la sección "Pendientes" (eliminada la sección separada "🏆 Copas pendientes"). Numeración global continua (#1, #2…). `renderCopaItem()` acepta `posicion` para mostrar el número. Ordenados por nombre de copa, luego por ronda (SF → F → 3P).
+
+**index.html modal — reestructuración completa de tabs**:
+- Nuevos tabs: **Grupos** | **Copas** (condicional) | **Fixture**. Tab "Copas" solo aparece si hay copas con partidos en BD.
+- Tab **Grupos**: sub-tabs por grupo (Grupo A, B, C…) con scroll horizontal + sub-tab "General" al final. El grupo del jugador queda seleccionado por defecto. Cada sub-tab muestra tabla de posiciones + partidos del grupo.
+- Sub-tab **General**: tabla cross-grupos vía RPC `obtener_standings_torneo`. Ordenada por posición en grupo, luego Pts/DS/GF. Separadores visuales entre bloques de posición. Aviso "⚠️ Tabla provisional" si algún grupo no terminó. Pareja del jugador resaltada.
+- Tab **Copas**: una sección por copa con sus partidos en orden de ronda (SF → F → 3P). Muestra resultado si está jugado, "Esperando resultado anterior" si un equipo no está definido aún. Resalta partidos del jugador.
+- Tab **Fixture**: partidos de grupo pendientes (en orden de cola) + partidos de copa pendientes al final con badge 🏆 y numeración continua. Resalta partidos del jugador.
+- CSS: nuevas clases `.modal-sub-tabs`, `.modal-sub-tab`, `.modal-copa-seccion`, `.modal-copa-titulo`, `.modal-aviso-provisional`, `.tabla-general-scroll`, `.tabla-general-separador`, `.modal-fixture-copa-pill`.
 
 ---
 
