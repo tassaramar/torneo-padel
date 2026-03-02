@@ -93,8 +93,9 @@ export async function renderStatusView(container, esquemas, propuestas, copas, o
                 style="border:1px solid var(--border); background:transparent;">
           ✏️ Editar plan
         </button>
-        <button type="button" id="btn-reset-copas" class="btn-sm btn-danger"
-                style="margin-left:auto;">
+      </div>
+      <div class="admin-actions" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
+        <button type="button" id="btn-reset-copas" class="btn-sm btn-danger">
           🗑 Reset copas
         </button>
       </div>
