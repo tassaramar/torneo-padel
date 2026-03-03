@@ -37,7 +37,7 @@
 9. Revisar las propuestas generadas: nombres de copa, parejas asignadas a cada copa
    - Verificar que los seeds son correctos (1ros de grupo a copa oro, etc. según el plan)
    - Verificar que la cantidad de cruces es correcta (ej: copa de 4 equipos → 2 cruces de semifinal)
-   - ⚠️ **Bug reportado**: en algunos casos la propuesta muestra 1 partido en vez de 2 cruces para una copa de 4 equipos con seeding por tabla general. Workaround: aplicar el preset nuevamente desde el paso 1. Ver `Bugs-Mejoras-raw.md` para detalle.
+   - ✅ **Fix**: seeding global (`modo:'global'`) ahora espera que TODOS los grupos estén completos antes de generar propuestas — evita brackets parciales.
 10. Clic en **"Aprobar propuestas"** → las copas se generan con sus partidos
 
 ---
@@ -64,7 +64,9 @@
 
 ## Paso 6 — Finales automáticas
 
-18. Confirmar las semis → verificar que las finales se generan automáticamente (RPC `generar_finales_copa`)
+18. Confirmar las semis → verificar que las finales se generan automáticamente (RPC `avanzar_ronda_copa`)
+    - Si se confirma desde `carga.html`: la final y el 3er puesto aparecen automáticamente al guardar la segunda semi
+    - Si se confirma desde `index.html` (flujo jugador): ídem, fire-and-forget al confirmar
 19. Jugar la final → confirmar resultado
 20. ⚠️ **Limitación conocida**: el breadcrumb seguirá en "4. En curso" aunque todas las copas terminaron — no hay paso 5 "Finalizado" todavía (backlog: Estado Finalizado pendiente de análisis)
 
@@ -84,8 +86,8 @@
 | Bug | Workaround |
 |-----|-----------|
 | Reset copas no aparece en paso 2 | "Regenerar torneo" desde tab Grupos |
-| Propuesta muestra cruces incorrectos (copa 4eq → 1 partido en vez de 2) | Aplicar el preset nuevamente desde paso 1 |
 | Wizard no muestra info del torneo (grupos/parejas) | Saberlo de memoria |
 | No hay botón Cancelar en el wizard | Navegar con el breadcrumb o recargar |
 | No hay estado "Finalizado" al terminar todas las copas | Normal por ahora |
 | Presets de usuario no filtran por compatibilidad | Ver todos y elegir el correcto manualmente |
+| Seeding global puede cruzar equipos del mismo grupo | Swap manual con ⇄ entre matches (limitado) — backlog |

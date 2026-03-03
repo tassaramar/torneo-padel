@@ -1,13 +1,19 @@
 -- ============================================================
 -- MIGRACIÓN: fix_copa_avanzar_ronda
 -- 1. Fix verificar_y_proponer_copas: rama modo 'global' + soporte 8 equipos
+--    + fix race condition (requiere TODOS los grupos completos para modo global)
 -- 2. Nuevo RPC avanzar_ronda_copa (reemplaza generar_finales_copa)
 -- 3. Drop generar_finales_copa
 -- ============================================================
 
 
 -- ============================================================
--- 1A + 1B. Fix verificar_y_proponer_copas
+-- 1A + 1B + 1C. Fix verificar_y_proponer_copas
+-- - Rama modo:'global' para seeding por ranking general
+-- - Soporte bracket de 8 equipos (QF)
+-- - Guard: esquemas con modo 'global' requieren que TODOS
+--   los grupos estén completos (previene race condition cuando
+--   carga.html dispara el RPC partido por partido)
 -- ============================================================
 CREATE OR REPLACE FUNCTION public.verificar_y_proponer_copas(p_torneo_id UUID)
 RETURNS JSONB
@@ -26,6 +32,9 @@ DECLARE
   v_ya_asignados    UUID[] := ARRAY[]::UUID[];
   v_len             INTEGER;
   v_propuestas      INTEGER := 0;
+  v_tiene_global    BOOLEAN;
+  v_grupos_total    INTEGER;
+  v_grupos_completos INTEGER;
 BEGIN
 
   -- Cargar parejas ya en propuestas pendientes/aprobadas de este torneo
@@ -45,6 +54,24 @@ BEGIN
     v_ya_asignados := ARRAY[]::UUID[];
   END IF;
 
+  -- Pre-calcular: cuantos grupos hay y cuantos estan completos?
+  -- Un grupo esta completo si todos sus partidos tienen sets_a (resultado cargado)
+  SELECT COUNT(DISTINCT g.id) INTO v_grupos_total
+  FROM grupos g
+  WHERE g.torneo_id = p_torneo_id;
+
+  SELECT COUNT(DISTINCT sub.grupo_id) INTO v_grupos_completos
+  FROM (
+    SELECT p.grupo_id
+    FROM partidos p
+    WHERE p.torneo_id = p_torneo_id
+      AND p.copa_id IS NULL
+      AND p.grupo_id IS NOT NULL
+    GROUP BY p.grupo_id
+    HAVING COUNT(*) > 0
+       AND COUNT(*) = COUNT(CASE WHEN p.sets_a IS NOT NULL THEN 1 END)
+  ) sub;
+
   -- Para cada esquema del torneo, en orden
   FOR v_esquema IN
     SELECT * FROM esquemas_copa
@@ -61,6 +88,19 @@ BEGIN
       CONTINUE;
     END IF;
 
+    -- Si el esquema tiene reglas con modo 'global', requerir que
+    -- TODOS los grupos esten completos antes de generar propuestas.
+    -- Esto previene race conditions cuando carga.html dispara el RPC
+    -- partido por partido (un grupo completo antes que otro).
+    SELECT EXISTS (
+      SELECT 1 FROM jsonb_array_elements(v_esquema.reglas) r
+      WHERE (r->>'modo') = 'global'
+    ) INTO v_tiene_global;
+
+    IF v_tiene_global AND v_grupos_completos < v_grupos_total THEN
+      CONTINUE;  -- No todos los grupos terminaron, esperar
+    END IF;
+
     v_equipos := ARRAY[]::UUID[];
 
     -- Evaluar cada regla del esquema
@@ -71,7 +111,7 @@ BEGIN
       v_criterio := v_regla->>'criterio';              -- NULL = por grupo
 
       IF v_criterio IS NULL AND (v_regla->>'modo') IS NULL THEN
-        -- Sin ranking cruzado: tomar el N-ésimo de cada grupo completo
+        -- Sin ranking cruzado: tomar el N-esimo de cada grupo completo
         SELECT array_agg(s.pareja_id ORDER BY s.grupo_id)
         INTO v_nuevos
         FROM obtener_standings_torneo(p_torneo_id) s
@@ -81,7 +121,7 @@ BEGIN
           AND s.pareja_id <> ALL(v_equipos);
 
       ELSIF v_criterio = 'mejor' THEN
-        -- Ranking cruzado: los K mejores N-ésimos entre todos los grupos
+        -- Ranking cruzado: los K mejores N-esimos entre todos los grupos
         SELECT array_agg(s.pareja_id ORDER BY s.puntos DESC, s.ds DESC, s.gf DESC)
         INTO v_nuevos
         FROM (
@@ -96,7 +136,7 @@ BEGIN
         ) s;
 
       ELSIF v_criterio = 'peor' THEN
-        -- Ranking cruzado: los K peores N-ésimos entre todos los grupos
+        -- Ranking cruzado: los K peores N-esimos entre todos los grupos
         SELECT array_agg(s.pareja_id ORDER BY s.puntos ASC, s.ds ASC, s.gf ASC)
         INTO v_nuevos
         FROM (
@@ -112,6 +152,7 @@ BEGIN
 
       ELSIF (v_regla->>'modo') = 'global' THEN
         -- Seeding por ranking global del torneo (tabla general)
+        -- Nota: ya verificamos que todos los grupos estan completos arriba
         SELECT array_agg(ranked.pareja_id)
         INTO v_nuevos
         FROM (
@@ -132,14 +173,14 @@ BEGIN
       END IF;
     END LOOP;
 
-    -- No hay suficientes equipos para este esquema → esperar
+    -- No hay suficientes equipos para este esquema -> esperar
     v_len := COALESCE(array_length(v_equipos, 1), 0);
     IF v_len < 2 THEN
       CONTINUE;
     END IF;
 
-    -- Crear propuestas según formato y cantidad de equipos
-    -- Orden del array: mejor primero (índice 1)
+    -- Crear propuestas segun formato y cantidad de equipos
+    -- Orden del array: mejor primero (indice 1)
     IF v_esquema.formato = 'direct' OR v_len = 2 THEN
       -- Cruce directo: 1 partido
       INSERT INTO propuestas_copa (esquema_copa_id, ronda, pareja_a_id, pareja_b_id, orden)
@@ -147,7 +188,7 @@ BEGIN
       v_propuestas := v_propuestas + 1;
 
     ELSIF v_len >= 8 THEN
-      -- Bracket de 8: cuartos de final con seeding estándar
+      -- Bracket de 8: cuartos de final con seeding estandar
       INSERT INTO propuestas_copa (esquema_copa_id, ronda, pareja_a_id, pareja_b_id, orden)
       VALUES
         (v_esquema.id, 'QF', v_equipos[1], v_equipos[8], 1),
@@ -157,7 +198,7 @@ BEGIN
       v_propuestas := v_propuestas + 4;
 
     ELSIF v_len >= 4 THEN
-      -- Bracket de 4: bombo → 1o vs 4o y 2o vs 3o
+      -- Bracket de 4: bombo -> 1o vs 4o y 2o vs 3o
       INSERT INTO propuestas_copa (esquema_copa_id, ronda, pareja_a_id, pareja_b_id, orden)
       VALUES
         (v_esquema.id, 'SF', v_equipos[1], v_equipos[4], 1),
@@ -182,10 +223,10 @@ $$;
 
 
 -- ============================================================
--- 1C. Nuevo RPC avanzar_ronda_copa
+-- 2. Nuevo RPC avanzar_ronda_copa
 -- Avanza el bracket de una copa: cuando todos los partidos de una
--- ronda están confirmados, genera los partidos de la siguiente ronda.
--- Genérico: funciona para QF→SF, SF→F(+3P), etc.
+-- ronda estan confirmados, genera los partidos de la siguiente ronda.
+-- Generico: funciona para QF->SF, SF->F(+3P), etc.
 -- Idempotente: si la siguiente ronda ya tiene partidos, no crea duplicados.
 -- Reemplaza a generar_finales_copa.
 -- Llamar con: SELECT avanzar_ronda_copa('<copa_id>');
@@ -216,7 +257,7 @@ BEGIN
     RETURN jsonb_build_object('error', 'Copa no encontrada');
   END IF;
 
-  -- Intentar avanzar cada ronda posible: QF → SF → F
+  -- Intentar avanzar cada ronda posible: QF -> SF -> F
   -- (iterar en orden, la primera que pueda avanzar se procesa)
   FOREACH v_ronda_actual IN ARRAY ARRAY['QF', 'SF']
   LOOP
@@ -245,7 +286,7 @@ BEGIN
       AND estado = 'confirmado'
       AND sets_a IS NOT NULL;
 
-    -- Si no están todos confirmados, no se puede avanzar
+    -- Si no estan todos confirmados, no se puede avanzar
     IF v_confirmados < v_total THEN
       CONTINUE;
     END IF;
@@ -280,7 +321,7 @@ BEGIN
     END LOOP;
 
     -- Crear partidos de la siguiente ronda:
-    -- Emparejar ganadores: [1] vs [2] → orden 1, [3] vs [4] → orden 2, etc.
+    -- Emparejar ganadores: [1] vs [2] -> orden 1, [3] vs [4] -> orden 2, etc.
     v_i := 1;
     WHILE v_i < array_length(v_ganadores, 1) LOOP
       INSERT INTO partidos (torneo_id, copa_id, ronda_copa, orden_copa, pareja_a_id, pareja_b_id, estado)
@@ -290,7 +331,7 @@ BEGIN
       v_i := v_i + 2;
     END LOOP;
 
-    -- Crear 3er y 4to puesto SOLO cuando avanzamos a Final (SF → F)
+    -- Crear 3er y 4to puesto SOLO cuando avanzamos a Final (SF -> F)
     -- y hay exactamente 2 perdedores
     IF v_ronda_siguiente = 'F' AND array_length(v_perdedores, 1) = 2 THEN
       -- Solo crear si no existe ya
@@ -305,7 +346,7 @@ BEGIN
       END IF;
     END IF;
 
-    -- Se procesó una ronda, retornar (una ronda por llamada)
+    -- Se proceso una ronda, retornar (una ronda por llamada)
     RETURN jsonb_build_object(
       'ronda_completada', v_ronda_actual,
       'ronda_creada', v_ronda_siguiente,
@@ -321,6 +362,6 @@ $$;
 
 
 -- ============================================================
--- 1D. Eliminar generar_finales_copa (reemplazada por avanzar_ronda_copa)
+-- 3. Eliminar generar_finales_copa (reemplazada por avanzar_ronda_copa)
 -- ============================================================
 DROP FUNCTION IF EXISTS public.generar_finales_copa(UUID);

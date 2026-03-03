@@ -10,14 +10,15 @@ import { labelRonda } from '../utils/copaRondas.js';
 async function guardarResultadoComoSet(supabase, partidoId, gamesA, gamesB) {
   const { error } = await supabase
     .from('partidos')
-    .update({ 
-      set1_a: gamesA, 
+    .update({
+      set1_a: gamesA,
       set1_b: gamesB,
       num_sets: 1,
       set2_a: null,
       set2_b: null,
       set3_a: null,
-      set3_b: null
+      set3_b: null,
+      estado: 'confirmado'
     })
     .eq('id', partidoId);
 
