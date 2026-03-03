@@ -5274,6 +5274,7 @@ a.btn-action-secondary:hover {
 .toast {
   position: fixed;
   bottom: 24px;
+  top: auto;
   left: 50%;
   transform: translateX(-50%) translateY(100px);
 

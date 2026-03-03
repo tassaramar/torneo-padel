@@ -219,9 +219,8 @@ async function borrarTodoTorneo() {
   // orden importante por FKs
   const steps = [
     { table: 'partidos', msg: '🧹 Eliminando partidos…' },
-    { table: 'propuestas_copa', msg: '🧹 Eliminando propuestas de copa…' },
     { table: 'copas', msg: '🧹 Eliminando copas…' },
-    { table: 'esquemas_copa', msg: '🧹 Eliminando esquemas de copa…' },
+    { table: 'esquemas_copa', msg: '🧹 Eliminando esquemas de copa…' }, // CASCADE borra propuestas_copa
     { table: 'posiciones_manual', msg: '🧹 Eliminando overrides…' },
     { table: 'parejas', msg: '🧹 Eliminando parejas…' },
     { table: 'grupos', msg: '🧹 Eliminando grupos…' }
