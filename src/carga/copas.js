@@ -119,6 +119,11 @@ function renderCopas({ supabase, copasCont, partidos, onAfterSave }) {
           onSave: async (ga, gb) => {
             const ok = await guardarResultadoComoSet(supabase, p.id, ga, gb);
             if (ok) {
+              // Fire-and-forget: avanzar bracket de copa
+              if (p.copas?.id) {
+                supabase.rpc('avanzar_ronda_copa', { p_copa_id: p.copas.id })
+                  .then(({ error }) => { if (error) console.warn('Avanzar ronda copa:', error.message); });
+              }
               await onAfterSave?.();
             }
             return ok;

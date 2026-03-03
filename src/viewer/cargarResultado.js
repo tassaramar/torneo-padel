@@ -131,6 +131,12 @@ export async function cargarResultadoConSets(supabase, partidoId, sets, numSets,
               .catch(err => console.warn('Motor copas:', err));
           }
 
+          // Fire-and-forget: avanzar bracket si es partido de copa
+          if (partido.copa_id) {
+            supabase.rpc('avanzar_ronda_copa', { p_copa_id: partido.copa_id })
+              .then(({ error }) => { if (error) console.warn('Avanzar ronda copa:', error.message); });
+          }
+
           return {
             ok: true,
             mensaje: '🎉 ¡Resultado confirmado! Ambas parejas coinciden.',
@@ -318,6 +324,12 @@ export async function aceptarOtroResultado(supabase, partidoId, identidad) {
       supabase.rpc('verificar_y_proponer_copas', { p_torneo_id: partido.torneo_id })
         .then(({ error }) => { if (error) console.warn('Motor copas:', error.message); })
         .catch(err => console.warn('Motor copas:', err));
+    }
+
+    // Fire-and-forget: avanzar bracket si es partido de copa
+    if (partido.copa_id) {
+      supabase.rpc('avanzar_ronda_copa', { p_copa_id: partido.copa_id })
+        .then(({ error }) => { if (error) console.warn('Avanzar ronda copa:', error.message); });
     }
 
     return {

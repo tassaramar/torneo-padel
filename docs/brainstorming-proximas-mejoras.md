@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-02 (bug: estado inconsistente al importar parejas con copas ya aprobadas)
+**Última actualización**: 2026-03-03 (bugs y mejoras post-testing end-to-end copas)
 
 ---
 
@@ -42,6 +42,23 @@
 ---
 
 ## Backlog
+
+### [DEUDA TÉCNICA] Unificar rutinas de reset del torneo `💡 CRUDA`
+
+Hoy hay 4 implementaciones de limpieza separadas que no comparten código:
+
+| Operación | Archivo | Alcance |
+|---|---|---|
+| "Regenerar torneo" | `groups/index.js` → `resetCopas()` → RPC `reset_copas_torneo` | Copas + esquemas + propuestas (no toca grupos/parejas) |
+| "Reset copas" (botón copas) | `statusView.js` → misma `resetCopas()` → mismo RPC | Ídem |
+| "Reset partidos de ronda" | `groups/service.js` → `resetPartidosGrupos()` | Solo partidos de grupos (`copa_id IS NULL`) |
+| "Importar parejas" | `parejasImport.js` → `borrarTodoTorneo()` | Todo: partidos + copas + esquemas + overrides + parejas + grupos |
+
+**Problema**: si se agrega una tabla nueva, hay que actualizarla en todos los lugares por separado. Ya se vio en práctica: el bug de `propuestas_copa`/`esquemas_copa` huérfanas requirió fixes en dos lugares distintos.
+
+**Dirección de mejora**: centralizar las operaciones de limpieza en RPCs de BD o en funciones compartidas de `src/utils/` o `src/admin/`, y hacer que cada botón delegue en esas rutinas. El caso más urgente es `borrarTodoTorneo()` en `parejasImport.js`, que es el único que hace deletes JS manuales en lugar de llamar al RPC.
+
+---
 
 ### [BUG] Tab Copas — estado inconsistente al importar nuevas parejas con copas ya aprobadas `🔍 EN ANÁLISIS`
 
@@ -297,9 +314,11 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 
 **Problema**: Los partidos de copa aparecen en la vista del jugador igual que los partidos de grupos, sin ninguna señal visual que indique que es un partido especial.
 
-**Idea**: Agregar un badge o etiqueta ("Copa Oro", "Copa Plata", etc.) visible en la card del partido de copa. Podría incluir un ícono de trofeo 🏆 y el nombre de la copa.
+**Idea**: Agregar un badge o etiqueta ("Copa Oro", "Copa Plata", etc.) visible en la card del partido de copa. Podría incluir un ícono de trofeo 🏆 y el nombre de la copa y la ronda (Semi, Final...).
 
-**Archivo clave**: `src/viewer/vistaPersonal.js`
+**Alcance adicional confirmado en testing**: También en el **popup de carga de resultado** — cuando el jugador abre el diálogo para cargar un resultado de copa, no hay indicación de que es un partido de copa ni de qué ronda es.
+
+**Archivos clave**: `src/viewer/vistaPersonal.js`, `src/viewer/cargarResultado.js`
 
 ---
 
@@ -328,26 +347,73 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 
 ---
 
-### [MEJORA] Admin copas — UX del wizard de presets `💡 CRUDA`
+### [MEJORA] Admin copas — UX del wizard de presets `📋 PRIORIZADA`
+
+**Prioridad elevada**: el estado actual no solo es molesto sino bastante confuso para el admin.
 
 **Problemas identificados en testing**:
 
-1. **Presets hardcodeados vs BD son indistinguibles para el código pero generan duplicación**: Hoy `presets.js` tiene presets estáticos como fallback y `presets_copa` en BD tiene los mismos datos. Migrar los hardcodeados a BD y eliminar `presets.js` simplificaría el código y haría que todos los presets se gestionen igual.
+1. **No se indica cuál preset está activo**: Después de aplicar un preset, la vista vuelve a la lista sin indicar cuál fue seleccionado. El admin no tiene feedback de qué plan está activo. **Propuesta**: cuando hay un plan aplicado, mostrarlo prominentemente en una sección separada ("Plan activo") con detalle de seeds y cruces, y ocultar o minimizar la lista de presets alternativos. **Este es el problema más urgente — causa confusión real.**
 
-2. **No se indica cuál preset está activo**: Después de aplicar un preset, la vista vuelve a la lista sin indicar cuál fue seleccionado. El admin no tiene feedback de qué plan está activo. **Propuesta**: cuando hay un plan aplicado, mostrarlo prominentemente en una sección separada ("Plan activo") con detalle de seeds y cruces, y ocultar o minimizar la lista de presets alternativos.
+2. **Presets de usuario no se filtran por formato compatible**: Los presets creados por el usuario se muestran todos juntos, sin importar si son compatibles con la cantidad de grupos/equipos actuales. Confunde al admin porque ve opciones que no puede aplicar.
+   - **Comportamiento esperado**: mostrar por default solo los presets compatibles con el torneo actual. Un preset es compatible si su formato de grupos/equipos coincide con el torneo (misma cantidad de grupos y misma cantidad de equipos por grupo o compatible).
+   - **Compatibilidad flexible**: un preset diseñado para más equipos por grupo podría aplicarse si el torneo actual tiene menos (ej: preset 3G×4E podría aplicarse en 3G×3E, tomando solo posiciones que existen). NO al revés.
+   - **"Ver todos" opcional**: toggle para que el admin vea todos los presets guardados, pero sin poder aplicar los incompatibles (mostrarlos deshabilitados con tooltip explicando por qué).
 
 3. **Falta descripción de cada preset**: El nombre solo ("1ro vs 3ro - 2do Out") no alcanza para entender qué hace. Cada preset debería mostrar un resumen de sus reglas: cuántas copas, quiénes entran a cada una, qué formato tienen.
 
-4. **Representación visual de presets** *(más ambicioso)*: Mostrar una mini-vista del bracket/cruces de cada preset, para que el admin pueda elegir con mayor claridad.
+4. **Presets hardcodeados vs BD generan duplicación**: Hoy `presets.js` tiene presets estáticos como fallback y `presets_copa` en BD tiene los mismos datos. Migrar los hardcodeados a BD y eliminar `presets.js` simplificaría el código.
 
-5. **Botón "Reset copas" solo visible en pasos 3-4**: El botón no aparece en el paso 2 (plan seleccionado, grupos en curso), pero el admin puede necesitar cambiar el plan. **Propuesta**: mostrar el botón de reset desde que hay un esquema seleccionado (paso 2+). En paso 2 sin partidos de copa, el reset solo elimina el esquema y vuelve al paso 1.
+5. **Representación visual de presets** *(más ambicioso)*: Mostrar una mini-vista del bracket/cruces de cada preset.
+
+6. **[BUG confirmado] Botón "Reset copas" ausente en paso 2**: Con un esquema seleccionado y el breadcrumb en paso 2, el botón Reset no aparece en ningún lado. El admin no puede des-seleccionar el esquema y dejar el torneo sin plan de copas. Confirmado en testing: el único workaround es "Regenerar torneo" desde el tab Grupos.
+
+7. **El wizard no muestra el formato actual del torneo**: En el paso 1 (lista de presets) no se ve en ningún lado cuántos grupos hay ni cuántas parejas tiene cada uno. El admin no puede saber qué presets son compatibles sin esa info de contexto. **Propuesta**: mostrar un resumen del torneo actual arriba de la lista de presets: "Torneo actual: 3 grupos × 4 parejas".
+
+8. **Falta botón "Cancelar" en el wizard**: Al entrar al wizard para crear un plan, no hay forma de salir sin aplicar algo. Si el admin entró por error o quiere volver atrás, no tiene opción visible. **Propuesta**: botón "Cancelar" al pie del wizard que vuelve al estado previo (si había un esquema aplicado, vuelve a mostrarlo; si no había nada, vuelve al paso 1 limpio).
 
 **Sugerencia de implementación por etapas**:
-- Etapa 1: Migrar hardcodeados a BD + botón reset visible desde paso 2
-- Etapa 2: Sección "Plan activo" con detalle de seeds/cruces + ocultar lista de alternativos
-- Etapa 3: Descripción textual generada dinámicamente + representación visual (requiere diseño)
+- Etapa 1 (urgente): Sección "Plan activo" prominente + botón Reset visible en paso 2 + info de formato del torneo en paso 1 + botón Cancelar
+- Etapa 2: Filtrado de presets por compatibilidad + "Ver todos" con presets deshabilitados
+- Etapa 3: Descripción textual de cada preset + migrar hardcodeados a BD
+- Etapa 4: Representación visual (requiere diseño)
 
 **Archivos clave**: `src/admin/copas/planEditor.js`, `src/admin/copas/presets.js`, `src/admin/copas/planService.js`, `src/admin/copas/index.js`
+
+---
+
+### [BUG CRÍTICO] Copa — final no se genera automáticamente al confirmar las semis `💡 CRUDA`
+
+**Reproducción** (testing end-to-end, Paso 18 de [testing-guide-copas.md](testing-guide-copas.md)):
+- Copa de 4 equipos con semis y final
+- Se cargaron y confirmaron los resultados de las 2 semis desde `index.html`
+- La final **no se creó automáticamente**
+- Se volvió a intentar cargando desde `carga.html` → tampoco se creó la final
+
+**Impacto**: Bloqueante. El torneo de copa no puede completarse sin que la final exista.
+
+**Causa sospechosa**: El RPC `generar_finales_copa` debería ejecutarse automáticamente al confirmar la última semi. El trigger está en `cargarResultado.js` (fire-and-forget al confirmar). Verificar si el trigger se llama para partidos de copa confirmados desde ambos flujos (index.html y carga.html).
+
+**Archivos sospechosos**: `src/viewer/cargarResultado.js`, `src/carga/copas.js`, RPC `generar_finales_copa`
+
+---
+
+### [BUG] Copa — propuesta genera 1 cruce en lugar de 2 para bracket de 4 equipos `💡 CRUDA`
+
+**Reproducción** (testing end-to-end, Paso 9 de [testing-guide-copas.md](testing-guide-copas.md)):
+- 2 grupos de 3 parejas
+- Preset custom: 1 copa, 4 equipos, seeding por tabla general
+- Todos los partidos de grupos confirmados
+- Propuesta generada: **1 partido solo** en vez de 2 cruces de semifinal
+
+**Workaround**: Volver al paso 1, aplicar el preset nuevamente → las copas se generaron correctamente en el segundo intento.
+
+**Posibilidades a investigar**:
+- El preset custom no se guardó/aplicó correctamente al esquema (reglas vacías o incompletas)
+- El RPC `verificar_y_proponer_copas` con `modo: 'global'` generó solo 1 seed en lugar de 4
+- Race condition: el preset se aplicó pero la propuesta se generó antes de que el esquema se guardara
+
+**Archivos sospechosos**: `src/admin/copas/planEditor.js` (`_applyEsquemas`), `src/admin/copas/planService.js` (`guardarEsquemas`), RPC `verificar_y_proponer_copas`
 
 ---
 
@@ -392,20 +458,99 @@ Además ambas ocupan pantalla de forma permanente, lo que en mobile es valioso.
 
 ---
 
-### [BUG POTENCIAL] Múltiples sets no se pueden cargar en partidos de copa `🔍 EN ANÁLISIS`
+### [BUG] Múltiples sets — carga.html no muestra ni preserva todos los sets `🔍 EN ANÁLISIS`
 
-**Síntoma**: Al intentar cargar el resultado de un partido de copa, la UI no permite ingresar más de 1 set. El fix de `statusView.js` (mostrar games en vez de sets ganados) no se pudo validar para partidos multi-set porque no existe forma de generarlos.
+**Síntoma confirmado en testing**: Un partido cargado con 3 sets por los jugadores (desde index.html) solo muestra **1 set** en carga.html. Al cargar el resultado desde carga.html, elimina los resultados del set 2 y 3.
 
-**Hipótesis**: La pantalla de carga de resultados (`src/viewer/cargarResultado.js` o `src/carga/copas.js`) tiene la cantidad de sets hardcodeada a 1, o deriva el `num_sets` del esquema de copa que siempre se inicializa en 1.
+**Aclaración**: El fix no debe ser que no elimine los sets extra, sino que **permita ver y cargar todos los sets** del partido (los que correspondan según `num_sets`).
 
-**Impacto**: Los partidos de copa quedan forzados a 1 set. Si el torneo usa 3 sets, los resultados de copa son inconsistentes con los de grupos.
+**Síntoma adicional para copa**: Al intentar cargar el resultado de un partido de copa, la UI no permite ingresar más de 1 set. Probablemente el RPC `aprobar_propuestas_copa` crea partidos con `num_sets = 1` siempre.
+
+**Impacto**: Doble problema — carga.html es inconsistente con index.html para partidos de grupos multi-set; los partidos de copa quedan forzados a 1 set aunque el torneo use 3.
 
 **Para investigar**:
 - ¿De dónde toma `num_sets` el flujo de carga de copa?
 - ¿El RPC `aprobar_propuestas_copa` crea partidos con `num_sets = 1` siempre?
-- ¿El wizard de copas tiene campo para configurar cantidad de sets por copa?
+- ¿Por qué carga.html ignora los sets 2 y 3 al mostrar un partido ya cargado?
 
 **Archivos sospechosos**: `src/viewer/cargarResultado.js`, `src/carga/copas.js`, migración SQL del RPC `aprobar_propuestas_copa`
+
+---
+
+### [BUG] Carga — mensaje STB sigue mostrando "contame qué pasó" después de cargar el resultado `💡 CRUDA`
+
+**Reproducción**:
+- Partido con super tiebreak (empate 1-1 en sets)
+- Al llegar al set 2 empatado, se muestra "contame qué pasó en el STB" → correcto
+- Se carga el resultado del STB y hay un ganador claro
+- El mismo mensaje del STB **sigue apareciendo** en lugar de mostrar el resultado del ganador
+
+**Comportamiento esperado**: Una vez cargado el STB, identificar la situación y mostrar mensaje acorde:
+- Ganaste el STB → "¡Bien que ganaste!"
+- Perdiste el STB → "¡Qué lástima!"
+- Empate en STB → no debería ser posible, mostrar error
+
+**Archivo clave**: `src/viewer/cargarResultado.js` — lógica del mensaje post-STB
+
+---
+
+### [MEJORA] Admin Setup — UX del flujo de importación de parejas `💡 CRUDA`
+
+**Problemas identificados en testing**:
+
+1. **Botón "Importar" siempre habilitado aunque no se hizo Preview**: El botón funciona solo después de hacer click en "Previsualizar", pero visualmente está disponible desde el inicio. Confuso. Mínimo: dejarlo deshabilitado hasta que se previsualice. Máximo: mini wizard que guíe los pasos.
+   - Antes de cambiar el flujo, entender si "Previsualizar" es obligatorio por alguna razón de validación o si es solo un paso de confirmación.
+
+2. **Los logs de importación desaparecen al hacer refresh**: Al finalizar la importación, la página se recarga y todos los logs del proceso (qué se borró, qué se creó, errores si los hubo) desaparecen. El admin no tiene registro de qué pasó.
+   - **Opción A**: Eliminar el reload automático y actualizar la UI de forma incremental (más trabajo pero mejor UX)
+   - **Opción B**: Conservar el reload pero guardar los logs de la importación en `sessionStorage` y mostrarlos al recargar (más simple)
+
+**Archivo clave**: `src/admin/parejas/parejasImport.js`
+
+---
+
+### [MEJORA] Admin copas — gestión de resultados sin esperar doble confirmación `💡 CRUDA`
+
+**Contexto**: En la fase de copa, es común que solo un equipo cargue el resultado. El flujo actual (ambas parejas deben confirmar) puede frenar el avance del torneo.
+
+**Problemas identificados**:
+
+1. **En Admin-Copas no se distinguen partidos confirmados de los que solo tienen una carga**: El admin no puede ver de un vistazo cuáles partidos están `confirmado` vs `a_confirmar`.
+
+2. **El admin debería poder avanzar aunque no estén confirmados**: Si el admin ve que hay 2 cargas consistentes pero ninguna confirmó, debería poder confirmar manualmente sin esperar.
+
+3. **No esperar confirmación para generar siguientes rondas**: Podría ser suficiente con que el resultado esté "cargado" (no necesariamente `confirmado`) para que el motor genere la siguiente ronda. El admin tiene visibilidad de los resultados incompletos.
+
+**Propuesta**:
+- En la vista de copa (statusView), diferenciar visualmente partidos `confirmado` vs `a_confirmar`
+- Botón "Confirmar resultado" por partido en la vista admin, que fuerza el estado a `confirmado`
+- Evaluar si `generar_finales_copa` puede activarse con resultado `a_confirmar` además de `confirmado`
+
+**Archivos clave**: `src/admin/copas/statusView.js`, RPC `generar_finales_copa`
+
+---
+
+### [MEJORA] Admin copas — resaltar al ganador en los partidos `💡 CRUDA`
+
+**Idea**: En la vista de Admin-Copas, cuando un partido tiene resultado cargado o confirmado, mostrar el nombre de la pareja ganadora en **negrita** para identificarla rápidamente.
+
+**Alcance**: Solo la vista admin (`statusView.js`), no afecta index.html ni fixture.html.
+
+**Archivo clave**: `src/admin/copas/statusView.js`
+
+---
+
+### [MEJORA] Unificar Carga y Fixture en una sola página para admin/ayudante `💡 CRUDA`
+
+**Idea**: Hoy `fixture.html` muestra la cola de partidos y `carga.html` permite cargar resultados, pero son páginas separadas. El organizador tiene que navegar entre ambas durante el torneo.
+
+**Objetivo**: Una única página (`fixture.html` extendida o nueva) que permita al admin/ayudante gestionar todo el torneo en curso: ver la cola, marcar partidos en juego, y cargar/confirmar resultados directamente.
+
+**Nota**: Es una de las features más importantes para la operación del torneo. Requiere pensar bien el diseño antes de implementar — especialmente la UX mobile.
+
+**Sub-mejora relacionada**: Agregar en `carga.html` una sección para identificar partidos pendientes de confirmación y confirmarlos rápidamente (acción más acotada y separable).
+
+**Archivos clave**: `src/fixture.js`, `src/carga.js`, posiblemente nueva página unificada
 
 ---
 

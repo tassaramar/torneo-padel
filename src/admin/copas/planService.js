@@ -193,18 +193,19 @@ export async function aprobarPropuestas(supabase, esquemaCopaid) {
 }
 
 /**
- * Genera finales + 3er puesto para una copa cuando las semis están confirmadas.
+ * Avanza el bracket de una copa a la siguiente ronda cuando todos los partidos
+ * de la ronda actual están confirmados. Genérico: QF→SF, SF→F(+3P).
  *
  * @param {Object} supabase  - Cliente de Supabase
  * @param {string} copaId    - ID de la copa
- * @returns {{ ok: boolean, msg?: string }}
+ * @returns {{ ok: boolean, partidos_creados?: number, msg?: string }}
  */
-export async function generarFinalesCopa(supabase, copaId) {
+export async function avanzarRondaCopa(supabase, copaId) {
   const { data, error } = await supabase
-    .rpc('generar_finales_copa', { p_copa_id: copaId });
+    .rpc('avanzar_ronda_copa', { p_copa_id: copaId });
 
   if (error) {
-    console.error('Error generando finales:', error);
+    console.error('Error avanzando ronda copa:', error);
     return { ok: false, msg: error.message };
   }
 
