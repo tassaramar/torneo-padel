@@ -28,8 +28,8 @@
       <summary>🌐 Sistema de Presentismo (toggle global)</summary>
 
       <p class="helper" style="margin-top:8px;">
-        Activá o desactivá el sistema de presentismo para todo el torneo.
-        Cuando está desactivado, no se muestran badges y no se solicita confirmación.
+        <strong>ON</strong>: se trackea quién llegó — los jugadores se auto-marcan y ves contadores.<br>
+        <strong>OFF</strong>: todos se consideran presentes — equivale a "ya están todos, a jugar".
       </p>
 
       <div class="presentismo-toggle-container" style="margin:14px 0;">
@@ -57,12 +57,12 @@
       </div>
     </details>
 
-    <!-- SECCIÓN 3: Operaciones Masivas -->
+    <!-- SECCIÓN 3: Operaciones Masivas (por grupo) -->
     <details class="admin-section">
-      <summary>⚡ Operaciones Masivas</summary>
+      <summary>⚡ Operaciones por Grupo</summary>
 
       <p class="helper" style="margin-top:8px;">
-        Marcar o desmarcar jugadores en lote. Ideal para inicio del torneo o reseteo completo.
+        Marcar o desmarcar jugadores por grupo en lote.
       </p>
 
       <!-- Safety bar -->
@@ -74,13 +74,6 @@
         <span id="admin-safe-badge" class="admin-safety-badge">Modo seguro</span>
       </div>
 
-      <div class="admin-actions">
-        <button id="marcar-todos-presentes" type="button">✅ Marcar TODOS presentes</button>
-        <button id="desmarcar-todos" type="button" data-danger="hard">🧹 Limpiar TODOS</button>
-      </div>
-
-      <!-- Operaciones por grupo -->
-      <h3 style="margin-top:18px;">Por Grupo</h3>
       <div id="grupos-bulk-container" class="grupos-bulk">
         <!-- Se inyecta dinámicamente -->
       </div>
@@ -121,7 +114,10 @@
         <!-- Se inyecta dinámicamente: grilla de parejas -->
       </div>
 
-      <div class="admin-actions" style="margin-top:12px;">
+      <!-- Acciones masivas (al final de la lista) -->
+      <div class="admin-actions" style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border);">
+        <button id="marcar-todos-presentes" type="button">✅ Marcar TODOS presentes</button>
+        <button id="desmarcar-todos" type="button" data-danger="hard">🧹 Limpiar TODOS</button>
         <button id="refresh-parejas" type="button">🔄 Refrescar Vista</button>
       </div>
     </details>

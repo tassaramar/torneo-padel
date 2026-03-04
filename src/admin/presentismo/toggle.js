@@ -51,6 +51,6 @@ export async function initToggleGlobal() {
 }
 
 function updateStatusUI(activo) {
-  statusDiv.textContent = activo ? 'Activo ✅' : 'Desactivado ❌';
+  statusDiv.textContent = activo ? 'Activo — tracking presencia' : 'Todos presentes ✅';
   statusDiv.className = 'presentismo-toggle-status ' + (activo ? 'status-active' : 'status-inactive');
 }
