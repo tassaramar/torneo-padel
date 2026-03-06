@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-06 (presentismo UX completado)
+**Última actualización**: 2026-03-06 (polish copa vista jugador completado)
 
 ---
 
@@ -35,8 +35,8 @@
 
 > Máximo 3 ítems a la vez. Para agregar uno, sacar uno primero. Obliga a priorizar.
 
-1. **Badge copa + colores victoria/derrota** — Spec lista: pill 🏆 en cards + verde/rojo en modal ([spec](spec-polish-copa-vista-jugador.md))
-2. **Carga.html: partidos pendientes de confirmación** — Sección que muestre partidos `a_confirmar`/`en_revision`
+1. **Carga.html: partidos pendientes de confirmación** — Sección que muestre partidos `a_confirmar`/`en_revision`
+2. _(libre — agregar próxima prioridad)_
 3. _(libre — agregar próxima prioridad)_
 
 ---
@@ -46,17 +46,6 @@
 > Ordenado por prioridad (Bloques A → B → C → D). Repriorizado 2026-03-03 con scoring del owner.
 
 ### Bloque A — Implementar ya
-
----
-
-#### [MEJORA] Partidos de copa — badge + colores victoria/derrota en vista jugador `📋 PRIORIZADA`
-
-**Score owner**: 3/5 · **Spec**: ✅ [spec-polish-copa-vista-jugador.md](spec-polish-copa-vista-jugador.md)
-
-1. **Badge copa**: Los partidos de copa aparecen igual que los de grupos. Agregar pill "🏆 Copa Oro · Semi" en la card del partido y en el popup de carga de resultado.
-2. **Colores**: En el modal "Tablas/Copas", todo está en verde. Usar verde para victorias, rojo suave para derrotas.
-
-**Archivos clave**: `src/viewer/vistaPersonal.js`, `src/viewer/cargarResultado.js`, `src/viewer/modalConsulta.js`
 
 ---
 
@@ -375,6 +364,15 @@ Modelo plan→propuesta→aprobación. Módulos: presets.js, planService.js, pla
 
 RLS policies + función `is_admin()`. Páginas públicas: fixture, carga, presente.
 **Migración**: `20260224000000_fix_rls_policies.sql`
+
+---
+
+### Polish copa — badge nombre + colores victoria/derrota en vista jugador `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-06 · **Spec**: [spec-polish-copa-vista-jugador.md](spec-polish-copa-vista-jugador.md)
+
+- **Ítem 1 — Badge copa en cards**: join `copa:copas(id,nombre)` en la query de partidos. Cards pendientes y historial ahora muestran "🏆 Copa Oro — Semi" en vez de solo "Semi". Afecta `renderPartidosPendientesHome` (cards pendientes) y `renderPartidosConfirmados` (historial).
+- **Ítem 2 — Colores victoria/derrota en modal**: partidos jugados por mi pareja en el modal de consulta ahora muestran fondo verde suave + borde verde (victoria) o rojo suave + borde rojo (derrota). Usa `determinarGanadorParaPareja` existente. Aplica en tabs Grupos y Copas del modal.
 
 ---
 
