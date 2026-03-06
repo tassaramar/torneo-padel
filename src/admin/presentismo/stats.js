@@ -3,6 +3,7 @@
  */
 
 import { supabase, TORNEO_ID, logMsg } from '../context.js';
+import { setFiltroExterno } from './index.js';
 
 // Estado del panel abierto: 'completas' | 'incompletas' | 'ausentes' | null
 let panelActivo = null;
@@ -85,7 +86,7 @@ export async function refreshEstadisticas() {
         <div class="stat-value">${total}</div>
         <div class="stat-label">Total Parejas</div>
       </div>
-      <button class="stat-card stat-success drill-trigger ${panelActivo === 'completas' ? 'drill-active' : ''}"
+      <button class="stat-card stat-success drill-trigger"
               data-estado="completas" type="button">
         <div class="stat-value">${completas} (${pct(completas, total)}%)</div>
         <div class="stat-label">✅ Completas ${panelActivo === 'completas' ? '▲' : '▼'}</div>
@@ -93,7 +94,7 @@ export async function refreshEstadisticas() {
       <div id="drill-panel-completas" class="drill-panel ${panelActivo === 'completas' ? 'drill-panel-open' : ''}" data-estado="completas">
         ${panelActivo === 'completas' ? renderDrillItems(parejasCompletas) : ''}
       </div>
-      <button class="stat-card stat-warning drill-trigger ${panelActivo === 'incompletas' ? 'drill-active' : ''}"
+      <button class="stat-card stat-warning drill-trigger"
               data-estado="incompletas" type="button">
         <div class="stat-value">${incompletas} (${pct(incompletas, total)}%)</div>
         <div class="stat-label">⚠️ Incompletas ${panelActivo === 'incompletas' ? '▲' : '▼'}</div>
@@ -101,7 +102,7 @@ export async function refreshEstadisticas() {
       <div id="drill-panel-incompletas" class="drill-panel ${panelActivo === 'incompletas' ? 'drill-panel-open' : ''}" data-estado="incompletas">
         ${panelActivo === 'incompletas' ? renderDrillItems(parejasIncompletas) : ''}
       </div>
-      <button class="stat-card stat-danger drill-trigger ${panelActivo === 'ausentes' ? 'drill-active' : ''} ${ausentes === 0 ? 'drill-empty' : ''}"
+      <button class="stat-card stat-danger drill-trigger ${ausentes === 0 ? 'drill-empty' : ''}"
               data-estado="ausentes" type="button" ${ausentes === 0 ? 'disabled' : ''}>
         <div class="stat-value">${ausentes} (${pct(ausentes, total)}%)</div>
         <div class="stat-label">❌ Ausentes ${ausentes > 0 ? (panelActivo === 'ausentes' ? '▲' : '▼') : ''}</div>
@@ -164,13 +165,15 @@ function renderDrillItems(parejasList) {
 }
 
 function toggleDrillPanel(estado) {
-  if (panelActivo === estado) {
-    panelActivo = null;
-  } else {
-    panelActivo = estado;
-  }
-  // Re-render stats para reflejar nuevo panel activo
+  const abriendo = panelActivo !== estado;
+  panelActivo = abriendo ? estado : null;
+
   refreshEstadisticas();
+
+  // Al abrir: sincronizar filtro en "Control por Pareja"
+  if (abriendo) {
+    setFiltroExterno(estado);
+  }
 }
 
 function pct(n, total) {

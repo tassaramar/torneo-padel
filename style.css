@@ -5186,6 +5186,32 @@ a.btn-action-secondary:hover {
   font-weight: 600;
 }
 
+/* Línea combinada pareja · grupo (layout compacto) */
+.ausente-meta {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Botón compacto (solo ícono) */
+.btn-presente-rapido {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0;
+  background: #dcfce7;
+  border: 1.5px solid #16a34a;
+  border-radius: 10px;
+  font-size: 20px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn-presente-rapido:active {
+  background: #bbf7d0;
+}
+
 .btn-presente {
   padding: 8px 12px;
   background: var(--success);
@@ -5224,16 +5250,6 @@ a.btn-action-secondary:hover {
 
   .parejas-presentismo {
     grid-template-columns: 1fr;
-  }
-
-  .ausente-card {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-  .btn-presente {
-    width: 100%;
   }
 
   .grupo-bulk-item {
@@ -5866,11 +5882,6 @@ button.stat-card:disabled {
   cursor: default;
   opacity: 0.7;
 }
-button.stat-card.drill-active {
-  outline: 2px solid currentColor;
-  outline-offset: 2px;
-}
-
 /* Drill panel — ocupa ancho completo de la grid */
 .drill-panel {
   display: none;

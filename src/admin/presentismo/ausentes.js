@@ -5,6 +5,7 @@
 import { supabase, TORNEO_ID, logMsg } from '../context.js';
 import { marcarPresente } from '../../viewer/presentismo.js';
 import { refreshTodasLasVistas } from './index.js';
+import { showToast } from '../../utils/toast.js';
 
 export async function initAusentes() {
   await refreshAusentes();
@@ -71,15 +72,15 @@ export async function refreshAusentes() {
       ⚠️ ${ausentes.length} jugador${ausentes.length > 1 ? 'es' : ''} ausente${ausentes.length > 1 ? 's' : ''}
     </p>
     ${ausentes.map(a => `
-      <div class="ausente-card">
+      <div class="ausente-card" data-pareja-id="${a.parejaId}" data-nombre="${a.nombre}">
         <div class="ausente-info">
           <div class="ausente-nombre">${a.nombre}</div>
-          <div class="ausente-pareja">${a.pareja}</div>
-          <div class="ausente-grupo">Grupo ${a.grupo}</div>
+          <div class="ausente-meta">${a.pareja} · Grupo ${a.grupo}</div>
         </div>
-        <button class="btn-presente"
-                onclick="window.marcarPresenteRapido('${a.parejaId}', '${a.nombre}')">
-          Marcar presente
+        <button class="btn-presente-rapido"
+                onclick="window.marcarPresenteRapido('${a.parejaId}', '${a.nombre}')"
+                title="Marcar presente">
+          ✅
         </button>
       </div>
     `).join('')}
@@ -88,11 +89,19 @@ export async function refreshAusentes() {
 
 // Exponer función global
 window.marcarPresenteRapido = async function(parejaId, nombre) {
+  // OPTIMISTIC UI: ocultar card inmediatamente
+  const card = document.querySelector(`.ausente-card[data-pareja-id="${parejaId}"][data-nombre="${nombre}"]`);
+  if (card) card.style.display = 'none';
+
   const success = await marcarPresente(parejaId, nombre);
+
   if (success) {
     logMsg(`✅ ${nombre} marcado como presente`);
     await refreshTodasLasVistas();
   } else {
+    // ROLLBACK: mostrar card de nuevo
+    if (card) card.style.display = '';
     logMsg(`❌ Error marcando ${nombre} como presente`);
+    showToast(`Error al marcar presente a ${nombre}`, 'error');
   }
 };

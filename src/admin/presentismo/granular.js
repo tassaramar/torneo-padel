@@ -422,6 +422,25 @@ window.limpiarPareja = async function(parejaId) {
   }
 };
 
+/**
+ * Activa un filtro desde fuera del módulo (ej: al tocar un card de stats).
+ * @param {string} estado - 'completas' | 'incompletas' | 'ausentes'
+ */
+export function setFiltroExterno(estado) {
+  filtrosActivos.clear();
+  filtrosActivos.add(estado);
+
+  document.querySelectorAll('.segmented__btn').forEach(btn => {
+    const esActivo = btn.dataset.filtro === estado;
+    btn.classList.toggle('is-active', esActivo);
+  });
+
+  renderParejas();
+
+  // Scroll suave al container de parejas
+  document.getElementById('parejas-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function normalizar(str) {
   return str
     .toLowerCase()

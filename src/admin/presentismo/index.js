@@ -6,7 +6,7 @@
 import { initToggleGlobal } from './toggle.js';
 import { initEstadisticas, refreshEstadisticas } from './stats.js';
 import { initOperacionesMasivas } from './bulk.js';
-import { initControlGranular, refreshParejas } from './granular.js';
+import { initControlGranular, refreshParejas, setFiltroExterno } from './granular.js';
 import { initAusentes, refreshAusentes } from './ausentes.js';
 
 export {
@@ -17,7 +17,8 @@ export {
   initAusentes,
   refreshEstadisticas,
   refreshParejas,
-  refreshAusentes
+  refreshAusentes,
+  setFiltroExterno
 };
 
 /**
