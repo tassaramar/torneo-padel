@@ -1,4 +1,4 @@
 export const state = {
-  modo: 'pendientes', // 'pendientes' | 'jugados' | 'disputas'
+  modo: 'pendientes', // 'pendientes' | 'confirmar' | 'jugados' | 'disputas'
   search: ''          // texto del buscador
 };

@@ -17,8 +17,8 @@ function dispararMotorCopas(supabase) {
 async function guardarResultadoComoSet(supabase, partidoId, gamesA, gamesB) {
   const { error } = await supabase
     .from('partidos')
-    .update({ 
-      set1_a: gamesA, 
+    .update({
+      set1_a: gamesA,
       set1_b: gamesB,
       num_sets: 1,
       // Limpiar sets 2 y 3 por si acaso
@@ -56,6 +56,8 @@ export async function cargarPartidosGrupos({ supabase, torneoId, msgCont, listCo
       id,
       estado,
       cargado_por_pareja_id,
+      pareja_a_id,
+      pareja_b_id,
       notas_revision,
       ronda,
       set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
@@ -71,10 +73,10 @@ export async function cargarPartidosGrupos({ supabase, torneoId, msgCont, listCo
     .is('copa_id', null);
 
   if (state.modo === 'pendientes') {
-    // Pendientes = sin sets cargados (sets_a es derivado, si es null no hay resultado)
     q = q.is('sets_a', null);
+  } else if (state.modo === 'confirmar') {
+    q = q.eq('estado', 'a_confirmar');
   } else if (state.modo === 'jugados') {
-    // Jugados = con sets cargados
     q = q.not('sets_a', 'is', null);
   } else if (state.modo === 'disputas') {
     q = q.eq('estado', 'en_revision');
@@ -95,64 +97,49 @@ export async function cargarPartidosGrupos({ supabase, torneoId, msgCont, listCo
 
 /**
  * Agrupa partidos por ronda usando el campo `ronda` de la BD.
- * Retorna array de rondas con estructura:
- * [
- *   { grupo: 'A', ronda: 1, partidos: [...], parejasLibres: [...] },
- *   { grupo: 'A', ronda: 2, partidos: [...], parejasLibres: [...] },
- *   ...
- * ]
  */
 export function agruparEnRondas(partidos) {
   const rondas = [];
-  
-  // Separar partidos por grupo
+
   const porGrupo = {};
   partidos.forEach(p => {
     const grupo = p.grupos?.nombre ?? 'Sin Grupo';
     if (!porGrupo[grupo]) porGrupo[grupo] = [];
     porGrupo[grupo].push(p);
   });
-  
-  // Procesar cada grupo independientemente
+
   Object.keys(porGrupo).sort().forEach(nombreGrupo => {
     const partidosGrupo = [...porGrupo[nombreGrupo]];
-    
-    // Extraer todos los equipos del grupo
+
     const equiposSet = new Set();
     partidosGrupo.forEach(p => {
       if (p.pareja_a?.nombre) equiposSet.add(p.pareja_a.nombre);
       if (p.pareja_b?.nombre) equiposSet.add(p.pareja_b.nombre);
     });
     const equipos = Array.from(equiposSet).sort();
-    
-    // Agrupar partidos por número de ronda (del campo ronda de la BD)
+
     const partidosPorRonda = {};
     partidosGrupo.forEach(p => {
-      const numRonda = p.ronda || 1; // Default a 1 si no tiene ronda
-      if (!partidosPorRonda[numRonda]) {
-        partidosPorRonda[numRonda] = [];
-      }
+      const numRonda = p.ronda || 1;
+      if (!partidosPorRonda[numRonda]) partidosPorRonda[numRonda] = [];
       partidosPorRonda[numRonda].push(p);
     });
-    
-    // Crear entrada de ronda para cada número de ronda
+
     const numerosRonda = Object.keys(partidosPorRonda).map(Number).sort((a, b) => a - b);
-    
+
     numerosRonda.forEach(numRonda => {
       const partidosRonda = partidosPorRonda[numRonda];
       const parejasEnUso = new Set();
-      
-      // Recolectar parejas que juegan en esta ronda
+
       partidosRonda.forEach(p => {
         if (p.pareja_a?.nombre) parejasEnUso.add(p.pareja_a.nombre);
         if (p.pareja_b?.nombre) parejasEnUso.add(p.pareja_b.nombre);
       });
-      
-      // Calcular parejas libres (no juegan en esta ronda)
+
       const parejasLibres = equipos
         .filter(e => !parejasEnUso.has(e))
         .sort();
-      
+
       rondas.push({
         grupo: nombreGrupo,
         ronda: numRonda,
@@ -161,15 +148,31 @@ export function agruparEnRondas(partidos) {
       });
     });
   });
-  
+
   return rondas;
 }
 
 function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
   listCont.innerHTML = '';
 
+  // Modo confirmar: render dedicado
+  if (state.modo === 'confirmar') {
+    if (partidos.length === 0) {
+      const msg = document.createElement('p');
+      msg.textContent = 'No hay partidos pendientes de confirmación';
+      listCont.appendChild(msg);
+      return;
+    }
+    partidos.forEach(p => {
+      const headerLeft = `Grupo <strong>${p.grupos?.nombre ?? '-'}</strong>`;
+      const card = crearCardConfirmacion(p, supabase, onAfterSave, { headerLeft, copasId: null });
+      listCont.appendChild(card);
+    });
+    aplicarZebraVisible(listCont);
+    return;
+  }
+
   // En modo 'disputas', no separar en revisión (ya están todos en revisión)
-  // En otros modos, separarlos
   let enRevision = [];
   let partidosNormales = partidos;
 
@@ -182,7 +185,7 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
   if (enRevision.length > 0 && state.modo !== 'disputas') {
     const seccionRevision = document.createElement('div');
     seccionRevision.style.cssText = 'margin-bottom: 32px; padding: 16px; background: rgba(239, 68, 68, 0.08); border: 2px solid rgba(239, 68, 68, 0.3); border-radius: 14px;';
-    
+
     const titulo = document.createElement('h3');
     titulo.style.cssText = 'margin: 0 0 12px 0; font-size: 18px; color: #991B1B;';
     titulo.textContent = `⚠️ Partidos en revisión (${enRevision.length})`;
@@ -229,40 +232,31 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
     partidosNormales.sort((a, b) => {
       const estadoA = a.estado || 'pendiente';
       const estadoB = b.estado || 'pendiente';
-      
-      // a_confirmar primero
       if (estadoA === 'a_confirmar' && estadoB !== 'a_confirmar') return -1;
       if (estadoB === 'a_confirmar' && estadoA !== 'a_confirmar') return 1;
-      
-      return 0; // Mantener orden original para el resto
+      return 0;
     });
   }
 
   // Agrupar en rondas si es modo pendientes
   if (state.modo === 'pendientes') {
     const rondas = agruparEnRondas(partidosNormales);
-    
-    // Contar total de parejas libres para generar frases únicas
+
     const totalParejasLibres = rondas.reduce((sum, r) => sum + r.parejasLibres.length, 0);
     const frases = obtenerFrasesUnicas(totalParejasLibres);
     let fraseIndex = 0;
-    
+
     rondas.forEach((rondaData) => {
-      // Separador de ronda
       const separator = document.createElement('div');
       separator.style.cssText = 'margin: 24px 0 8px; padding: 8px 12px; background: var(--primary-soft); border-left: 4px solid var(--primary); border-radius: 8px; font-weight: 700; font-size: 14px; color: var(--text);';
-      
-      let headerText = `Ronda ${rondaData.ronda} — Grupo ${rondaData.grupo} — ${rondaData.partidos.length} partido${rondaData.partidos.length > 1 ? 's' : ''} en paralelo`;
-      separator.textContent = headerText;
+      separator.textContent = `Ronda ${rondaData.ronda} — Grupo ${rondaData.grupo} — ${rondaData.partidos.length} partido${rondaData.partidos.length > 1 ? 's' : ''} en paralelo`;
       listCont.appendChild(separator);
-      
-      // Partidos de la ronda
+
       rondaData.partidos.forEach((p) => {
         const card = crearCardParaPartido(p, supabase, onAfterSave);
         listCont.appendChild(card);
       });
-      
-      // Parejas libres (fecha libre)
+
       if (rondaData.parejasLibres.length > 0) {
         rondaData.parejasLibres.forEach(parejaLibre => {
           const cardLibre = document.createElement('div');
@@ -286,7 +280,6 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
     });
   }
 
-  // zebra inicial (sin filtro)
   aplicarZebraVisible(listCont);
 }
 
@@ -294,14 +287,13 @@ function crearCardParaPartido(p, supabase, onAfterSave) {
   const grupo = p.grupos?.nombre ?? '-';
   const a = p.pareja_a?.nombre ?? 'Pareja A';
   const b = p.pareja_b?.nombre ?? 'Pareja B';
-  
+
   const estado = p.estado || 'pendiente';
   let estadoDisplay = 'Pendiente';
   if (estado === 'a_confirmar') estadoDisplay = '🟡 A confirmar';
   if (estado === 'confirmado') estadoDisplay = '✅ Confirmado';
   if (tieneResultado(p) && estado === 'pendiente') estadoDisplay = 'Jugado';
 
-  // Para la card editable, mostrar el set1 (o null si no hay resultado)
   const gamesA = p.set1_a;
   const gamesB = p.set1_b;
 
@@ -313,19 +305,17 @@ function crearCardParaPartido(p, supabase, onAfterSave) {
     gamesA: gamesA,
     gamesB: gamesB,
     onSave: async (ga, gb) => {
-      // Admin guarda como set1 (partido a 1 set)
-      // El trigger calculará games_totales_* y sets_* automáticamente
       const { error } = await supabase
         .from('partidos')
-        .update({ 
-          set1_a: ga, 
+        .update({
+          set1_a: ga,
           set1_b: gb,
           num_sets: 1,
           set2_a: null,
           set2_b: null,
           set3_a: null,
           set3_b: null,
-          estado: 'confirmado', // Admin confirma directo
+          estado: 'confirmado',
           set1_temp_a: null,
           set1_temp_b: null,
           set2_temp_a: null,
@@ -348,9 +338,163 @@ function crearCardParaPartido(p, supabase, onAfterSave) {
     }
   });
 
-  // Extra: ayuda al filtro (fallback), sin depender del DOM
   card.dataset.search = `${grupo} ${a} ${b}`;
-  
+
+  return card;
+}
+
+/**
+ * Card de solo lectura para partidos en estado 'a_confirmar'.
+ * Reutiliza crearCardEditable para el flujo de edición.
+ * Exportada para reutilizarla en copas.js.
+ */
+export function crearCardConfirmacion(partido, supabase, onUpdate, { headerLeft, copasId = null } = {}) {
+  const p = partido;
+  const nombreA = p.pareja_a?.nombre ?? 'Pareja A';
+  const nombreB = p.pareja_b?.nombre ?? 'Pareja B';
+
+  // Determinar quién cargó
+  const cargadoPor = p.cargado_por_pareja_id === p.pareja_a_id
+    ? nombreA
+    : p.cargado_por_pareja_id === p.pareja_b_id
+      ? nombreB
+      : '?';
+
+  // Ganador siempre arriba
+  const aWins = (p.sets_a ?? 0) > (p.sets_b ?? 0);
+  const topNombre = aWins ? nombreA : nombreB;
+  const topScore  = aWins ? (p.set1_a ?? '-') : (p.set1_b ?? '-');
+  const botNombre = aWins ? nombreB : nombreA;
+  const botScore  = aWins ? (p.set1_b ?? '-') : (p.set1_a ?? '-');
+
+  const card = document.createElement('div');
+  card.className = 'partido card-confirmar';
+  card.dataset.search = `${headerLeft.replace(/<[^>]*>/g, '')} ${nombreA} ${nombreB}`;
+
+  card.innerHTML = `
+    <div class="card-header">
+      <div class="card-header-left">${headerLeft}</div>
+      <div class="card-header-right status-confirmar">⏳ A confirmar</div>
+    </div>
+
+    <div class="row row-top is-winner">
+      <strong class="team-name is-winner">${topNombre}</strong>
+      <span class="score-display">${topScore}</span>
+    </div>
+    <div class="row row-bot">
+      <strong class="team-name">${botNombre}</strong>
+      <span class="score-display score-loser">${botScore}</span>
+    </div>
+
+    <div class="cargado-por">Cargado por: ${cargadoPor}</div>
+
+    <div class="confirmar-actions">
+      <button type="button" class="btn-primary btn-confirmar-card" style="min-height:44px">✅ Confirmar</button>
+      <button type="button" class="btn-secondary btn-editar-card" style="min-height:44px">✏️ Editar</button>
+    </div>
+  `;
+
+  // --- Acción: Confirmar (optimistic UI) ---
+  card.querySelector('.btn-confirmar-card').addEventListener('click', async () => {
+    // Optimistic: sacar la card del DOM inmediatamente
+    card.remove();
+
+    const { error } = await supabase
+      .from('partidos')
+      .update({ estado: 'confirmado' })
+      .eq('id', p.id);
+
+    if (error) {
+      console.error(error);
+      // Rollback: reinsertar la card
+      alert('Error al confirmar. Recargá la página.');
+      // No se puede reinsertar fácilmente sin referencia al contenedor, así que recargamos
+      if (onUpdate) await onUpdate();
+      return;
+    }
+
+    // Fire-and-forget para copas
+    if (copasId) {
+      supabase.rpc('avanzar_ronda_copa', { p_copa_id: copasId })
+        .then(({ error: e }) => { if (e) console.warn('Avanzar ronda copa:', e.message); });
+    }
+
+    if (onUpdate) await onUpdate();
+  });
+
+  // --- Acción: Editar (reemplazar card por crearCardEditable) ---
+  card.querySelector('.btn-editar-card').addEventListener('click', () => {
+    const cardEdit = crearCardEditable({
+      headerLeft,
+      headerRight: '✏️ Editando',
+      nombreA,
+      nombreB,
+      gamesA: p.set1_a,
+      gamesB: p.set1_b,
+      onSave: async (ga, gb) => {
+        const { error } = await supabase
+          .from('partidos')
+          .update({
+            set1_a: ga,
+            set1_b: gb,
+            num_sets: 1,
+            set2_a: null,
+            set2_b: null,
+            set3_a: null,
+            set3_b: null,
+            estado: 'confirmado',
+            set1_temp_a: null,
+            set1_temp_b: null,
+            set2_temp_a: null,
+            set2_temp_b: null,
+            set3_temp_a: null,
+            set3_temp_b: null,
+            cargado_por_pareja_id: null
+          })
+          .eq('id', p.id);
+
+        if (error) {
+          console.error(error);
+          alert('Error guardando el resultado');
+          return false;
+        }
+
+        if (copasId) {
+          supabase.rpc('avanzar_ronda_copa', { p_copa_id: copasId })
+            .then(({ error: e }) => { if (e) console.warn('Avanzar ronda copa:', e.message); });
+        }
+
+        if (onUpdate) await onUpdate();
+        return true;
+      }
+    });
+
+    // Mensaje en vivo de ganador debajo de las filas de inputs
+    const winnerMsg = document.createElement('div');
+    winnerMsg.className = 'live-winner-msg';
+    const actionsRow = cardEdit.querySelector('.actions-row');
+    cardEdit.insertBefore(winnerMsg, actionsRow);
+
+    const inputA = cardEdit.querySelector('.input-a');
+    const inputB = cardEdit.querySelector('.input-b');
+
+    function actualizarWinnerMsg() {
+      const ga = Number(inputA.value);
+      const gb = Number(inputB.value);
+      if (!inputA.value || !inputB.value || isNaN(ga) || isNaN(gb) || ga === gb) {
+        winnerMsg.textContent = '';
+        return;
+      }
+      winnerMsg.textContent = `🏆 Ganó ${ga > gb ? nombreA : nombreB}`;
+    }
+
+    inputA.addEventListener('input', actualizarWinnerMsg);
+    inputB.addEventListener('input', actualizarWinnerMsg);
+    actualizarWinnerMsg();
+
+    card.replaceWith(cardEdit);
+  });
+
   return card;
 }
 
@@ -381,9 +525,9 @@ function crearCardRevision(p, supabase, onAfterSave) {
         <div style="font-size: 11px; color: var(--muted); margin-bottom: 4px; font-weight: 700;">PRIMERA CARGA</div>
         <div style="font-size: 22px; font-weight: 900;" class="resultado-display" data-partido-id="${p.id}">${formatearResultado(p)}</div>
       </div>
-      
+
       <div style="display: flex; align-items: center; font-weight: 800; color: var(--muted);">vs</div>
-      
+
       <div style="flex: 1; text-align: center; padding: 10px; background: var(--card); border: 2px solid var(--border); border-radius: 8px;">
         <div style="font-size: 11px; color: var(--muted); margin-bottom: 4px; font-weight: 700;">SEGUNDA CARGA</div>
         <div style="font-size: 22px; font-weight: 900;">${(() => {
@@ -412,11 +556,10 @@ function crearCardRevision(p, supabase, onAfterSave) {
     </div>
   `;
 
-  // Event listeners
   card.querySelector('[data-action="aceptar-1"]').addEventListener('click', async () => {
     const resTexto = formatearResultado(p);
     if (!confirm(`¿Aceptar resultado ${resTexto}?`)) return;
-    
+
     const updateData = {
       estado: 'confirmado',
       set1_temp_a: null,
@@ -427,7 +570,7 @@ function crearCardRevision(p, supabase, onAfterSave) {
       set3_temp_b: null,
       notas_revision: null
     };
-    
+
     const { error } = await supabase
       .from('partidos')
       .update(updateData)
@@ -448,7 +591,7 @@ function crearCardRevision(p, supabase, onAfterSave) {
     const tempPartido = { ...p, set1_a: p.set1_temp_a, set1_b: p.set1_temp_b, set2_a: p.set2_temp_a, set2_b: p.set2_temp_b, set3_a: p.set3_temp_a, set3_b: p.set3_temp_b };
     const resTexto = formatearResultado(tempPartido);
     if (!confirm(`¿Aceptar resultado ${resTexto}?`)) return;
-    
+
     const updateData = {
       set1_a: p.set1_temp_a,
       set1_b: p.set1_temp_b,
@@ -463,12 +606,12 @@ function crearCardRevision(p, supabase, onAfterSave) {
       set3_temp_b: null,
       notas_revision: null
     };
-    
+
     if (p.set3_temp_a !== null && p.set3_temp_b !== null) {
       updateData.set3_a = p.set3_temp_a;
       updateData.set3_b = p.set3_temp_b;
     }
-    
+
     const { error } = await supabase
       .from('partidos')
       .update(updateData)
@@ -486,22 +629,19 @@ function crearCardRevision(p, supabase, onAfterSave) {
   });
 
   card.querySelector('[data-action="manual"]').addEventListener('click', () => {
-    // Admin ingresa resultado manualmente como set1
     const gA = prompt('Ingresá games de ' + a + ':', p.set1_a);
     const gB = prompt('Ingresá games de ' + b + ':', p.set1_b);
-    
+
     if (gA === null || gB === null) return;
-    
+
     const gamesA = parseInt(gA);
     const gamesB = parseInt(gB);
-    
+
     if (isNaN(gamesA) || isNaN(gamesB)) {
       alert('Valores inválidos');
       return;
     }
 
-    // Guardar como set1 (partido a 1 set)
-    // El trigger calculará games_totales_* y sets_* automáticamente
     supabase
       .from('partidos')
       .update({
@@ -535,6 +675,6 @@ function crearCardRevision(p, supabase, onAfterSave) {
   });
 
   card.dataset.search = `${grupo} ${a} ${b}`;
-  
+
   return card;
 }

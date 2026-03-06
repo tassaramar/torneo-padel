@@ -5957,3 +5957,64 @@ button.stat-card:disabled {
   border-color: #cbd5e1;
   color: #475569;
 }
+
+/* ===== Carga: Segmented — móvil con 4 botones ===== */
+.segmented{
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  flex-wrap: nowrap;
+}
+.segmented::-webkit-scrollbar{ display: none; }
+.segmented__btn{
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 14px;
+  padding: 10px 10px;
+}
+
+/* ===== Carga: Card de confirmación ===== */
+.card-confirmar{
+  border: 2px solid rgba(245, 158, 11, 0.35);
+}
+
+.status-confirmar{
+  color: #B45309;
+  font-weight: 800;
+}
+
+.score-display{
+  font-size: 24px;
+  font-weight: 900;
+  min-width: 32px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.score-loser{
+  color: var(--muted);
+}
+
+.cargado-por{
+  font-size: 13px;
+  color: var(--muted);
+  margin: 6px 0 12px;
+}
+
+.confirmar-actions{
+  display: flex;
+  gap: 8px;
+}
+
+.confirmar-actions .btn-primary,
+.confirmar-actions .btn-secondary{
+  flex: 1;
+}
+
+.live-winner-msg{
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--success);
+  margin-bottom: 6px;
+  min-height: 20px;
+}

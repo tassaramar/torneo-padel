@@ -1,5 +1,5 @@
 import { supabase, TORNEO_ID } from './carga/context.js';
-import { initCargaLayout, wireModoToggle, pintarModoToggle } from './carga/layout.js';
+import { initCargaLayout, wireModoToggle, pintarModoToggle, actualizarCounters } from './carga/layout.js';
 import { cargarPartidosGrupos } from './carga/partidosGrupos.js';
 import { cargarPosiciones } from './carga/posiciones.js';
 import { cargarCopas } from './carga/copas.js';
@@ -31,6 +31,8 @@ function initCarga() {
       copasCont: dom.copasCont,
       onAfterSave: refreshCopasOnly
     });
+
+    actualizarCounters(supabase, dom, TORNEO_ID);
   }
 
   async function refreshAfterGroupSave() {
@@ -49,6 +51,8 @@ function initCarga() {
       torneoId: TORNEO_ID,
       posicionesCont: dom.posicionesCont
     });
+
+    actualizarCounters(supabase, dom, TORNEO_ID);
   }
 
   async function refreshCopasOnly() {
@@ -58,6 +62,8 @@ function initCarga() {
       copasCont: dom.copasCont,
       onAfterSave: refreshCopasOnly
     });
+
+    actualizarCounters(supabase, dom, TORNEO_ID);
   }
 
   async function init() {

@@ -60,9 +60,10 @@ export function crearCardEditable({
   const nameA = div.querySelector('.name-a');
   const nameB = div.querySelector('.name-b');
 
-  if (state.modo === 'jugados') {
-    inputA.value = gamesA ?? '';
-    inputB.value = gamesB ?? '';
+  // Pre-rellenar si hay scores (jugados o confirmar)
+  if (gamesA !== null && gamesA !== undefined && gamesB !== null && gamesB !== undefined) {
+    inputA.value = gamesA;
+    inputB.value = gamesB;
   }
 
   function pintarGanador() {

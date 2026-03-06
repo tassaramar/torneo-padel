@@ -1,11 +1,11 @@
 import { state } from './state.js';
 import { crearCardEditable } from './cardEditable.js';
+import { crearCardConfirmacion } from './partidosGrupos.js';
 import { tieneResultado } from '../utils/formatoResultado.js';
 import { labelRonda } from '../utils/copaRondas.js';
 
 /**
  * Guarda resultado como set1 (partido a 1 set) - para uso de admin en copas
- * NOTA: NO escribir directamente a games_totales_* (son derivados calculados por trigger)
  */
 async function guardarResultadoComoSet(supabase, partidoId, gamesA, gamesB) {
   const { error } = await supabase
@@ -39,6 +39,10 @@ export async function cargarCopas({ supabase, torneoId, copasCont, onAfterSave }
     .from('partidos')
     .select(`
       id,
+      estado,
+      cargado_por_pareja_id,
+      pareja_a_id,
+      pareja_b_id,
       ronda_copa,
       orden_copa,
       set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
@@ -52,10 +56,11 @@ export async function cargarCopas({ supabase, torneoId, copasCont, onAfterSave }
     .not('copa_id', 'is', null);
 
   if (state.modo === 'pendientes') {
-    // Pendientes = sin sets cargados (sets_a es derivado, si es null no hay resultado)
     q = q.is('sets_a', null);
+  } else if (state.modo === 'confirmar') {
+    q = q.eq('estado', 'a_confirmar');
   } else {
-    // Jugados = con sets cargados
+    // jugados y disputas: con sets cargados
     q = q.not('sets_a', 'is', null);
   }
 
@@ -76,6 +81,10 @@ function renderCopas({ supabase, copasCont, partidos, onAfterSave }) {
   copasCont.innerHTML = '';
 
   if (!partidos.length) {
+    if (state.modo === 'confirmar') {
+      // Sin mensaje propio: la sección de grupos ya muestra el estado global
+      return;
+    }
     copasCont.innerHTML =
       state.modo === 'pendientes'
         ? '<p>No hay partidos de copas pendientes (todavía) 🎉</p>'
@@ -84,7 +93,7 @@ function renderCopas({ supabase, copasCont, partidos, onAfterSave }) {
   }
 
   // agrupar por copa
-  const map = new Map(); // key -> { nombre, orden, partidos: [] }
+  const map = new Map();
   for (const p of partidos) {
     const nombre = p.copas?.nombre ?? 'Copa';
     const orden = p.copas?.orden ?? 99;
@@ -104,23 +113,30 @@ function renderCopas({ supabase, copasCont, partidos, onAfterSave }) {
     c.partidos
       .sort((a, b) => (a.orden_copa ?? 999) - (b.orden_copa ?? 999))
       .forEach(p => {
-        const header = `<strong>${c.nombre}</strong> · ${labelRonda(p.ronda_copa, true) || 'Partido'}`;
+        const headerLeft = `<strong>${c.nombre}</strong> · ${labelRonda(p.ronda_copa, true) || 'Partido'}`;
 
-        // Para la card editable, mostrar el set1 (o null si no hay resultado)
+        if (state.modo === 'confirmar') {
+          const card = crearCardConfirmacion(p, supabase, onAfterSave, {
+            headerLeft,
+            copasId: p.copas?.id ?? null
+          });
+          copasCont.appendChild(card);
+          return;
+        }
+
         const gamesA = p.set1_a;
         const gamesB = p.set1_b;
 
         const card = crearCardEditable({
-          headerLeft: header,
+          headerLeft,
           headerRight: tieneResultado(p) ? 'Jugado' : 'Pendiente',
           nombreA: p.pareja_a?.nombre ?? 'Pareja A',
           nombreB: p.pareja_b?.nombre ?? 'Pareja B',
-          gamesA: gamesA,
-          gamesB: gamesB,
+          gamesA,
+          gamesB,
           onSave: async (ga, gb) => {
             const ok = await guardarResultadoComoSet(supabase, p.id, ga, gb);
             if (ok) {
-              // Fire-and-forget: avanzar bracket de copa
               if (p.copas?.id) {
                 supabase.rpc('avanzar_ronda_copa', { p_copa_id: p.copas.id })
                   .then(({ error }) => { if (error) console.warn('Avanzar ronda copa:', error.message); });

@@ -22,6 +22,7 @@ export function initCargaLayout() {
   app.innerHTML = `
     <div id="partidos-controls" class="segmented" role="group" aria-label="Modo de carga">
       <button id="btn-pendientes" class="segmented__btn" type="button" aria-pressed="true">Pendientes</button>
+      <button id="btn-confirmar" class="segmented__btn" type="button" aria-pressed="false">Confirmar</button>
       <button id="btn-jugados" class="segmented__btn" type="button" aria-pressed="false">Jugados</button>
       <button id="btn-disputas" class="segmented__btn" type="button" aria-pressed="false">Disputas</button>
     </div>
@@ -43,6 +44,7 @@ export function initCargaLayout() {
   `;
 
   const btnPendientes = document.getElementById('btn-pendientes');
+  const btnConfirmar = document.getElementById('btn-confirmar');
   const btnJugados = document.getElementById('btn-jugados');
   const btnDisputas = document.getElementById('btn-disputas');
   const msgCont = document.getElementById('partidos-msg');
@@ -58,6 +60,7 @@ export function initCargaLayout() {
     posicionesCont,
     copasCont,
     btnPendientes,
+    btnConfirmar,
     btnJugados,
     btnDisputas,
     msgCont,
@@ -69,14 +72,17 @@ export function initCargaLayout() {
 
 export function pintarModoToggle(dom) {
   const isPendientes = state.modo === 'pendientes';
+  const isConfirmar = state.modo === 'confirmar';
   const isJugados = state.modo === 'jugados';
   const isDisputas = state.modo === 'disputas';
 
   dom.btnPendientes.classList.toggle('is-active', isPendientes);
+  dom.btnConfirmar.classList.toggle('is-active', isConfirmar);
   dom.btnJugados.classList.toggle('is-active', isJugados);
   dom.btnDisputas.classList.toggle('is-active', isDisputas);
 
   dom.btnPendientes.setAttribute('aria-pressed', String(isPendientes));
+  dom.btnConfirmar.setAttribute('aria-pressed', String(isConfirmar));
   dom.btnJugados.setAttribute('aria-pressed', String(isJugados));
   dom.btnDisputas.setAttribute('aria-pressed', String(isDisputas));
 }
@@ -84,6 +90,11 @@ export function pintarModoToggle(dom) {
 export function wireModoToggle(dom, onChange) {
   dom.btnPendientes.onclick = async () => {
     state.modo = 'pendientes';
+    await onChange?.();
+  };
+
+  dom.btnConfirmar.onclick = async () => {
+    state.modo = 'confirmar';
     await onChange?.();
   };
 
@@ -96,4 +107,22 @@ export function wireModoToggle(dom, onChange) {
     state.modo = 'disputas';
     await onChange?.();
   };
+}
+
+/**
+ * Actualiza los badges de counter en botones "Confirmar" y "Disputas".
+ * Llamar al inicializar y después de cada acción que cambie estados.
+ */
+export async function actualizarCounters(supabase, dom, torneoId) {
+  const [{ count: cConfirmar }, { count: cDisputas }] = await Promise.all([
+    supabase.from('partidos').select('id', { count: 'exact', head: true })
+      .eq('torneo_id', torneoId).eq('estado', 'a_confirmar'),
+    supabase.from('partidos').select('id', { count: 'exact', head: true })
+      .eq('torneo_id', torneoId).eq('estado', 'en_revision'),
+  ]);
+
+  dom.btnConfirmar.textContent = (cConfirmar > 0)
+    ? `Confirmar (${cConfirmar})` : 'Confirmar';
+  dom.btnDisputas.textContent = (cDisputas > 0)
+    ? `Disputas (${cDisputas})` : 'Disputas';
 }
