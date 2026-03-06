@@ -988,8 +988,10 @@ function renderPartidosPendientesHome(partidosPendientes, todosPartidosGrupo, to
   partidosConPosicion.forEach(p => {
     const oponente = getOponenteName(p, identidad);
     const posicion = p.posicionGlobal !== 999 ? `#${p.posicionGlobal}` : '—';
-    
     const incompleteClass = !habilitado ? 'presentismo-incomplete' : '';
+    const copaEstado = p.copa_id
+      ? (p.copa?.nombre ? `🏆 ${p.copa.nombre} — ${labelRonda(p.ronda_copa, true) || 'Copa'}` : `🏆 ${labelRonda(p.ronda_copa, true) || 'Copa'}`)
+      : null;
 
     html += `
       <div class="partido-home ${incompleteClass}" data-partido-id="${p.id}">
@@ -998,7 +1000,7 @@ function renderPartidosPendientesHome(partidosPendientes, todosPartidosGrupo, to
           <span class="partido-home-vs">vs ${escapeHtml(oponente)}</span>
         </div>
         <div class="partido-home-estado">
-          ${habilitado ? 'Pendiente' : '⚠️ Falta presente'}
+          ${copaEstado ? escapeHtml(copaEstado) : (habilitado ? 'Pendiente' : '⚠️ Falta presente')}
         </div>
         <div class="partido-home-accion">
           <button
