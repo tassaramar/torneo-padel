@@ -1,4 +1,5 @@
 import { supabase, TORNEO_ID } from './carga/context.js';
+import { injectVersion } from './utils/version.js';
 import { initCargaLayout, wireModoToggle, pintarModoToggle, actualizarCounters } from './carga/layout.js';
 import { cargarPartidosGrupos } from './carga/partidosGrupos.js';
 import { cargarPosiciones } from './carga/posiciones.js';
@@ -94,4 +95,5 @@ function initCarga() {
   init();
 }
 
+injectVersion();
 initCarga();

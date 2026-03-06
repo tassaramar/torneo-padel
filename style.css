@@ -5239,6 +5239,27 @@ a.btn-action-secondary:hover {
   transform: translateY(-1px);
 }
 
+/* === Version badge === */
+.app-version {
+  font-size: 0.65rem;
+  color: #9ca3af;
+  opacity: 0.7;
+  margin-left: auto;
+  align-self: center;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+.app-version.app-version-fixed {
+  position: fixed;
+  bottom: 5px;
+  right: 8px;
+  margin-left: 0;
+  font-size: 0.6rem;
+  opacity: 0.35;
+  z-index: 9999;
+}
+
 /* Filtros */
 .presentismo-filters {
   margin-bottom: 14px;

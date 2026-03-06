@@ -25,6 +25,20 @@ npm run build        # Build para producción en ./dist/
 npm run preview      # Preview del build de producción
 ```
 
+## Versioning
+
+La versión de la app está centralizada en `package.json` y se muestra en la UI en cada página.
+
+Para actualizar la versión antes de un deploy:
+
+```bash
+npm version patch   # bug fix / ajuste visual      → 1.0.0 → 1.0.1
+npm version minor   # feature nueva                → 1.0.0 → 1.1.0
+npm version major   # cambio grande o breaking     → 1.0.0 → 2.0.0
+```
+
+Cada comando actualiza `package.json`, crea un commit y un git tag automáticamente.
+
 ## Architecture
 
 ### User Roles

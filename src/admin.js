@@ -1,4 +1,5 @@
 import { logMsg, supabase, TORNEO_ID } from './admin/context.js';
+import { injectVersion } from './utils/version.js';
 
 import { initGroups } from './admin/groups/index.js';
 import { initCopas } from './admin/copas/index.js';
@@ -54,6 +55,7 @@ function initAdmin() {
   }
 }
 
+injectVersion();
 requireAdmin(supabase, { onReady: initAdmin });
 
 /* =========================

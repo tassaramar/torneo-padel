@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { injectVersion } from './utils/version.js';
 import { getIdentidad, clearIdentidad } from './identificacion/identidad.js';
 import { iniciarIdentificacion } from './identificacion/ui.js';
 import { cargarVistaPersonalizada } from './viewer/vistaPersonal.js';
@@ -543,6 +544,7 @@ window.app = {
 };
 
 // Inicializar al cargar la página
+injectVersion();
 checkIdentidadYCargar();
 
 // Si hay admin logueado, mostrar links de navegación (no-bloqueante)

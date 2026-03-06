@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-06 (carga.html modo "A confirmar" completado)
+**Última actualización**: 2026-03-06 (versionado semántico v1.0.0 implementado)
 
 ---
 
@@ -44,18 +44,6 @@
 ## Backlog
 
 > Ordenado por prioridad (Bloques A → B → C → D). Repriorizado 2026-03-03 con scoring del owner.
-
-### Bloque A — Implementar ya
-
----
-
-#### [MEJORA] Versionado semántico de la app `📋 PRIORIZADA`
-
-**Score owner**: 5/5 · **Spec**: ❌ (trivial, no necesita spec)
-
-Número de versión visible en la app (`Major.Minor.Patch`). Versión centralizada en `package.json`, visible en algún lugar discreto de la UI. Beneficio: contexto al reportar bugs ("esto pasó en v1.2.3").
-
----
 
 ### Bloque B — Quick wins con spec lista
 
@@ -354,6 +342,14 @@ Modelo plan→propuesta→aprobación. Módulos: presets.js, planService.js, pla
 
 RLS policies + función `is_admin()`. Páginas públicas: fixture, carga, presente.
 **Migración**: `20260224000000_fix_rls_policies.sql`
+
+---
+
+### Versionado semántico `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-06
+
+`v1.0.0` arranca. Versión en `package.json` (única fuente de verdad), expuesta en build via `__APP_VERSION__` (Vite `define`). Visible en topnav (derecha) en carga/fixture/admin, y como badge fijo bottom-right en index.html. Nuevo archivo: `src/utils/version.js` con `injectVersion()`.
 
 ---
 

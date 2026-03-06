@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { injectVersion } from './utils/version.js';
 import { esPartidoFinalizado, esPartidoPendiente, esPartidoYaJugado, calcularColaSugerida } from './utils/colaFixture.js';
 import { tieneResultado, formatearResultado } from './utils/formatoResultado.js';
 import { initPresentismo, marcarAmbosPresentes } from './viewer/presentismo.js';
@@ -1033,4 +1034,5 @@ function handleVisibilityChange() {
 }
 
 // Inicializar
+injectVersion();
 init().then(() => startPolling());
