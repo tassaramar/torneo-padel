@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-06 (versionado semántico v1.0.0 implementado)
+**Última actualización**: 2026-03-06 (modal jugador primero implementado; spec wizard copas etapa 1 lista)
 
 ---
 
@@ -35,9 +35,9 @@
 
 > Máximo 3 ítems a la vez. Para agregar uno, sacar uno primero. Obliga a priorizar.
 
-1. _(libre — agregar próxima prioridad)_
-2. _(libre — agregar próxima prioridad)_
-3. _(libre — agregar próxima prioridad)_
+1. [MEJORA] Admin copas — UX wizard presets Etapa 1 → **falta spec**
+2. _(libre)_
+3. _(libre)_
 
 ---
 
@@ -97,23 +97,13 @@ Etapa 1 (urgente) del wizard:
 
 ---
 
-#### [BUG] Carga — mensaje STB sigue mostrando después de cargar el resultado `📋 PRIORIZADA`
+#### [BUG] Carga — mensaje STB sigue mostrando después de cargar el resultado `🔍 EN ANÁLISIS — DIFERIDO`
 
-**Score owner**: 4/5 · **Spec**: ❌ falta
+**Score owner**: 4/5 · **Spec**: ❌ falta · **Motivo diferimiento**: solo aplica a torneos a 3 sets, sin torneos de ese formato planeados por ahora.
 
 Partido con super tiebreak: se carga el STB y el mismo mensaje ("contame qué pasó") sigue apareciendo en vez de "¡Bien que ganaste!" o "¡Qué lástima!".
 
 **Archivo clave**: `src/viewer/cargarResultado.js`
-
----
-
-#### [MEJORA] Modal index.html — pareja del jugador siempre primero en listado `📋 PRIORIZADA`
-
-**Score owner**: 4/5 · **Spec**: ❌ falta
-
-Los partidos muestran las parejas en el orden de la BD. El jugador debería ver siempre "Yo vs Rival", no "Rival vs Yo".
-
-**Archivo clave**: `src/viewer/modalConsulta.js`
 
 ---
 
@@ -363,6 +353,14 @@ RLS policies + función `is_admin()`. Páginas públicas: fixture, carga, presen
 - **Confirmar**: optimistic UI (card desaparece al instante, rollback si falla).
 - **Editar**: reutiliza `crearCardEditable` con mensaje en vivo "🏆 Ganó [pareja]" que se actualiza al cambiar los inputs.
 - **Fire-and-forget** `avanzar_ronda_copa` para partidos de copa al confirmar.
+
+---
+
+### Modal — mi pareja siempre primero en partidos `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-06 · **Spec**: [spec-modal-jugador-primero.md](spec-modal-jugador-primero.md)
+
+En los 3 tabs del modal (Grupos, Copas, Fixture), los partidos donde el jugador participa ahora muestran siempre "Yo vs Rival". Helper `orientarPartido()` centraliza la lógica — cuando se invierte el orden, el score también se invierte para mantener coherencia. Modificado únicamente `src/viewer/modalConsulta.js`.
 
 ---
 
