@@ -4,7 +4,6 @@
  */
 
 import { logMsg, supabase, TORNEO_ID } from './admin/context.js';
-import { initSafetyLock } from './admin/safetyLock.js';
 import { initPresentismo } from './viewer/presentismo.js';
 
 import {
@@ -21,9 +20,6 @@ console.log('PRESENTE ENTRY CARGADO');
 async function initPresente() {
   // Init módulo de presentismo con supabase
   initPresentismo(supabase);
-
-  // Init safety lock (solo para operaciones masivas)
-  initSafetyLock();
 
   try {
     logMsg('Inicializando sistema de presentismo...');
