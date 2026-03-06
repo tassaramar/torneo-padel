@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-03 (repriorización + ítems de testing)
+**Última actualización**: 2026-03-06 (presentismo UX completado)
 
 ---
 
@@ -35,9 +35,9 @@
 
 > Máximo 3 ítems a la vez. Para agregar uno, sacar uno primero. Obliga a priorizar.
 
-1. **Presentismo UX** — Spec lista: mover masivas abajo + drill-down dashboard ([spec](spec-presentismo-mejoras-ux.md))
-2. **Badge copa + colores victoria/derrota** — Spec lista: pill 🏆 en cards + verde/rojo en modal ([spec](spec-polish-copa-vista-jugador.md))
-3. **Carga.html: partidos pendientes de confirmación** — Sección que muestre partidos `a_confirmar`/`en_revision`
+1. **Badge copa + colores victoria/derrota** — Spec lista: pill 🏆 en cards + verde/rojo en modal ([spec](spec-polish-copa-vista-jugador.md))
+2. **Carga.html: partidos pendientes de confirmación** — Sección que muestre partidos `a_confirmar`/`en_revision`
+3. _(libre — agregar próxima prioridad)_
 
 ---
 
@@ -46,18 +46,6 @@
 > Ordenado por prioridad (Bloques A → B → C → D). Repriorizado 2026-03-03 con scoring del owner.
 
 ### Bloque A — Implementar ya
-
----
-
-#### [MEJORA] Presentismo — acciones masivas + drill-down dashboard `📋 PRIORIZADA`
-
-**Score owner**: 4/5 · **Spec**: ✅ [spec-presentismo-mejoras-ux.md](spec-presentismo-mejoras-ux.md)
-
-Dos mejoras en la pantalla de presentismo:
-1. Mover botones de acciones masivas ("Marcar todos presentes") debajo de la lista por pareja (hoy están arriba, tapando lo importante).
-2. Botones del dashboard (ej. "3 ausentes") como drill-down: al tocar, mostrar lista compacta de quiénes faltan sin scrollear.
-
-**Archivo clave**: `src/viewer/presentismo.js`
 
 ---
 
@@ -387,6 +375,20 @@ Modelo plan→propuesta→aprobación. Módulos: presets.js, planService.js, pla
 
 RLS policies + función `is_admin()`. Páginas públicas: fixture, carga, presente.
 **Migración**: `20260224000000_fix_rls_policies.sql`
+
+---
+
+### Presentismo — mejoras UX `✅ IMPLEMENTADA`
+
+**Implementado**: 2026-03-06 · **Spec**: [spec-presentismo-mejoras-ux.md](spec-presentismo-mejoras-ux.md)
+
+6 mejoras en `presente.html` (3 de la spec + 3 adicionales del owner):
+1. **Semántica del toggle**: OFF = "Todos presentes ✅" (antes decía "Desactivado ❌"). El comportamiento ya estaba correcto en el código — solo se actualizó el texto.
+2. **Acciones masivas al final**: botones "Marcar TODOS" / "Limpiar TODOS" movidos debajo de la lista de parejas.
+3. **Drill-down en resumen**: los cards "Completas / Incompletas / Ausentes" son ahora botones que expanden una lista inline con las parejas en ese estado y toggles individuales funcionales.
+4. **Sincronización filtros**: al tocar un card del resumen, se activa automáticamente el filtro correspondiente en "Control por Pareja" con scroll suave.
+5. **Layout compacto en Jugadores Ausentes**: pareja + grupo en una sola línea, botón ✅ (44×44px) anclado a la derecha. Optimistic UI: la card desaparece al instante con rollback si falla.
+6. **Reordenamiento de secciones**: "Control por Pareja" sube antes de "Operaciones por Grupo".
 
 ---
 
