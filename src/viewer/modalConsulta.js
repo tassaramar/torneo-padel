@@ -517,8 +517,7 @@ function renderCopas(container) {
     html += '<div class="modal-partidos-list">';
 
     ordenados.forEach(p => {
-      const nombreA = p.pareja_a?.nombre || null;
-      const nombreB = p.pareja_b?.nombre || null;
+      const { nombreLocal, nombreVisitante, partidoOrientado } = orientarPartido(p, identidad);
       const jugado = tieneResultado(p);
       const rondaLabel = RONDA_COPA_LABEL[p.ronda_copa] || p.ronda_copa || '?';
       const esMiPartido = identidad &&
@@ -533,13 +532,13 @@ function renderCopas(container) {
       html += `<div class="modal-partido ${jugado ? 'jugado' : 'pendiente'} ${esMiPartido ? 'es-mio' : ''} ${claseResultadoCopa}">`;
       html += `<span class="modal-partido-ronda">${escapeHtml(rondaLabel)}</span>`;
 
-      if (!nombreA || !nombreB) {
+      if (!p.pareja_a?.nombre || !p.pareja_b?.nombre) {
         // Equipo aún no determinado
         html += `<span class="modal-partido-equipos">⏳ Esperando resultado anterior</span>`;
       } else if (jugado) {
-        html += `<span class="modal-partido-equipos">${escapeHtml(nombreA)} <span class="vs">${formatearResultado(p)}</span> ${escapeHtml(nombreB)}</span>`;
+        html += `<span class="modal-partido-equipos">${escapeHtml(nombreLocal)} <span class="vs">${formatearResultado(partidoOrientado)}</span> ${escapeHtml(nombreVisitante)}</span>`;
       } else {
-        html += `<span class="modal-partido-equipos">${escapeHtml(nombreA)} <span class="vs">vs</span> ${escapeHtml(nombreB)}</span>`;
+        html += `<span class="modal-partido-equipos">${escapeHtml(nombreLocal)} <span class="vs">vs</span> ${escapeHtml(nombreVisitante)}</span>`;
         html += `<span class="modal-partido-resultado">⏳ Pendiente</span>`;
       }
 
@@ -600,8 +599,7 @@ function renderFixture(container) {
   cola.forEach((p, idx) => {
     const grupo = p.grupos?.nombre || '?';
     const grupoIndex = Math.min(Math.max(0, gruposOrdenados.indexOf(grupo)), 3);
-    const nombreA = p.pareja_a?.nombre || '—';
-    const nombreB = p.pareja_b?.nombre || '—';
+    const { nombreLocal, nombreVisitante } = orientarPartido(p, identidad);
     const ronda = p.ronda ?? '?';
     const esMiPartido = identidad &&
       (p.pareja_a?.id === identidad.parejaId || p.pareja_b?.id === identidad.parejaId);
@@ -611,15 +609,14 @@ function renderFixture(container) {
         <span class="modal-fixture-pos">${idx + 1}</span>
         <span class="modal-fixture-grupo grupo-${grupoIndex}">G${escapeHtml(grupo)}</span>
         <span class="modal-fixture-ronda">R${ronda}</span>
-        <span class="modal-fixture-equipos">${escapeHtml(nombreA)} <span class="vs">vs</span> ${escapeHtml(nombreB)}</span>
+        <span class="modal-fixture-equipos">${escapeHtml(nombreLocal)} <span class="vs">vs</span> ${escapeHtml(nombreVisitante)}</span>
       </div>
     `;
   });
 
   // Partidos de copa pendientes (al final, numeración continua)
   copaPendientes.forEach((p, idx) => {
-    const nombreA = p.pareja_a?.nombre || '—';
-    const nombreB = p.pareja_b?.nombre || '—';
+    const { nombreLocal, nombreVisitante } = orientarPartido(p, identidad);
     const rondaLabel = RONDA_COPA_LABEL[p.ronda_copa] || p.ronda_copa || '?';
     const esMiPartido = identidad &&
       (p.pareja_a?.id === identidad.parejaId || p.pareja_b?.id === identidad.parejaId);
@@ -629,7 +626,7 @@ function renderFixture(container) {
         <span class="modal-fixture-pos">${cola.length + idx + 1}</span>
         <span class="modal-fixture-copa-pill">🏆 ${escapeHtml(p.copa_nombre)}</span>
         <span class="modal-fixture-ronda">${escapeHtml(rondaLabel)}</span>
-        <span class="modal-fixture-equipos">${escapeHtml(nombreA)} <span class="vs">vs</span> ${escapeHtml(nombreB)}</span>
+        <span class="modal-fixture-equipos">${escapeHtml(nombreLocal)} <span class="vs">vs</span> ${escapeHtml(nombreVisitante)}</span>
       </div>
     `;
   });
@@ -656,8 +653,7 @@ function renderPartidosGrupo(partidos, identidad, mapaPosiciones) {
   });
 
   return ordenados.map(p => {
-    const nombreA = p.pareja_a?.nombre || '—';
-    const nombreB = p.pareja_b?.nombre || '—';
+    const { nombreLocal, nombreVisitante, partidoOrientado } = orientarPartido(p, identidad);
     const jugado = tieneResultado(p);
     const ronda = p.ronda ?? '?';
     const esMiPartido = identidad &&
@@ -675,14 +671,46 @@ function renderPartidosGrupo(partidos, identidad, mapaPosiciones) {
         ${posicionGlobal ? `<span class="modal-partido-pos">#${posicionGlobal}</span>` : ''}
         <span class="modal-partido-ronda">R${ronda}</span>
         <span class="modal-partido-equipos">
-          ${escapeHtml(nombreA)} <span class="vs">vs</span> ${escapeHtml(nombreB)}
+          ${escapeHtml(nombreLocal)} <span class="vs">vs</span> ${escapeHtml(nombreVisitante)}
         </span>
         <span class="modal-partido-resultado">
-          ${jugado ? formatearResultado(p) : 'Pendiente'}
+          ${jugado ? formatearResultado(partidoOrientado) : 'Pendiente'}
         </span>
       </div>
     `;
   }).join('');
+}
+
+/**
+ * Orienta un partido para que la pareja del jugador aparezca primero (visual only).
+ * Returns { nombreLocal, nombreVisitante, invertido, partidoOrientado }
+ */
+function orientarPartido(partido, identidad) {
+  const tieneAmbosEquipos = partido.pareja_a?.nombre && partido.pareja_b?.nombre;
+  const invertido = tieneAmbosEquipos && identidad?.parejaId === partido.pareja_b?.id;
+
+  if (invertido) {
+    return {
+      nombreLocal: partido.pareja_b.nombre,
+      nombreVisitante: partido.pareja_a.nombre,
+      invertido: true,
+      partidoOrientado: {
+        ...partido,
+        set1_a: partido.set1_b, set1_b: partido.set1_a,
+        set2_a: partido.set2_b, set2_b: partido.set2_a,
+        set3_a: partido.set3_b, set3_b: partido.set3_a,
+        sets_a: partido.sets_b, sets_b: partido.sets_a,
+        games_totales_a: partido.games_totales_b, games_totales_b: partido.games_totales_a,
+      }
+    };
+  }
+
+  return {
+    nombreLocal: partido.pareja_a?.nombre || '—',
+    nombreVisitante: partido.pareja_b?.nombre || '—',
+    invertido: false,
+    partidoOrientado: partido
+  };
 }
 
 /**
