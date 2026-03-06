@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-06 (polish copa vista jugador completado)
+**Última actualización**: 2026-03-06 (carga.html modo "A confirmar" completado)
 
 ---
 
@@ -35,7 +35,7 @@
 
 > Máximo 3 ítems a la vez. Para agregar uno, sacar uno primero. Obliga a priorizar.
 
-1. **Carga.html: partidos pendientes de confirmación** — Sección que muestre partidos `a_confirmar`/`en_revision`
+1. _(libre — agregar próxima prioridad)_
 2. _(libre — agregar próxima prioridad)_
 3. _(libre — agregar próxima prioridad)_
 
@@ -46,16 +46,6 @@
 > Ordenado por prioridad (Bloques A → B → C → D). Repriorizado 2026-03-03 con scoring del owner.
 
 ### Bloque A — Implementar ya
-
----
-
-#### [MEJORA] Carga.html — sección de partidos pendientes de confirmación `📋 PRIORIZADA`
-
-**Score owner**: 5/5 · **Spec**: ❌ falta
-
-Hoy en `carga.html` no hay forma de ver qué partidos tienen resultado cargado pero pendiente de confirmación. El organizador no sabe qué partidos están "trabados". Agregar sección que muestre partidos en estado `a_confirmar` o `en_revision` para confirmarlos rápidamente.
-
-**Archivo clave**: `src/carga/`
 
 ---
 
@@ -364,6 +354,19 @@ Modelo plan→propuesta→aprobación. Módulos: presets.js, planService.js, pla
 
 RLS policies + función `is_admin()`. Páginas públicas: fixture, carga, presente.
 **Migración**: `20260224000000_fix_rls_policies.sql`
+
+---
+
+### Carga.html — modo "A confirmar" `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-06 · **Spec**: [spec-carga-partidos-a-confirmar.md](spec-carga-partidos-a-confirmar.md)
+
+- **4to botón "Confirmar"** en la barra de modos (entre Pendientes y Jugados). Badges con counter `(N)` en "Confirmar" y "Disputas" vía `actualizarCounters()` con Promise.all.
+- **Query unificada**: todos los modos (incluido confirmar) traen grupos y copas juntos — sin filtro por `copa_id`. `cargarCopas` es no-op; `carga.html` eliminó el `<h2>Copas</h2>` huérfano.
+- **Card de solo lectura**: ganador siempre arriba con `is-winner`, "Cargado por: [pareja]", botones Confirmar y Editar.
+- **Confirmar**: optimistic UI (card desaparece al instante, rollback si falla).
+- **Editar**: reutiliza `crearCardEditable` con mensaje en vivo "🏆 Ganó [pareja]" que se actualiza al cambiar los inputs.
+- **Fire-and-forget** `avanzar_ronda_copa` para partidos de copa al confirmar.
 
 ---
 
