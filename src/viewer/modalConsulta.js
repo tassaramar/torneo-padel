@@ -15,7 +15,7 @@ import {
   cargarOverrides,
   agregarMetadataOverrides
 } from '../utils/tablaPosiciones.js';
-import { tieneResultado, formatearResultado } from '../utils/formatoResultado.js';
+import { tieneResultado, formatearResultado, determinarGanadorParaPareja } from '../utils/formatoResultado.js';
 import { calcularColaSugerida, crearMapaPosiciones } from '../utils/colaFixture.js';
 
 let modalState = {
@@ -524,7 +524,13 @@ function renderCopas(container) {
       const esMiPartido = identidad &&
         (p.pareja_a?.id === identidad.parejaId || p.pareja_b?.id === identidad.parejaId);
 
-      html += `<div class="modal-partido ${jugado ? 'jugado' : 'pendiente'} ${esMiPartido ? 'es-mio' : ''}">`;
+      let claseResultadoCopa = '';
+      if (esMiPartido && jugado) {
+        const resultado = determinarGanadorParaPareja(p, identidad.parejaId);
+        claseResultadoCopa = resultado === 'yo' ? 'mi-victoria' : resultado === 'rival' ? 'mi-derrota' : '';
+      }
+
+      html += `<div class="modal-partido ${jugado ? 'jugado' : 'pendiente'} ${esMiPartido ? 'es-mio' : ''} ${claseResultadoCopa}">`;
       html += `<span class="modal-partido-ronda">${escapeHtml(rondaLabel)}</span>`;
 
       if (!nombreA || !nombreB) {
@@ -658,8 +664,14 @@ function renderPartidosGrupo(partidos, identidad, mapaPosiciones) {
       (p.pareja_a?.id === identidad.parejaId || p.pareja_b?.id === identidad.parejaId);
     const posicionGlobal = mapaPosiciones?.get(p.id);
 
+    let claseResultado = '';
+    if (esMiPartido && jugado) {
+      const resultado = determinarGanadorParaPareja(p, identidad.parejaId);
+      claseResultado = resultado === 'yo' ? 'mi-victoria' : resultado === 'rival' ? 'mi-derrota' : '';
+    }
+
     return `
-      <div class="modal-partido ${jugado ? 'jugado' : 'pendiente'} ${esMiPartido ? 'es-mio' : ''}">
+      <div class="modal-partido ${jugado ? 'jugado' : 'pendiente'} ${esMiPartido ? 'es-mio' : ''} ${claseResultado}">
         ${posicionGlobal ? `<span class="modal-partido-pos">#${posicionGlobal}</span>` : ''}
         <span class="modal-partido-ronda">R${ronda}</span>
         <span class="modal-partido-equipos">

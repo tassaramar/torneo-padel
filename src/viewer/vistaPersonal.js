@@ -166,7 +166,8 @@ export async function cargarVistaPersonalizada(supabase, torneoId, identidad, on
         pareja_a:parejas!partidos_pareja_a_id_fkey ( id, nombre ),
         pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre ),
         copa_id,
-        ronda_copa
+        ronda_copa,
+        copa:copas ( id, nombre )
       `)
       .eq('torneo_id', torneoId)
       .or(`pareja_a_id.eq.${identidad.parejaId},pareja_b_id.eq.${identidad.parejaId}`)
@@ -1423,7 +1424,7 @@ function renderPartidosCargar(partidosPendientes, todosPartidosGrupo, todosParti
         <div class="partido partido-cargar" data-partido-id="${p.id}">
           <div class="partido-header">
             <div class="partido-vs">vs ${escapeHtml(oponente)}</div>
-            <div class="partido-badge badge-copa">${escapeHtml(rondalabel)}</div>
+            <div class="partido-badge badge-copa">${escapeHtml(p.copa?.nombre ? `${p.copa.nombre} — ${rondalabel}` : rondalabel)}</div>
           </div>
           ${esperandoConfirmacion ? `
             <div class="resultado-cargado">
@@ -1460,7 +1461,9 @@ function renderPartidosConfirmados(partidos, identidad) {
     const oponente = getOponenteName(p, identidad);
     const ganador = getGanador(p, identidad);
     const esperandoConfirmacion = p.estado === 'a_confirmar' && p.cargado_por_pareja_id === identidad.parejaId;
-    const copaLabel = p.copa_id ? (labelRonda(p.ronda_copa, true) || 'Copa') : null;
+    const copaLabel = p.copa_id
+      ? (p.copa?.nombre ? `${p.copa.nombre} — ${labelRonda(p.ronda_copa, true) || 'Copa'}` : labelRonda(p.ronda_copa, true) || 'Copa')
+      : null;
 
     return `
       <div class="partido partido-confirmado ${ganador ? 'ganador-' + ganador : ''}">
