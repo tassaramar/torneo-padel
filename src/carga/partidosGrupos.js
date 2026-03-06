@@ -75,10 +75,7 @@ export async function cargarPartidosGrupos({ supabase, torneoId, msgCont, listCo
     `)
     .eq('torneo_id', torneoId);
 
-  // En modo confirmar: todos los partidos sin filtrar por copa_id
-  if (state.modo !== 'confirmar') {
-    q = q.is('copa_id', null);
-  }
+  // Sin filtro por copa_id: todos los modos muestran grupos y copas juntos
 
   if (state.modo === 'pendientes') {
     q = q.is('sets_a', null);
@@ -253,7 +250,11 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
 
   // Agrupar en rondas si es modo pendientes
   if (state.modo === 'pendientes') {
-    const rondas = agruparEnRondas(partidosNormales);
+    // Separar: grupos van por rondas, copas van al final
+    const gruposPartidos = partidosNormales.filter(p => !p.copa_id);
+    const copasPartidos  = partidosNormales.filter(p => p.copa_id);
+
+    const rondas = agruparEnRondas(gruposPartidos);
 
     const totalParejasLibres = rondas.reduce((sum, r) => sum + r.parejasLibres.length, 0);
     const frases = obtenerFrasesUnicas(totalParejasLibres);
@@ -285,6 +286,17 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
         });
       }
     });
+
+    // Copas al final, sin agrupar en rondas
+    if (copasPartidos.length > 0) {
+      const sep = document.createElement('div');
+      sep.style.cssText = 'margin: 24px 0 8px; padding: 8px 12px; background: var(--primary-soft); border-left: 4px solid var(--primary); border-radius: 8px; font-weight: 700; font-size: 14px; color: var(--text);';
+      sep.textContent = 'Copas';
+      listCont.appendChild(sep);
+      copasPartidos.forEach(p => {
+        listCont.appendChild(crearCardParaPartido(p, supabase, onAfterSave));
+      });
+    }
   } else {
     // Modo jugados: orden normal
     partidosNormales.forEach((p) => {
@@ -297,9 +309,12 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
 }
 
 function crearCardParaPartido(p, supabase, onAfterSave) {
-  const grupo = p.grupos?.nombre ?? '-';
   const a = p.pareja_a?.nombre ?? 'Pareja A';
   const b = p.pareja_b?.nombre ?? 'Pareja B';
+
+  const headerLeft = p.copa_id
+    ? `<strong>${p.copas?.nombre ?? 'Copa'}</strong> · ${labelRonda(p.ronda_copa, true) || 'Partido'}`
+    : `Grupo <strong>${p.grupos?.nombre ?? '-'}</strong>`;
 
   const estado = p.estado || 'pendiente';
   let estadoDisplay = 'Pendiente';
@@ -311,7 +326,7 @@ function crearCardParaPartido(p, supabase, onAfterSave) {
   const gamesB = p.set1_b;
 
   const card = crearCardEditable({
-    headerLeft: `Grupo <strong>${grupo}</strong>`,
+    headerLeft,
     headerRight: estadoDisplay,
     nombreA: a,
     nombreB: b,
@@ -351,7 +366,7 @@ function crearCardParaPartido(p, supabase, onAfterSave) {
     }
   });
 
-  card.dataset.search = `${grupo} ${a} ${b}`;
+  card.dataset.search = `${p.grupos?.nombre ?? p.copas?.nombre ?? ''} ${a} ${b}`;
 
   return card;
 }

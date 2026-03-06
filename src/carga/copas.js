@@ -33,13 +33,9 @@ async function guardarResultadoComoSet(supabase, partidoId, gamesA, gamesB) {
 export async function cargarCopas({ supabase, torneoId, copasCont, onAfterSave }) {
   if (!copasCont) return;
 
-  // En modo confirmar, la query unificada de grupos ya trae todos los partidos
-  if (state.modo === 'confirmar') {
-    copasCont.innerHTML = '';
-    return;
-  }
-
-  copasCont.innerHTML = `<p style="opacity:0.8;">Cargando copas…</p>`;
+  // Todos los partidos (grupos y copas) se muestran en la lista principal
+  copasCont.innerHTML = '';
+  return;
 
   let q = supabase
     .from('partidos')
