@@ -3,6 +3,7 @@ import { TORNEO_ID } from './context.js';
 import { crearCardEditable } from './cardEditable.js';
 import { obtenerFrasesUnicas } from '../utils/frasesFechaLibre.js';
 import { formatearResultado, tieneResultado, calcularSetsGanados, calcularGamesTotales } from '../utils/formatoResultado.js';
+import { labelRonda } from '../utils/copaRondas.js';
 
 /** Fire-and-forget: lanza el motor de copas sin bloquear la UI */
 function dispararMotorCopas(supabase) {
@@ -58,6 +59,8 @@ export async function cargarPartidosGrupos({ supabase, torneoId, msgCont, listCo
       cargado_por_pareja_id,
       pareja_a_id,
       pareja_b_id,
+      copa_id,
+      ronda_copa,
       notas_revision,
       ronda,
       set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
@@ -66,11 +69,16 @@ export async function cargarPartidosGrupos({ supabase, torneoId, msgCont, listCo
       games_totales_a, games_totales_b,
       stb_puntos_a, stb_puntos_b,
       grupos ( nombre ),
+      copas ( id, nombre ),
       pareja_a:parejas!partidos_pareja_a_id_fkey ( nombre ),
       pareja_b:parejas!partidos_pareja_b_id_fkey ( nombre )
     `)
-    .eq('torneo_id', torneoId)
-    .is('copa_id', null);
+    .eq('torneo_id', torneoId);
+
+  // En modo confirmar: todos los partidos sin filtrar por copa_id
+  if (state.modo !== 'confirmar') {
+    q = q.is('copa_id', null);
+  }
 
   if (state.modo === 'pendientes') {
     q = q.is('sets_a', null);
@@ -164,8 +172,13 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
       return;
     }
     partidos.forEach(p => {
-      const headerLeft = `Grupo <strong>${p.grupos?.nombre ?? '-'}</strong>`;
-      const card = crearCardConfirmacion(p, supabase, onAfterSave, { headerLeft, copasId: null });
+      const headerLeft = p.copa_id
+        ? `<strong>${p.copas?.nombre ?? 'Copa'}</strong> · ${labelRonda(p.ronda_copa, true) || 'Partido'}`
+        : `Grupo <strong>${p.grupos?.nombre ?? '-'}</strong>`;
+      const card = crearCardConfirmacion(p, supabase, onAfterSave, {
+        headerLeft,
+        copasId: p.copas?.id ?? null
+      });
       listCont.appendChild(card);
     });
     aplicarZebraVisible(listCont);
