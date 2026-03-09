@@ -12,12 +12,13 @@
 
 import { getMensajeResultado } from '../utils/mensajesResultado.js';
 import { obtenerFrasesUnicas } from '../utils/frasesFechaLibre.js';
-import { 
-  formatearResultado, 
-  tieneResultado, 
+import {
+  formatearResultado,
+  tieneResultado,
   calcularSetsGanados,
   determinarGanador,
-  determinarGanadorParaPareja 
+  determinarGanadorParaPareja,
+  invertirScoresPartido
 } from '../utils/formatoResultado.js';
 import {
   calcularTablaGrupo as calcularTablaGrupoCentral,
@@ -1071,11 +1072,11 @@ function renderPartidosRevision(partidos, identidad) {
     const resultado2 = getMensajeResultado(gamesA2, gamesB2, soyA);
     const mensaje2 = resultado2.ganador === 'yo' ? 'Vos ganaste' : 'Vos perdiste';
     
-    // Formatear resultados para mostrar
-    const res1 = p.set1_a !== null ? formatearResultado(p) : `${gamesA1} - ${gamesB1}`;
+    // Formatear resultados para mostrar (orientados al jugador: mi score primero)
+    const res1 = p.set1_a !== null ? formatearResultado(soyA ? p : invertirScoresPartido(p)) : `${gamesA1} - ${gamesB1}`;
     const res2 = p.set1_temp_a !== null ? (() => {
       const tempPartido = { ...p, set1_a: p.set1_temp_a, set1_b: p.set1_temp_b, set2_a: p.set2_temp_a, set2_b: p.set2_temp_b, set3_a: p.set3_temp_a, set3_b: p.set3_temp_b };
-      return formatearResultado(tempPartido);
+      return formatearResultado(soyA ? tempPartido : invertirScoresPartido(tempPartido));
     })() : `${gamesA2} - ${gamesB2}`;
     
     return `
@@ -1143,7 +1144,7 @@ function renderPartidosConfirmar(partidos, identidad) {
         
         <div class="resultado-cargado ${claseResultado}">
           <div class="resultado-label">${escapeHtml(oponente)} cargó:</div>
-          <div class="resultado-score">${formatearResultado(p)}</div>
+          <div class="resultado-score">${formatearResultado(soyA ? p : invertirScoresPartido(p))}</div>
           <div class="resultado-mensaje">${mensajeResultado}</div>
         </div>
         
@@ -1462,6 +1463,7 @@ function renderPartidosConfirmados(partidos, identidad) {
   container.innerHTML = partidos.map(p => {
     const oponente = getOponenteName(p, identidad);
     const ganador = getGanador(p, identidad);
+    const soyA = p.pareja_a?.id === identidad.parejaId;
     const esperandoConfirmacion = p.estado === 'a_confirmar' && p.cargado_por_pareja_id === identidad.parejaId;
     const copaLabel = p.copa_id
       ? (p.copa?.nombre ? `${p.copa.nombre} — ${labelRonda(p.ronda_copa, true) || 'Copa'}` : labelRonda(p.ronda_copa, true) || 'Copa')
@@ -1476,7 +1478,7 @@ function renderPartidosConfirmados(partidos, identidad) {
           </div>
           <div class="resultado-info">
             <div class="resultado-score ${ganador === 'yo' ? 'ganador' : ganador === 'rival' ? 'perdedor' : ''}">
-              ${formatearResultado(p)}
+              ${formatearResultado(soyA ? p : invertirScoresPartido(p))}
             </div>
             ${esperandoConfirmacion ? '<span class="badge-mini badge-waiting">⏳</span>' : ''}
           </div>

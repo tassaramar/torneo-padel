@@ -15,7 +15,7 @@ import {
   cargarOverrides,
   agregarMetadataOverrides
 } from '../utils/tablaPosiciones.js';
-import { tieneResultado, formatearResultado, determinarGanadorParaPareja } from '../utils/formatoResultado.js';
+import { tieneResultado, formatearResultado, determinarGanadorParaPareja, invertirScoresPartido } from '../utils/formatoResultado.js';
 import { calcularColaSugerida, crearMapaPosiciones } from '../utils/colaFixture.js';
 
 let modalState = {
@@ -694,14 +694,7 @@ function orientarPartido(partido, identidad) {
       nombreLocal: partido.pareja_b.nombre,
       nombreVisitante: partido.pareja_a.nombre,
       invertido: true,
-      partidoOrientado: {
-        ...partido,
-        set1_a: partido.set1_b, set1_b: partido.set1_a,
-        set2_a: partido.set2_b, set2_b: partido.set2_a,
-        set3_a: partido.set3_b, set3_b: partido.set3_a,
-        sets_a: partido.sets_b, sets_b: partido.sets_a,
-        games_totales_a: partido.games_totales_b, games_totales_b: partido.games_totales_a,
-      }
+      partidoOrientado: invertirScoresPartido(partido)
     };
   }
 

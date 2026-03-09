@@ -283,6 +283,22 @@ export function normalizarSTB(puntosA, puntosB) {
 }
 
 /**
+ * Devuelve una copia del partido con los campos de score invertidos (A↔B).
+ * Útil para renderizar desde la perspectiva de pareja_b.
+ * NO modifica el objeto original.
+ */
+export function invertirScoresPartido(partido) {
+  return {
+    ...partido,
+    set1_a: partido.set1_b, set1_b: partido.set1_a,
+    set2_a: partido.set2_b, set2_b: partido.set2_a,
+    set3_a: partido.set3_b, set3_b: partido.set3_a,
+    sets_a: partido.sets_b, sets_b: partido.sets_a,
+    games_totales_a: partido.games_totales_b, games_totales_b: partido.games_totales_a,
+  };
+}
+
+/**
  * Verifica si el set3 es un Super Tiebreak (tiene puntos STB guardados)
  * @param {Object} partido - Objeto del partido
  * @returns {boolean}

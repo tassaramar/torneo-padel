@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-06 (modal jugador primero implementado; spec wizard copas etapa 1 lista)
+**Última actualización**: 2026-03-09 (wizard copas Etapa 1 implementado + post-deploy fixes → v1.1.3)
 
 ---
 
@@ -35,8 +35,8 @@
 
 > Máximo 3 ítems a la vez. Para agregar uno, sacar uno primero. Obliga a priorizar.
 
-1. [MEJORA] Admin copas — UX wizard presets Etapa 1 → **spec lista** [spec-admin-copas-wizard-ux-etapa1.md](spec-admin-copas-wizard-ux-etapa1.md)
-2. [BUG] index.html — score "Por confirmar" invertido cuando jugador es pareja_b → **spec lista** [spec-bug-score-por-confirmar-invertido.md](spec-bug-score-por-confirmar-invertido.md)
+1. [BUG] index.html — score "Por confirmar" invertido cuando jugador es pareja_b → **spec lista** [spec-bug-score-por-confirmar-invertido.md](spec-bug-score-por-confirmar-invertido.md)
+2. _(libre)_
 3. _(libre)_
 
 ---
@@ -80,20 +80,6 @@ Cuando no quedan partidos de grupo pendientes ni en juego, ocultar las secciones
 ---
 
 ### Bloque C — Necesitan spec, luego implementar
-
----
-
-#### [MEJORA] Admin copas — UX del wizard de presets (Etapa 1) `📋 PRIORIZADA`
-
-**Score owner**: 4/5 (plan activo) + 3/5 (info formato + cancelar) · **Spec**: ✅ [spec-admin-copas-wizard-ux-etapa1.md](spec-admin-copas-wizard-ux-etapa1.md)
-
-Etapa 1 (urgente) del wizard:
-1. **Plan activo prominente**: después de aplicar un preset, mostrar qué plan está activo con detalle de seeds/cruces (problema más urgente — causa confusión real).
-2. **Botón Reset visible en paso 2**: hoy dice "Usá Reset" pero el botón no aparece.
-3. **Info formato del torneo**: mostrar "Torneo actual: 3 grupos × 4 parejas" arriba de la lista de presets.
-4. **Botón Cancelar**: poder salir del wizard sin aplicar nada.
-
-**Archivos clave**: `src/admin/copas/planEditor.js`, `src/admin/copas/index.js`
 
 ---
 
@@ -267,6 +253,21 @@ Historial de partidos por jugador. Depende de Múltiples torneos + Gestión de u
 ---
 
 ## Historial — Implementado / Validado
+
+### Admin copas — UX wizard plantillas Etapa 1 `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-09 · **Spec**: [spec-admin-copas-wizard-ux-etapa1.md](spec-admin-copas-wizard-ux-etapa1.md) · **Versión**: v1.1.0 → v1.1.3
+
+- Panel 1 reescrito como acordeón: cada plantilla se expande inline con diagrama de bracket + botones Aplicar/Borrar. Múltiples ítems abiertos simultáneamente.
+- `renderBracketDiagram(copa, numGrupos)` — componente compartido (sin duplicación) en Panel 1 y `renderPlanActivo`.
+- `renderPlanActivo` — Estado 2 prominente: plan vigente con diagramas completos + botón Reset visible.
+- Botón Cancelar en paneles 2 y 3 del wizard.
+- Formato del torneo visible: "N grupos × M equipos" (con rango "min-max" si grupos desiguales).
+- Migración `20260309000000_drop_es_default_presets_copa.sql`: columna `es_default` eliminada de `presets_copa`.
+- `presets.js` estático eliminado; `detectarYSugerirPreset` migrada a `planService.js` con soporte `minParejasPorGrupo`.
+- Post-deploy fixes: toast al borrar plantilla, filtrado correcto con grupos desiguales, posiciones usadas deshabilitadas en dropdown global con "(usado)", validación de overlap al avanzar, info box "Posiciones ocupadas" eliminada, propagación de `modo` y rango automático a la siguiente copa.
+
+---
 
 ### Bugs copa (final + modo global) + RPC unificado `✅ IMPLEMENTADA`
 

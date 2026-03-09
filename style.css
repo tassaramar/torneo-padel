@@ -1718,7 +1718,7 @@ a.btn-action-secondary:hover {
 }
 
 .partido-confirmado .resultado-score.perdedor {
-  color: var(--muted);
+  color: #DC2626;
 }
 
 .empty-state {
