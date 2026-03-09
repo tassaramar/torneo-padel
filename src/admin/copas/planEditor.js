@@ -32,7 +32,7 @@ const COPA_DEFAULTS = ['Copa Oro', 'Copa Plata', 'Copa Bronce', 'Copa Madera', '
 // ─── Módule-level state ────────────────────────────────────────────────────────
 let _c       = null;  // container HTMLElement
 let _onSaved = null;
-let _ctx     = { numGrupos: 0, equiposPorGrupo: 0 };
+let _ctx     = { numGrupos: 0, equiposPorGrupo: 0, minEquiposPorGrupo: 0 };
 let _dbPresets = [];  // todos los presets cargados desde BD
 
 // Wizard state
@@ -86,8 +86,9 @@ export async function renderPlanEditor(container, onSaved) {
 
   _dbPresets = dbPresets;
   _ctx = {
-    numGrupos:       info.numGrupos,
-    equiposPorGrupo: Math.round(info.parejasPorGrupo),
+    numGrupos:          info.numGrupos,
+    equiposPorGrupo:    Math.round(info.parejasPorGrupo),
+    minEquiposPorGrupo: info.minParejasPorGrupo ?? Math.round(info.parejasPorGrupo),
   };
 
   _initWiz(2);
@@ -227,8 +228,13 @@ function _showPresets() {
     return;
   }
 
-  const ctxLabel    = `${_ctx.numGrupos} grupos × ${_ctx.equiposPorGrupo} equipos`;
-  const compatibles = _filterDbCompatible(_dbPresets, _ctx.numGrupos, _ctx.equiposPorGrupo);
+  const min = _ctx.minEquiposPorGrupo;
+  const avg = _ctx.equiposPorGrupo;
+  const ctxLabel = min === avg
+    ? `${_ctx.numGrupos} grupos × ${avg} equipos`
+    : `${_ctx.numGrupos} grupos × ${min}-${avg} equipos`;
+  // Filtrar por mínimo de equipos por grupo para no mostrar plantillas inválidas
+  const compatibles = _filterDbCompatible(_dbPresets, _ctx.numGrupos, min);
 
   const listHtml = compatibles.length === 0
     ? `<p style="text-align:center;padding:16px 8px;color:var(--muted);font-size:13px;line-height:1.5;">
@@ -316,6 +322,7 @@ function _showPresets() {
         logMsg(`❌ Error borrando plantilla: ${result.msg}`);
         return;
       }
+      logMsg('✅ Plantilla borrada');
       _dbPresets = _dbPresets.filter(x => x.id !== btn.dataset.presetId);
       _showPresets();
     });
@@ -338,6 +345,10 @@ function _showWizNum() {
       </div>
       <div class="wiz-progress" id="wiz-prog-num"></div>
 
+      <div style="font-size:12px;color:var(--muted);margin-top:8px;">
+        Torneo: <strong style="color:var(--text);">${_esc(_ctxLabel())}</strong>
+      </div>
+
       <label class="wiz-label" style="margin-top:12px;">¿Cuántas copas?</label>
       <div class="wiz-num-grid" id="wiz-num-grid"></div>
 
@@ -347,7 +358,7 @@ function _showWizNum() {
 
       <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
         <button type="button" class="btn-primary" style="width:100%;padding:12px;" id="wiz-num-next">
-          Siguiente →
+          Configurar copas →
         </button>
         <button type="button" class="btn-sm" style="width:100%;padding:10px;" id="wiz-num-cancel">
           Cancelar
@@ -447,7 +458,10 @@ function _showWizCopa(idx) {
 
       <div class="wiz-copa-step-header" style="margin-top:12px;">
         <div class="wiz-copa-bullet" style="background:${bg}; color:${fg}; width:28px; height:28px;">${idx + 1}</div>
-        <strong style="font-size:15px;">${_esc(copa.nombre)}</strong>
+        <div>
+          <strong style="font-size:15px;">${_esc(copa.nombre)}</strong>
+          <div style="font-size:12px;color:var(--muted);">Torneo: ${_esc(_ctxLabel())}</div>
+        </div>
       </div>
 
       <div id="wiz-copa-content"></div>
@@ -457,7 +471,7 @@ function _showWizCopa(idx) {
 
       <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
         <button type="button" class="btn-primary" style="width:100%;padding:12px;" id="wiz-copa-next">
-          ${isLast ? 'Ver resumen →' : 'Siguiente →'}
+          ${isLast ? 'Ver resumen →' : `Definí ${_esc(_wiz.copas[idx + 1]?.nombre ?? 'próxima copa')} →`}
         </button>
         <button type="button" class="btn-sm" style="width:100%;padding:10px;" id="wiz-copa-cancel">
           Cancelar
@@ -488,6 +502,10 @@ function _showWizCopa(idx) {
         errEl.style.display = 'block';
       }
       return;
+    }
+    // Propagar equipos como default para la siguiente copa (fix 6.3)
+    if (idx + 1 < _wiz.numCopas) {
+      _wiz.copas[idx + 1].equipos = copa.equipos;
     }
     _showWizCopa(idx + 1);
   });
@@ -869,6 +887,15 @@ function _getTeamLabels(copa, numGrupos) {
     }
   }
   return labels;
+}
+
+// ─── Formato del torneo (etiqueta para wizard) ────────────────────────────────
+function _ctxLabel() {
+  const min = _ctx.minEquiposPorGrupo;
+  const avg = _ctx.equiposPorGrupo;
+  return min === avg
+    ? `${_ctx.numGrupos} grupos × ${avg} equipos`
+    : `${_ctx.numGrupos} grupos × ${min}-${avg} equipos`;
 }
 
 // ─── DB preset filter ─────────────────────────────────────────────────────────

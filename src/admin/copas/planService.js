@@ -307,14 +307,24 @@ export async function eliminarPreset(supabase, presetId) {
 export async function detectarYSugerirPreset(supabase, torneoId) {
   const [{ data: grupos }, { data: parejas }] = await Promise.all([
     supabase.from('grupos').select('id').eq('torneo_id', torneoId),
-    supabase.from('parejas').select('id').eq('torneo_id', torneoId)
+    supabase.from('parejas').select('id, grupo_id').eq('torneo_id', torneoId)
   ]);
 
   const numGrupos       = grupos?.length  || 0;
   const numParejas      = parejas?.length || 0;
   const parejasPorGrupo = numGrupos > 0 ? numParejas / numGrupos : 0;
 
-  return { numGrupos, numParejas, parejasPorGrupo };
+  // Mínimo de parejas en cualquier grupo (para filtrar plantillas correctamente
+  // cuando los grupos tienen distinto número de equipos)
+  let minParejasPorGrupo = Math.round(parejasPorGrupo);
+  if (numGrupos > 0 && parejas?.length) {
+    const cuentas = {};
+    for (const p of parejas) cuentas[p.grupo_id] = (cuentas[p.grupo_id] || 0) + 1;
+    const vals = Object.values(cuentas);
+    if (vals.length > 0) minParejasPorGrupo = Math.min(...vals);
+  }
+
+  return { numGrupos, numParejas, parejasPorGrupo, minParejasPorGrupo };
 }
 
 /**
