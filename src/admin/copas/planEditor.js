@@ -503,6 +503,22 @@ function _showWizCopa(idx) {
       }
       return;
     }
+    // Para modo global: verificar que el rango no se superponga con otras copas
+    if (copa.modo === 'global') {
+      const overlap = _wiz.copas.find((c, i) =>
+        i !== idx && c.modo === 'global' && c.desde != null && c.hasta != null &&
+        copa.desde <= c.hasta && copa.hasta >= c.desde
+      );
+      if (overlap) {
+        const errEl = _c.querySelector('#wiz-copa-err');
+        if (errEl) {
+          errEl.textContent = `Las posiciones ${copa.desde}°–${copa.hasta}° se superponen con ${overlap.nombre} (${overlap.desde}°–${overlap.hasta}°). Elegí un rango distinto.`;
+          errEl.style.display = 'block';
+        }
+        return;
+      }
+    }
+
     // Propagar equipos como default para la siguiente copa (fix 6.3)
     if (idx + 1 < _wiz.numCopas) {
       _wiz.copas[idx + 1].equipos = copa.equipos;
@@ -571,11 +587,27 @@ function _renderCopaContent(idx) {
     const h = copa.hasta ?? copa.equipos;
     const count = Math.max(0, h - d + 1);
     const ok = count === copa.equipos;
+
+    // Rangos tomados por otras copas en modo global
+    const takenRanges = _wiz.copas
+      .filter((c, i) => i !== idx && c.modo === 'global' && c.desde != null && c.hasta != null)
+      .map(c => ({ desde: c.desde, hasta: c.hasta, nombre: c.nombre }));
+    const isTaken = pos => takenRanges.some(r => pos >= r.desde && pos <= r.hasta);
+
     let optD = '', optH = '';
     for (let i = 1; i <= totalEquipos; i++) {
-      optD += `<option value="${i}"${i === d ? ' selected' : ''}>${i}°</option>`;
-      optH += `<option value="${i}"${i === h ? ' selected' : ''}>${i}°</option>`;
+      const t = isTaken(i);
+      optD += `<option value="${i}"${i === d ? ' selected' : ''}${t ? ' disabled' : ''}>${i}°${t ? ' (usado)' : ''}</option>`;
+      optH += `<option value="${i}"${i === h ? ' selected' : ''}${t ? ' disabled' : ''}>${i}°${t ? ' (usado)' : ''}</option>`;
     }
+
+    const takenInfoHtml = takenRanges.length > 0
+      ? `<div style="font-size:12px;color:var(--warning);margin-top:6px;padding:6px 10px;
+                     background:#fffbeb;border-radius:6px;border:1px solid #fcd34d;">
+           ⚠️ Posiciones ocupadas: ${takenRanges.map(r => `${r.desde}°–${r.hasta}° (${_esc(r.nombre)})`).join(', ')}
+         </div>`
+      : '';
+
     globalHtml = `
       <div class="wiz-range-row">
         <span style="font-size:14px; color:var(--muted);">Del puesto</span>
@@ -586,6 +618,7 @@ function _renderCopaContent(idx) {
           ${count} eq${ok ? ' ✓' : ''}
         </span>
       </div>
+      ${takenInfoHtml}
       <div class="wiz-warn-box">
         ⚠️ <strong>Arranque diferido</strong>: esta copa no puede empezar hasta que
         <em>todos</em> los grupos terminen (necesitamos el ranking completo del torneo).
