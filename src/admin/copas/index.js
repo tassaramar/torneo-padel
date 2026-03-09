@@ -4,7 +4,7 @@
  */
 
 import { supabase, TORNEO_ID } from '../context.js';
-import { cargarEsquemas, cargarPropuestas } from './planService.js';
+import { cargarEsquemas, cargarPropuestas, cargarStandingsParaCopas } from './planService.js';
 import { renderPlanEditor, renderPlanActivo } from './planEditor.js';
 import { renderStatusView } from './statusView.js';
 
@@ -59,51 +59,47 @@ async function cargarCopasAdmin() {
 
   container.innerHTML = '<p style="color:var(--muted);">⏳ Cargando…</p>';
 
-  const [esquemas, propuestas, { data: copas }, { data: grupos }] = await Promise.all([
+  const [esquemas, propuestas, { data: copas }, standingsData] = await Promise.all([
     cargarEsquemas(supabase, TORNEO_ID),
     cargarPropuestas(supabase, TORNEO_ID),
     supabase.from('copas').select('id, nombre, esquema_copa_id').eq('torneo_id', TORNEO_ID),
-    supabase.from('grupos').select('id').eq('torneo_id', TORNEO_ID)
+    cargarStandingsParaCopas(supabase, TORNEO_ID)
   ]);
+
+  const grupos = standingsData.grupos;
 
   const paso = determinarPaso(esquemas, propuestas, copas);
 
   let infoPaso2 = '';
 
-  // Estado inconsistente: hay propuestas aprobadas pero no copas (plan de ciclo anterior)
   if (paso === 2 && propuestas.some(p => p.estado === 'aprobado')) {
     infoPaso2 = 'Plan anterior detectado — hacé Reset para empezar de nuevo';
-  } else if (paso === 2 && grupos && grupos.length > 0) {
-    const { data: partidos } = await supabase
-      .from('partidos')
-      .select('grupo_id, estado')
-      .in('grupo_id', grupos.map(g => g.id));
-
-    if (partidos) {
-      const gruposCompletos = grupos.filter(g => {
-        const del_grupo = partidos.filter(p => p.grupo_id === g.id);
-        return del_grupo.length > 0 && del_grupo.every(p => p.estado === 'confirmado' || p.estado === 'terminado');
-      });
+  } else if (paso === 2) {
+    // Usar standingsData en lugar de consulta separada de partidos
+    const gruposCompletos = grupos.filter(g =>
+      standingsData.standings.some(s => s.grupo_id === g.id && s.grupo_completo)
+    );
+    if (grupos.length > 0) {
       infoPaso2 = `Esperando que finalicen los grupos (${gruposCompletos.length} de ${grupos.length} completados)`;
     }
   }
 
-  const hayEsquemas   = (esquemas && esquemas.length > 0);
-  const hasPropuestas = propuestas.some(p => p.estado === 'pendiente');
-  const hasCopas      = (copas || []).length > 0;
-  const numGrupos     = grupos?.length || 0;
+  const hayEsquemas        = (esquemas && esquemas.length > 0);
+  const hasAnyPropuestas   = propuestas.some(p => p.estado === 'pendiente' || p.estado === 'aprobado');
+  const hasCopas           = (copas || []).length > 0;
+  const numGrupos          = grupos?.length || 0;
 
   container.innerHTML = renderIndicadorPaso(paso, infoPaso2);
   const subContainer = document.createElement('div');
   container.appendChild(subContainer);
 
-  if (!hasPropuestas && !hasCopas) {
+  if (!hasAnyPropuestas && !hasCopas) {
     if (!hayEsquemas) {
-      renderPlanEditor(subContainer, () => cargarCopasAdmin());         // Estado 1
+      renderPlanEditor(subContainer, () => cargarCopasAdmin());
     } else {
-      renderPlanActivo(subContainer, esquemas, numGrupos, () => cargarCopasAdmin()); // Estado 2
+      renderPlanActivo(subContainer, esquemas, numGrupos, () => cargarCopasAdmin());
     }
   } else {
-    renderStatusView(subContainer, esquemas, propuestas, copas || [], () => cargarCopasAdmin());
+    renderStatusView(subContainer, esquemas, propuestas, copas || [], standingsData, () => cargarCopasAdmin());
   }
 }

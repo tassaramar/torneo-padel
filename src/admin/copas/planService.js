@@ -193,6 +193,38 @@ export async function aprobarPropuestas(supabase, esquemaCopaid) {
 }
 
 /**
+ * Aprueba una sola propuesta pendiente de un esquema (partido individual).
+ * Crea la copa si aún no existe, luego crea el partido para esa propuesta.
+ *
+ * @param {Object} supabase      - Cliente de Supabase
+ * @param {string} esquemaCopaid - ID del esquema_copa
+ * @param {string} propuestaId   - ID de la propuesta a aprobar
+ * @returns {{ ok: boolean, copa_id?: string, partidos_creados?: number, msg?: string }}
+ */
+export async function aprobarPropuestaIndividual(supabase, esquemaCopaid, propuestaId) {
+  const { data, error } = await supabase
+    .rpc('aprobar_propuestas_copa', {
+      p_esquema_copa_id: esquemaCopaid,
+      p_propuesta_ids:   [propuestaId]
+    });
+
+  if (error) {
+    console.error('Error aprobando propuesta individual:', error);
+    return { ok: false, msg: error.message };
+  }
+
+  if (data?.error) {
+    return { ok: false, msg: data.error };
+  }
+
+  return {
+    ok: true,
+    copa_id:          data?.copa_id,
+    partidos_creados: data?.partidos_creados ?? 0
+  };
+}
+
+/**
  * Avanza el bracket de una copa a la siguiente ronda cuando todos los partidos
  * de la ronda actual están confirmados. Genérico: QF→SF, SF→F(+3P).
  *
@@ -326,6 +358,229 @@ export async function detectarYSugerirPreset(supabase, torneoId) {
 
   return { numGrupos, numParejas, parejasPorGrupo, minParejasPorGrupo };
 }
+
+// ============================================================
+// Funciones de cálculo puro (sin IO) — para Decisión 1 y Decisión 2
+// ============================================================
+
+/**
+ * Carga standings del torneo enriquecidos con nombres de parejas y grupos.
+ * Fuente de datos para calcularClasificadosConWarnings y calcularCrucesConWarnings.
+ *
+ * @returns {{ standings, grupos, todosCompletos }}
+ */
+export async function cargarStandingsParaCopas(supabase, torneoId) {
+  const [standingsRes, gruposRes, parejasRes] = await Promise.all([
+    supabase.rpc('obtener_standings_torneo', { p_torneo_id: torneoId }),
+    supabase.from('grupos').select('id, nombre').eq('torneo_id', torneoId),
+    supabase.from('parejas').select('id, nombre').eq('torneo_id', torneoId)
+  ]);
+
+  const grupos = gruposRes.data || [];
+  const parejasMap = Object.fromEntries((parejasRes.data || []).map(p => [p.id, p.nombre]));
+  const gruposMap = Object.fromEntries(grupos.map(g => [g.id, g.nombre]));
+
+  const standings = (standingsRes.data || []).map(s => ({
+    ...s,
+    nombre:      parejasMap[s.pareja_id] || '?',
+    grupoNombre: gruposMap[s.grupo_id]   || '?'
+  }));
+
+  const gruposCompletosIds = new Set(standings.filter(s => s.grupo_completo).map(s => s.grupo_id));
+  const todosCompletos = grupos.length > 0 && grupos.every(g => gruposCompletosIds.has(g.id));
+
+  return { standings, grupos, todosCompletos };
+}
+
+/**
+ * Función pura. Recibe standings enriquecidos y las reglas del esquema;
+ * retorna quiénes clasifican, zona gris (empates en frontera) y warnings.
+ *
+ * @param {{ standings, grupos }} standingsData
+ * @param {Object} esquema - Con campo `reglas`
+ * @param {Array}  propuestasAprobadas - Propuestas ya aprobadas de este esquema
+ * @returns {{ clasificados, zonaGris, pendientes, warnings }}
+ */
+export function calcularClasificadosConWarnings(standingsData, esquema, propuestasAprobadas) {
+  const { standings, grupos } = standingsData;
+  const reglas = esquema.reglas || [];
+
+  const aprobadosIds = new Set(
+    (propuestasAprobadas || [])
+      .flatMap(p => [p.pareja_a?.id, p.pareja_b?.id])
+      .filter(Boolean)
+  );
+
+  const clasificados = [];
+  let zonaGris = [];
+  const pendientes = [];
+  const warnings = [];
+
+  const gruposCompletosIds = new Set(standings.filter(s => s.grupo_completo).map(s => s.grupo_id));
+  const gruposIncompletos  = grupos.filter(g => !gruposCompletosIds.has(g.id));
+  const hasGlobal          = reglas.some(r => r.modo === 'global');
+
+  if (hasGlobal) {
+    const globalRule = reglas.find(r => r.modo === 'global') || {};
+    const desde = globalRule.desde || 1;
+    const hasta = globalRule.hasta || 4;
+
+    const allSorted = standings.filter(s => s.grupo_completo).sort(_cmpDesc);
+    const inScope   = allSorted.slice(desde - 1, hasta);
+    const nextTeam  = allSorted[hasta] || null;
+
+    inScope.forEach((t, i) => clasificados.push({
+      ...t, seed: desde + i, aprobado: aprobadosIds.has(t.pareja_id)
+    }));
+
+    // Zona gris: empate entre último clasificado y el primero excluido
+    if (nextTeam && inScope.length > 0) {
+      const ultimo = inScope[inScope.length - 1];
+      if (_empate(nextTeam, ultimo)) {
+        zonaGris = allSorted.slice(hasta).filter(t => _empate(t, ultimo));
+        warnings.push({
+          tipo: 'empate_frontera',
+          equipos: [ultimo.nombre, ...zonaGris.map(z => z.nombre)],
+          detalle: `${ultimo.puntos} pts, DS ${_signo(ultimo.ds)}${Math.abs(ultimo.ds)}`
+        });
+      }
+    }
+
+    for (const g of gruposIncompletos) {
+      pendientes.push({ grupoId: g.id, grupoNombre: g.nombre });
+    }
+
+  } else {
+    // Seeding por posición de grupo
+    for (const regla of reglas) {
+      const posicion = regla.posicion;
+      const cantidad = regla.cantidad;
+      const criterio = regla.criterio;
+
+      let candidates = standings
+        .filter(s => s.posicion_en_grupo === posicion && s.grupo_completo)
+        .sort(_cmpDesc);
+
+      if (!criterio) {
+        // Sin criterio: uno por grupo (todos los grupos aportan esta posición)
+        candidates.forEach(t => clasificados.push({
+          ...t, seed: clasificados.length + 1, aprobado: aprobadosIds.has(t.pareja_id)
+        }));
+        for (const g of gruposIncompletos) {
+          if (!pendientes.some(p => p.grupoId === g.id)) {
+            pendientes.push({ grupoId: g.id, grupoNombre: g.nombre });
+          }
+        }
+      } else {
+        if (criterio === 'peor') candidates = [...candidates].reverse();
+        const limit = cantidad || candidates.length;
+        const taken = candidates.slice(0, limit);
+        const next  = candidates[limit];
+
+        taken.forEach(t => clasificados.push({
+          ...t, seed: clasificados.length + 1, aprobado: aprobadosIds.has(t.pareja_id)
+        }));
+
+        if (next && taken.length > 0) {
+          const ultimo = taken[taken.length - 1];
+          if (_empate(next, ultimo)) {
+            const newZona = candidates.slice(limit).filter(t => _empate(t, ultimo));
+            zonaGris = [...zonaGris, ...newZona];
+            warnings.push({
+              tipo: 'empate_frontera',
+              equipos: [ultimo.nombre, ...newZona.map(z => z.nombre)],
+              detalle: `${ultimo.puntos} pts, DS ${_signo(ultimo.ds)}${Math.abs(ultimo.ds)}`
+            });
+          }
+        }
+      }
+    }
+
+    // Detectar empates a 3+ dentro de un grupo (afectan posición → copa destino)
+    for (const grupoId of gruposCompletosIds) {
+      const grupoTeams = standings.filter(s => s.grupo_id === grupoId && s.grupo_completo);
+      const statsGroups = {};
+      for (const t of grupoTeams) {
+        const key = `${t.puntos}_${t.ds}_${t.gf}`;
+        if (!statsGroups[key]) statsGroups[key] = [];
+        statsGroups[key].push(t);
+      }
+      for (const tied of Object.values(statsGroups)) {
+        if (tied.length >= 3) {
+          const grupoNombre = grupos.find(g => g.id === grupoId)?.nombre || grupoId;
+          const positions   = tied.map(t => `${t.posicion_en_grupo}°`).join('-');
+          warnings.push({ tipo: 'empate_grupo', grupoNombre, posiciones: positions, grupoId });
+        }
+      }
+    }
+  }
+
+  return { clasificados, zonaGris, pendientes, warnings };
+}
+
+/**
+ * Función pura. Recibe propuestas de un esquema y standings enriquecidos;
+ * retorna cruces con info de grupo de origen y warnings de "mismo grupo".
+ *
+ * @param {Array}  propuestasEsquema - Todas las propuestas del esquema (pendientes + aprobadas)
+ * @param {{ standings, grupos }} standingsData
+ * @returns {{ cruces, warnings }}
+ */
+export function calcularCrucesConWarnings(propuestasEsquema, standingsData) {
+  const { standings, grupos } = standingsData;
+
+  // Mapa parejaId → { grupoId, grupoNombre }
+  const parejaGrupoMap = {};
+  for (const s of standings) {
+    parejaGrupoMap[s.pareja_id] = { grupoId: s.grupo_id, grupoNombre: s.grupoNombre };
+  }
+
+  const cruces = (propuestasEsquema || []).map(p => {
+    const gA = p.pareja_a ? parejaGrupoMap[p.pareja_a.id] : null;
+    const gB = p.pareja_b ? parejaGrupoMap[p.pareja_b.id] : null;
+
+    const mismoGrupo = !!(gA && gB && gA.grupoId && gA.grupoId === gB.grupoId);
+
+    return {
+      id:       p.id,
+      ronda:    p.ronda,
+      orden:    p.orden,
+      aprobado: p.estado === 'aprobado',
+      parejaA:  p.pareja_a
+        ? { id: p.pareja_a.id, nombre: p.pareja_a.nombre, grupoId: gA?.grupoId, grupoNombre: gA?.grupoNombre }
+        : null,
+      parejaB:  p.pareja_b
+        ? { id: p.pareja_b.id, nombre: p.pareja_b.nombre, grupoId: gB?.grupoId, grupoNombre: gB?.grupoNombre }
+        : null,
+      mismoGrupo
+    };
+  });
+
+  const warnings = cruces
+    .filter(c => c.mismoGrupo && !c.aprobado)
+    .map(c => ({
+      tipo:    'mismo_grupo',
+      orden:   c.orden,
+      equipos: [c.parejaA?.nombre, c.parejaB?.nombre].filter(Boolean),
+      grupo:   c.parejaA?.grupoNombre
+    }));
+
+  return { cruces, warnings };
+}
+
+// Helpers internos para calcularClasificadosConWarnings
+function _cmpDesc(a, b) {
+  if (b.puntos !== a.puntos) return b.puntos - a.puntos;
+  if (b.ds     !== a.ds)     return b.ds     - a.ds;
+  if (b.gf     !== a.gf)     return b.gf     - a.gf;
+  return String(a.nombre).localeCompare(String(b.nombre));
+}
+function _empate(a, b) {
+  return a.puntos === b.puntos && a.ds === b.ds && a.gf === b.gf;
+}
+function _signo(n) { return n >= 0 ? '+' : ''; }
+
+// ============================================================
 
 /**
  * Modifica el seeding de una propuesta pendiente (swap de parejas entre cruces).

@@ -8,11 +8,6 @@
 #### notas en Bugs-Mejoras-raw.md o todavía estás testeando?"
 
 # Mejoras:
-    - La tabla general tiene poca visibilidad para el admin.
-        - Si las copas usan la tabla general el admin debería poder ver la tabla general antes de confirmar las partidos de copas y eventaulmente resolver empates en la tabla general previo y armar las copas.
-    - El autorefesh, por momentos es molesto.  Se puede hacer que el refresh sea en background?  y que solo se cambie el contenido cuando ya tenemos todo el nuevo contenido nuevo?
 
 
 # BUGs
-
-

@@ -35,23 +35,50 @@ export function cmpStatsDesc(a, b) {
 
 /**
  * Aplica seeding de bombo: mejor vs peor, segundo vs tercero.
- * @param {Array} equipos - Array ordenado mejor primero (IDs o objetos con .id)
- * @returns {Array<[any, any]>} Pares de cruces para las semis
+ * Soporta NULLs en el array (equipos pendientes de grupos incompletos).
+ * Los NULLs se reordenan al final (son el "peor seed" desconocido).
+ *
+ * @param {Array} equipos - Array ordenado mejor primero; puede contener nulls
+ * @returns {Array<[any, any]>} Pares de cruces [[A, D], [B, C]]
  */
 export function seedingBombo(equipos) {
-  const n = equipos.length;
+  // NULLs representan equipos pendientes — van al final (peor seed)
+  const real = equipos.filter(e => e != null);
+  const nulls = equipos.filter(e => e == null);
+  const sorted = [...real, ...nulls];
+  const n = sorted.length;
+
   if (n >= 4) {
     return [
-      [equipos[0], equipos[3]],
-      [equipos[1], equipos[2]]
+      [sorted[0], sorted[3]],
+      [sorted[1], sorted[2]]
     ];
   }
   if (n === 3) {
-    // Bye al mejor (equipos[0]), semi entre 2do y 3ro
-    return [[equipos[1], equipos[2]]];
+    // Bye al mejor (sorted[0]), semi entre 2do y 3ro
+    return [[sorted[1], sorted[2]]];
   }
   if (n === 2) {
-    return [[equipos[0], equipos[1]]];
+    return [[sorted[0], sorted[1]]];
   }
   return [];
+}
+
+/**
+ * Filtra del pool los equipos que ya están en propuestas aprobadas.
+ * @param {Array} equipos - Array de objetos con .pareja_id o .id
+ * @param {Array} propuestasAprobadas - Propuestas con estado 'aprobado'
+ * @returns {Array} Equipos no comprometidos en propuestas aprobadas
+ */
+export function excluirAprobados(equipos, propuestasAprobadas) {
+  const aprobadosIds = new Set(
+    (propuestasAprobadas || [])
+      .flatMap(p => [p.pareja_a?.id, p.pareja_b?.id])
+      .filter(Boolean)
+  );
+  return (equipos || []).filter(e => {
+    if (e == null) return true; // conservar nulls (slots pendientes)
+    const id = e.pareja_id || e.id;
+    return !aprobadosIds.has(id);
+  });
 }

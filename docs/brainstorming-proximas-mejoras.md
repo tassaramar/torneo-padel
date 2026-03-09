@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-09 (wizard copas Etapa 1 implementado + post-deploy fixes → v1.1.3)
+**Última actualización**: 2026-03-09 (aprobación de copas con visibilidad y control de cruces implementada)
 
 ---
 
@@ -35,7 +35,7 @@
 
 > Máximo 3 ítems a la vez. Para agregar uno, sacar uno primero. Obliga a priorizar.
 
-1. [BUG] index.html — score "Por confirmar" invertido cuando jugador es pareja_b → **spec lista** [spec-bug-score-por-confirmar-invertido.md](spec-bug-score-por-confirmar-invertido.md)
+1. [MEJORA] Admin copas — gestión sin doble confirmación · `🔍 EN ANÁLISIS` · falta spec
 2. _(libre)_
 3. _(libre)_
 
@@ -49,13 +49,6 @@
 
 ---
 
-#### [BUG] Tab Copas — estado inconsistente al importar nuevas parejas `📋 PRIORIZADA`
-
-**Score owner**: 2/5 · **Spec**: ✅ [spec-bugs-copa-estado-inconsistente.md](spec-bugs-copa-estado-inconsistente.md)
-
-Al importar parejas nuevas con copas del ciclo anterior, el tab Copas muestra mensajes contradictorios y el botón Reset no aparece. Workaround: "Regenerar torneo" desde tab Setup.
-
-**Archivos clave**: `src/admin/copas/index.js`, `src/admin/copas/statusView.js`
 
 ---
 
@@ -83,13 +76,33 @@ Cuando no quedan partidos de grupo pendientes ni en juego, ocultar las secciones
 
 ---
 
-#### [BUG] index.html — score "Por confirmar" invertido cuando jugador es pareja_b `📋 PRIORIZADA`
+#### [MEJORA] Autorefresh background — sin parpadeo al actualizar `💡 CRUDA`
 
-**Score owner**: pendiente · **Spec**: ✅ [spec-bug-score-por-confirmar-invertido.md](spec-bug-score-por-confirmar-invertido.md)
+**Score owner**: pendiente · **Spec**: ❌ falta
 
-En las secciones "Por confirmar" y "En revisión" del home, cuando el jugador es `pareja_b`, el score se muestra en orden de BD (rival primero). Ejemplo: rival cargó "gané 6-0" y el jugador ve "6-0 Perdiste" en vez de "0-6 Perdiste". Fix: nueva función `invertirScoresPartido` en `formatoResultado.js`, reutilizable en ambas funciones de render y en `orientarPartido` del modal.
+El autorefresh (cada 30s) reconstruye el DOM completo, lo que genera un parpadeo visible y resetea el scroll. Propuesta: hacer el fetch en background, y solo aplicar los cambios al DOM cuando los datos nuevos ya están listos. Aplica a todas las páginas con polling: `index.html` y `fixture.html`.
 
-**Archivo clave**: `src/viewer/vistaPersonal.js`, `src/utils/formatoResultado.js`
+**Archivos clave**: `src/personal.js`, `src/fixture.js`
+
+---
+
+#### [MEJORA] Partidos jugados (index.html) — card con colores ganado/perdido `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+La lista "Ver partidos jugados" solo tiene color en el score (verde/rojo en el número). Sería bueno aplicar un estilo de card más completo con fondo verde suave (ganado) o rojo suave (perdido), consistente con el patrón visual del modal Tablas/Grupos. No necesita ser idéntico, pero sí mantener el mismo lenguaje visual en todo el sistema.
+
+**Archivos clave**: `src/viewer/vistaPersonal.js`, `style.css`
+
+---
+
+#### [MEJORA] Modal Tablas/Grupos — renombrar título "Consultar" `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+El título del modal muestra "Consultar", que no describe bien su contenido (tablas, copas y fixture). Cambiar por un título más descriptivo. Alternativas a proponer en la spec.
+
+**Archivos clave**: `src/viewer/modalConsulta.js`
 
 ---
 
@@ -133,27 +146,13 @@ Nombre de la pareja ganadora en **negrita** en la vista admin de copas.
 
 ---
 
-#### [MEJORA] Seeding global — evitar cruces entre equipos del mismo grupo `💡 CRUDA`
+#### [MEJORA] Tabla de posiciones del grupo — mostrar empates y criterios de desempate `💡 CRUDA`
 
 **Score owner**: pendiente · **Spec**: ❌ falta
 
-Cuando el seeding es por tabla general (`modo:'global'`), los cruces actuales emparejan por ranking puro (1v4, 2v3). Esto puede generar cruces entre equipos del mismo grupo en primera ronda. Ejemplo real: con 2 grupos × 3 parejas, el cruce 1v4 enfrentó al 1° del Grupo A con el 2° del Grupo A, y el 2v3 enfrentó al 1° del Grupo B con el 2° del Grupo B — repitiendo partidos de fase de grupos.
+La tabla de posiciones del grupo no explica los criterios utilizados para desempatar ni identifica empates a 3 equipos. El admin puede reordenar posiciones manualmente, pero no tiene visibilidad de por qué el sistema ordenó así. Importante para que la transición grupos → copas sea confiable.
 
-Debería intentarse separar equipos del mismo grupo en primera ronda, manteniendo el seeding lo más fiel posible al ranking.
-
-**Archivos clave**: `verificar_y_proponer_copas` (RPC), `src/admin/copas/bracketLogic.js`
-
----
-
-#### [BUG] Propuestas de copa — swap (⇄) no permite cambiar cruces entre matches `💡 CRUDA`
-
-**Score owner**: pendiente · **Spec**: ❌ falta
-
-Las flechas ⇄ en las propuestas de copa solo intercambian pareja_a ↔ pareja_b dentro del mismo match. No permiten mover equipos entre matches distintos. Si el seeding generó Semi 1: A vs B y Semi 2: C vs D, pero el admin quiere Semi 1: A vs D y Semi 2: C vs B, no hay forma de hacerlo desde la UI.
-
-Relacionado con la mejora de seeding anti-mismo-grupo: si el seeding se corrige, este bug será menos frecuente pero sigue siendo necesario para ajustes manuales.
-
-**Archivos clave**: `src/admin/copas/statusView.js`
+**Archivos clave**: `src/admin/groups/compute.js`, `src/utils/tablaPosiciones.js`
 
 ---
 
@@ -246,6 +245,14 @@ Historial de partidos por jugador. Depende de Múltiples torneos + Gestión de u
 
 ---
 
+#### [MEJORA] Copas con cantidad de equipos no potencia de 2 (byes) `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 5, 6, 7 equipos, los mejor clasificados podrían saltearse la primera ronda (bye). Formato nuevo de copa, junto con Round Robin.
+
+---
+
 #### [MEJORA] Admin Setup — UX del flujo de importación `💡 CRUDA`
 
 **Score owner**: 1/5 · Botón Importar siempre habilitado, logs desaparecen al refresh.
@@ -253,6 +260,42 @@ Historial de partidos por jugador. Depende de Múltiples torneos + Gestión de u
 ---
 
 ## Historial — Implementado / Validado
+
+### Admin copas — Aprobación con visibilidad y control de cruces `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-09 · **Spec funcional**: [spec-copa-aprobacion-cruces.md](spec-copa-aprobacion-cruces.md) · **Spec técnica**: [spec-copa-aprobacion-cruces-tecnico.md](spec-copa-aprobacion-cruces-tecnico.md)
+
+Rediseño completo del flujo de aprobación de copas en admin.html tab Copas:
+- **Visibilidad (D1)**: tabla de clasificados con puntos, DS, grupo; zona gris (empate en frontera); warnings de empates a 3 dentro de un grupo; equipos pendientes con null slots.
+- **Control (D2)**: edición libre de cruces con selects; swap de equipos entre matches; warnings de mismo grupo en primera ronda; aprobación individual o masiva.
+- **Propuestas progresivas**: `verificar_y_proponer_copas` genera propuestas con NULL slots cuando grupos terminan parcialmente (position-based seeding); sólo global espera todos los grupos.
+- **Una sola función de cálculo**: `calcularClasificadosConWarnings` y `calcularCrucesConWarnings` en `planService.js` — sin código duplicado para partial vs complete.
+- Resuelve: tabla general visible antes de aprobar (modo global), seeding anti-mismo-grupo (warnings), swap ⇄ entre matches distintos.
+
+---
+
+### [BUG] Tab Copas — estado inconsistente al importar nuevas parejas `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-09 · **Spec**: [spec-bugs-copa-estado-inconsistente.md](spec-bugs-copa-estado-inconsistente.md)
+
+Los tres cambios de código ya estaban implementados en iteraciones anteriores; verificación confirmó que la migración `20260302000000_fix_reset_copas_esquemas` también está aplicada en producción.
+- `parejasImport.js` `borrarTodoTorneo()`: borra `esquemas_copa` (CASCADE elimina `propuestas_copa`)
+- `planEditor.js`: bloque `bloqueado` incluye botón Reset funcional que llama `resetCopas`
+- `index.js`: detecta propuestas aprobadas huérfanas y ajusta `infoPaso2` con mensaje claro
+
+---
+
+### BUG score invertido — sistema-wide (Por confirmar + En revisión + Partidos jugados) `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-09 · **Spec**: [spec-bug-score-por-confirmar-invertido.md](spec-bug-score-por-confirmar-invertido.md)
+
+- `invertirScoresPartido(partido)` agregada a `src/utils/formatoResultado.js` — swapea `set1..3_a↔b`, `sets_a↔b`, `games_totales_a↔b` retornando copia sin mutar el original.
+- `renderPartidosConfirmar`: score orientado al jugador (soyA ? p : invertirScoresPartido(p)).
+- `renderPartidosRevision`: ambos scores (original y temporal) orientados al jugador.
+- `renderPartidosConfirmados` ("Partidos jugados"): score orientado; clases CSS `ganador`/`perdedor` con colores `#16A34A`/`#DC2626` alineados con tabla de posiciones.
+- `orientarPartido` en `modalConsulta.js` simplificado para importar `invertirScoresPartido` como fuente única.
+
+---
 
 ### Admin copas — UX wizard plantillas Etapa 1 `✅ IMPLEMENTADA`
 
