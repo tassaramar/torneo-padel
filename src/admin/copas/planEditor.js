@@ -519,9 +519,15 @@ function _showWizCopa(idx) {
       }
     }
 
-    // Propagar equipos como default para la siguiente copa (fix 6.3)
+    // Propagar equipos y modo como default para la siguiente copa
     if (idx + 1 < _wiz.numCopas) {
-      _wiz.copas[idx + 1].equipos = copa.equipos;
+      const next = _wiz.copas[idx + 1];
+      next.equipos = copa.equipos;
+      next.modo    = copa.modo;
+      if (copa.modo === 'global') {
+        next.desde = (copa.hasta ?? 1) + 1;
+        next.hasta = (copa.hasta ?? 1) + copa.equipos;
+      }
     }
     _showWizCopa(idx + 1);
   });
@@ -601,13 +607,6 @@ function _renderCopaContent(idx) {
       optH += `<option value="${i}"${i === h ? ' selected' : ''}${t ? ' disabled' : ''}>${i}°${t ? ' (usado)' : ''}</option>`;
     }
 
-    const takenInfoHtml = takenRanges.length > 0
-      ? `<div style="font-size:12px;color:var(--warning);margin-top:6px;padding:6px 10px;
-                     background:#fffbeb;border-radius:6px;border:1px solid #fcd34d;">
-           ⚠️ Posiciones ocupadas: ${takenRanges.map(r => `${r.desde}°–${r.hasta}° (${_esc(r.nombre)})`).join(', ')}
-         </div>`
-      : '';
-
     globalHtml = `
       <div class="wiz-range-row">
         <span style="font-size:14px; color:var(--muted);">Del puesto</span>
@@ -618,7 +617,6 @@ function _renderCopaContent(idx) {
           ${count} eq${ok ? ' ✓' : ''}
         </span>
       </div>
-      ${takenInfoHtml}
       <div class="wiz-warn-box">
         ⚠️ <strong>Arranque diferido</strong>: esta copa no puede empezar hasta que
         <em>todos</em> los grupos terminen (necesitamos el ranking completo del torneo).
