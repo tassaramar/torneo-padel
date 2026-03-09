@@ -1,16 +1,21 @@
 /**
- * Editor de plan de copas — wizard (Estado 1).
+ * Editor de plan de copas — wizard (Estado 1) y vista plan activo (Estado 2).
  *
- * Flujo:
- *   Panel 1: Lista de presets compatibles + "Crear personalizado"
+ * Estado 1 — Sin plan:
+ *   Panel 1: Lista acordeón de plantillas compatibles + "Crear nuevo"
  *   Panel 2: Wizard — ¿cuántas copas? + nombres
  *   Panel 3: Wizard — configurar cada copa (formato + seeding)
  *   Panel 4: Preview + guardar preset + aplicar
+ *
+ * Estado 2 — Plan definido (sin propuestas ni copas):
+ *   renderPlanActivo: muestra bracket del plan vigente + Reset
  */
 
 import { supabase, TORNEO_ID, logMsg } from '../context.js';
-import { guardarEsquemas, esPlanBloqueado, cargarPresets, guardarPreset, eliminarPreset } from './planService.js';
-import { detectarYSugerirPreset, obtenerPresetsCompatibles } from './presets.js';
+import {
+  guardarEsquemas, esPlanBloqueado, cargarPresets, guardarPreset,
+  eliminarPreset, resetCopas, detectarYSugerirPreset,
+} from './planService.js';
 import { labelRonda } from '../../utils/copaRondas.js';
 
 // ─── Colores de copa (índice 0–5) ─────────────────────────────────────────────
@@ -23,23 +28,22 @@ const COPA_COLORS = [
   { bg: '#fce7f3', fg: '#831843' },
 ];
 const COPA_DEFAULTS = ['Copa Oro', 'Copa Plata', 'Copa Bronce', 'Copa Madera', 'Copa Cartón', 'Copa Papel'];
+
 // ─── Módule-level state ────────────────────────────────────────────────────────
-let _c      = null;  // container HTMLElement
+let _c       = null;  // container HTMLElement
 let _onSaved = null;
-let _ctx    = { numGrupos: 0, equiposPorGrupo: 0 };
+let _ctx     = { numGrupos: 0, equiposPorGrupo: 0 };
 let _dbPresets = [];  // todos los presets cargados desde BD
-let _presets = [];    // presets compatibles con el formato actual (subset de _dbPresets o fallback estático)
 
 // Wizard state
 let _wiz = null;   // { numCopas, copas: [{nombre, equipos, modo, posiciones, desde, hasta}] }
 
-// ─── Entry point ──────────────────────────────────────────────────────────────
+// ─── Entry point — Estado 1 ───────────────────────────────────────────────────
 /**
  * @param {HTMLElement} container
- * @param {Function} onSaved - callback para re-render tras aplicar el plan
- * @param {Array|null} esquemaExistente - esquemas actuales del torneo (para editar un plan vigente)
+ * @param {Function}    onSaved - callback para re-render tras aplicar el plan
  */
-export async function renderPlanEditor(container, onSaved, esquemaExistente = null) {
+export async function renderPlanEditor(container, onSaved) {
   _c       = container;
   _onSaved = onSaved;
 
@@ -67,8 +71,6 @@ export async function renderPlanEditor(container, onSaved, esquemaExistente = nu
       const btn = container.querySelector('#btn-reset-bloqueado');
       btn.disabled = true;
       btn.textContent = '⏳ Reseteando...';
-
-      const { resetCopas } = await import('./planService.js');
       const result = await resetCopas(supabase, TORNEO_ID);
       if (result.ok) {
         logMsg('✅ Plan anterior borrado — podés definir un nuevo plan');
@@ -88,159 +90,240 @@ export async function renderPlanEditor(container, onSaved, esquemaExistente = nu
     equiposPorGrupo: Math.round(info.parejasPorGrupo),
   };
 
-  // Presets compatibles: desde BD si hay seed, sino fallback a estáticos
-  const compatiblesDb = _filterDbCompatible(_dbPresets, info.numGrupos, info.parejasPorGrupo);
-  _presets = compatiblesDb.length > 0
-    ? compatiblesDb
-    : obtenerPresetsCompatibles(info.numGrupos, info.parejasPorGrupo);
+  _initWiz(2);
+  _showPresets();
+}
 
-  if (esquemaExistente && esquemaExistente.length > 0) {
-    _fromEsquemasToWiz(esquemaExistente);
-    _showWizNum();
+// ─── Entry point — Estado 2 ───────────────────────────────────────────────────
+/**
+ * Muestra el plan vigente con diagrama de bracket + botón Reset.
+ * Usada cuando hay esquemas definidos pero aún no hay propuestas ni copas.
+ *
+ * @param {HTMLElement} container
+ * @param {Array}       esquemas  - Esquemas del torneo (desde BD)
+ * @param {number}      numGrupos - Cantidad de grupos del torneo
+ * @param {Function}    onReload  - Callback para recargar tras Reset
+ */
+export function renderPlanActivo(container, esquemas, numGrupos, onReload) {
+  const copasSections = (esquemas || []).map(copa => `
+    <div style="margin-bottom:20px;">
+      ${renderBracketDiagram(copa, numGrupos)}
+      <hr class="wiz-divider" style="margin-top:0;">
+    </div>
+  `).join('');
+
+  container.innerHTML = `
+    <div class="wiz-panel">
+      <div style="font-weight:600; font-size:15px; margin-bottom:16px;">Plan de copas vigente</div>
+      ${copasSections}
+      <button type="button" id="btn-reset-plan" class="btn-sm btn-danger" style="margin-top:4px; width:100%; padding:10px;">
+        🗑 Reset — borrar plan y empezar de nuevo
+      </button>
+    </div>
+  `;
+
+  container.querySelector('#btn-reset-plan').addEventListener('click', async () => {
+    if (!confirm('¿Borrar el plan de copas y empezar de nuevo?')) return;
+    const btn = container.querySelector('#btn-reset-plan');
+    btn.disabled = true;
+    btn.textContent = '⏳ Reseteando...';
+    const result = await resetCopas(supabase, TORNEO_ID);
+    if (result.ok) {
+      logMsg('✅ Plan borrado — podés definir un nuevo plan');
+      onReload?.();
+    } else {
+      logMsg(`❌ Error: ${result.msg}`);
+      btn.disabled = false;
+      btn.textContent = '🗑 Reset — borrar plan y empezar de nuevo';
+    }
+  });
+}
+
+// ─── Componente compartido: Diagrama de bracket ───────────────────────────────
+/**
+ * Renderiza un diagrama ASCII del bracket de una copa.
+ * Usada en Panel 1 (acordeón) Y en renderPlanActivo — función única, sin duplicación.
+ *
+ * @param {{ nombre, formato, reglas }} copa
+ * @param {number} numGrupos
+ * @returns {string} HTML string con el diagrama
+ */
+export function renderBracketDiagram(copa, numGrupos) {
+  const labels  = _getTeamLabels(copa, numGrupos);
+  const nTeams  = labels.length;
+  const fmtLabel = copa.formato === 'direct' ? 'Cruce directo'
+                 : nTeams <= 4              ? 'Bracket 4'
+                 :                           'Bracket 8';
+
+  const badgeHtml = `<span class="wiz-badge" style="font-size:11px;vertical-align:middle;">${fmtLabel}</span>`;
+
+  let tree;
+
+  if (copa.formato === 'direct' || nTeams <= 2) {
+    const a = labels[0] || '?';
+    const b = labels[1] || '?';
+    const w = Math.max(a.length, b.length);
+    tree = [
+      `${a.padEnd(w)} ─┐`,
+      `${' '.repeat(w)}  ├─→ Final → Campeón`,
+      `${b.padEnd(w)} ─┘`,
+    ].join('\n');
+
+  } else if (nTeams <= 4) {
+    // Semi 1: labels[0] vs labels[2]; Semi 2: labels[1] vs labels[3]
+    // (orden visual natural: pos × grupo → agrupados por posicion, luego grupo)
+    const t = [...labels];
+    while (t.length < 4) t.push('?');
+    const w = Math.max(...t.map(s => s.length));
+    const p = s => s.padEnd(w);
+    // "├─ Semi 1 ─┐" = 12 chars, starts at col w+2 → ┐ at col w+13
+    // After label+" ─┘" (w+3 chars), gap to finalCol = 10
+    const finalCol = w + 13;
+    tree = [
+      `${p(t[0])} ─┐`,
+      `${' '.repeat(w)}  ├─ Semi 1 ─┐`,
+      `${p(t[2])} ─┘${' '.repeat(10)}├─→ Final → Campeón`,
+      `${' '.repeat(finalCol)}│`,
+      `${p(t[1])} ─┐${' '.repeat(10)}│`,
+      `${' '.repeat(w)}  ├─ Semi 2 ─┘`,
+      `${p(t[3])} ─┘`,
+    ].join('\n');
+
   } else {
-    _initWiz(2);
-    _showPresets();
+    // 8 equipos: mostrar cuartos como lista
+    const t = [...labels];
+    while (t.length < 8) t.push('?');
+    const pairs = [[0,7],[3,4],[1,6],[2,5]]; // seeding estándar: 1v8, 4v5, 2v7, 3v6
+    const lines = pairs.map(([a, b], i) =>
+      `  QF${i + 1}: ${t[a]} vs ${t[b]}`
+    ).join('\n');
+    tree = `Cuartos de final:\n${lines}\n\n→ Semis → Final → Campeón`;
   }
+
+  return `
+    <div style="margin:6px 0 12px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+        <strong style="font-size:13px;">${_esc(copa.nombre)}</strong>
+        ${badgeHtml}
+      </div>
+      <pre style="font-family:monospace;font-size:12px;line-height:1.7;overflow-x:auto;
+                  background:#f8fafc;border-radius:6px;padding:8px 10px;margin:0;">${tree}</pre>
+    </div>
+  `;
 }
 
-// ─── Wizard state helpers ──────────────────────────────────────────────────────
-function _initWiz(n) {
-  const totalEquipos = _ctx.numGrupos * _ctx.equiposPorGrupo || 4;
-  _wiz = {
-    numCopas: n,
-    copas: Array.from({ length: n }, (_, i) => ({
-      nombre:    COPA_DEFAULTS[i] ?? `Copa ${i + 1}`,
-      equipos:   4,
-      modo:      'grupo',
-      posiciones: [],
-      desde:     1,
-      hasta:     Math.min(totalEquipos, 4),
-    })),
-  };
-
-}
-
-// ─── Panel 1: Presets ──────────────────────────────────────────────────────────
+// ─── Panel 1: Acordeón de plantillas ──────────────────────────────────────────
 function _showPresets() {
   _setLogVisible(true);
-  const ctxLabel = _ctx.numGrupos > 0
-    ? `${_ctx.numGrupos} grupos · ${_ctx.equiposPorGrupo} eq c/u`
-    : 'Formato desconocido';
 
-  const presetsHtml = _presets.length === 0
-    ? `<p class="helper" style="text-align:center; padding:12px 0;">
-         No hay presets para este formato (${_esc(ctxLabel)}).
-       </p>`
-    : _presets.map(p => `
-        <div class="wiz-card${p.recomendado ? ' wiz-card--featured' : ''}">
-          <div class="wiz-card-header">
-            <div class="wiz-card-title">${_esc(p.nombre)}</div>
-            ${p.recomendado ? '<span class="wiz-badge">Recomendado</span>' : ''}
-          </div>
-          <p class="wiz-card-desc">${_esc(p.descripcion)}</p>
-          <div class="wiz-card-actions">
-            <button type="button" class="btn-sm wiz-btn-edit" data-clave="${_esc(p.clave)}">✏️ Editar</button>
-            <button type="button" class="btn-sm btn-primary wiz-btn-apply" data-clave="${_esc(p.clave)}">✓ Aplicar</button>
-          </div>
+  if (_ctx.numGrupos === 0) {
+    _c.innerHTML = `
+      <div class="wiz-panel">
+        <div style="padding:14px; background:#fffbeb; border:1px solid #fcd34d; border-radius:8px;
+                    font-size:14px;">
+          ⚠️ Configurá los grupos primero (tab Grupos) antes de definir las copas.
         </div>
-      `).join('');
+      </div>`;
+    return;
+  }
 
-  const customPresets = _dbPresets.filter(p => !p.es_default);
-  const localHtml = customPresets.length === 0
-    ? `<p class="helper" style="text-align:center; padding:8px 0; opacity:0.65;">
-         No hay presets guardados todavía.
+  const ctxLabel    = `${_ctx.numGrupos} grupos × ${_ctx.equiposPorGrupo} equipos`;
+  const compatibles = _filterDbCompatible(_dbPresets, _ctx.numGrupos, _ctx.equiposPorGrupo);
+
+  const listHtml = compatibles.length === 0
+    ? `<p style="text-align:center;padding:16px 8px;color:var(--muted);font-size:13px;line-height:1.5;">
+         No hay plantillas guardadas para este formato (${_esc(ctxLabel)}).<br>
+         Creá una desde cero con el asistente.
        </p>`
-    : customPresets.map(p => `
-        <div class="wiz-card">
-          <div class="wiz-card-header">
-            <div class="wiz-card-title">${_esc(p.nombre)}</div>
+    : compatibles.map(p => `
+        <div class="wiz-accordion-item">
+          <div class="wiz-accordion-header" data-preset-id="${_esc(p.id)}"
+               style="display:flex;align-items:center;justify-content:space-between;
+                      padding:13px 14px;cursor:pointer;border-radius:8px;
+                      background:var(--bg);border:1px solid var(--border);
+                      transition:background 0.15s;">
+            <span style="font-size:14px;font-weight:500;">${_esc(p.nombre)}</span>
+            <span class="wiz-accordion-icon" style="font-size:16px;color:var(--muted);
+                  transition:transform 0.2s;">›</span>
           </div>
-          <div class="wiz-card-actions">
-            <button type="button" class="btn-sm wiz-btn-local-edit" data-preset-id="${_esc(p.id)}">✏️ Editar</button>
-            <button type="button" class="btn-sm btn-primary wiz-btn-local-apply" data-preset-id="${_esc(p.id)}">✓ Aplicar</button>
-            <button type="button" class="btn-sm wiz-btn-local-del" data-preset-id="${_esc(p.id)}"
-              style="border-color:#fca5a5; color:#dc2626; background:transparent;">✕</button>
+          <div class="wiz-accordion-body" style="display:none;padding:12px 14px 14px;
+               border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;
+               background:#fff;margin-bottom:10px;">
+            ${(p.esquemas || []).map(copa => renderBracketDiagram(copa, _ctx.numGrupos)).join('')}
+            <div style="display:flex;gap:8px;margin-top:4px;">
+              <button type="button" class="btn-sm btn-primary wiz-acc-apply"
+                      data-preset-id="${_esc(p.id)}"
+                      style="flex:1;padding:10px;">✓ Aplicar</button>
+              <button type="button" class="btn-sm wiz-acc-del"
+                      data-preset-id="${_esc(p.id)}"
+                      style="padding:10px 14px;border-color:#fca5a5;color:#dc2626;background:transparent;">
+                🗑 Borrar
+              </button>
+            </div>
           </div>
         </div>
       `).join('');
 
   _c.innerHTML = `
     <div class="wiz-panel">
-      <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
-        <strong style="font-size:15px;">Plan de Copas</strong>
-        ${_ctx.numGrupos > 0 ? `<span class="wiz-ctx-badge">${_esc(ctxLabel)}</span>` : ''}
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px;">
+        Formato del torneo: <strong style="color:var(--text);">${_esc(ctxLabel)}</strong>
       </div>
 
-      ${_presets.length > 0 ? '<div class="wiz-section-label">Presets compatibles</div>' : ''}
-      ${presetsHtml}
+      <div id="wiz-accordion-list" style="display:flex;flex-direction:column;gap:0;">
+        ${listHtml}
+      </div>
 
-      <div class="wiz-section-label" style="margin-top:14px;">Mis presets guardados</div>
-      ${localHtml}
-
-      <button type="button" class="wiz-add-btn" id="wiz-btn-custom">
-        <span style="font-size:18px; line-height:1;">+</span>
-        Crear esquema personalizado
+      <button type="button" class="wiz-add-btn" id="wiz-btn-nuevo" style="margin-top:12px;">
+        <span style="font-size:18px;line-height:1;">+</span>
+        Crear nuevo
       </button>
 
-      <p class="helper" style="margin-top:14px; font-size:13px;">
+      <p class="helper" style="margin-top:14px;font-size:13px;">
         ℹ️ Los cruces se propondrán automáticamente al confirmarse resultados de grupo.
       </p>
     </div>
   `;
 
-  _c.querySelector('#wiz-btn-custom').addEventListener('click', () => {
-    _initWiz(2);
-    _showWizNum();
+  // Acordeón: toggle individual, múltiples pueden estar abiertos simultáneamente
+  _c.querySelectorAll('.wiz-accordion-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const body = header.nextElementSibling;
+      const icon = header.querySelector('.wiz-accordion-icon');
+      const isOpen = body.style.display !== 'none';
+      body.style.display = isOpen ? 'none' : 'block';
+      icon.style.transform = isOpen ? '' : 'rotate(90deg)';
+    });
   });
 
-  _c.querySelectorAll('.wiz-btn-apply').forEach(btn => {
+  // Aplicar
+  _c.querySelectorAll('.wiz-acc-apply').forEach(btn => {
     btn.addEventListener('click', async () => {
-      btn.disabled = true;
-      btn.textContent = '⏳';
-      const preset = _presets.find(p => p.clave === btn.dataset.clave);
-      if (preset) await _applyEsquemas(preset.esquemas, btn);
-    });
-  });
-
-  _c.querySelectorAll('.wiz-btn-edit').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const preset = _presets.find(p => p.clave === btn.dataset.clave);
-      if (!preset) return;
-      _fromEsquemasToWiz(preset.esquemas);
-      _showPreview(() => _showWizNum());
-    });
-  });
-
-  _c.querySelectorAll('.wiz-btn-local-apply').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const p = _dbPresets.find(p => p.id === btn.dataset.presetId);
-      btn.disabled = true;
-      btn.textContent = '⏳';
-      if (p) await _applyEsquemas(p.esquemas, btn);
-    });
-  });
-
-  _c.querySelectorAll('.wiz-btn-local-edit').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const p = _dbPresets.find(p => p.id === btn.dataset.presetId);
+      const p = _dbPresets.find(x => x.id === btn.dataset.presetId);
       if (!p) return;
-      _fromEsquemasToWiz(p.esquemas);
-      _showPreview(() => _showWizNum());
+      btn.disabled = true;
+      btn.textContent = '⏳';
+      await _applyEsquemas(p.esquemas, btn);
     });
   });
 
-  _c.querySelectorAll('.wiz-btn-local-del').forEach(btn => {
+  // Borrar
+  _c.querySelectorAll('.wiz-acc-del').forEach(btn => {
     btn.addEventListener('click', async () => {
-      if (!confirm('¿Borrar este preset guardado?')) return;
-      const presetId = btn.dataset.presetId;
-      const result = await eliminarPreset(supabase, presetId);
+      if (!confirm('¿Borrar esta plantilla?')) return;
+      const result = await eliminarPreset(supabase, btn.dataset.presetId);
       if (!result.ok) {
-        logMsg(`❌ Error borrando preset: ${result.msg}`);
+        logMsg(`❌ Error borrando plantilla: ${result.msg}`);
         return;
       }
-      _dbPresets = _dbPresets.filter(p => p.id !== presetId);
+      _dbPresets = _dbPresets.filter(x => x.id !== btn.dataset.presetId);
       _showPresets();
     });
+  });
+
+  _c.querySelector('#wiz-btn-nuevo').addEventListener('click', () => {
+    _initWiz(2);
+    _showWizNum();
   });
 }
 
@@ -262,9 +345,12 @@ function _showWizNum() {
       <label class="wiz-label">Nombres</label>
       <div class="wiz-copa-names" id="wiz-copa-names"></div>
 
-      <div style="margin-top:14px;">
-        <button type="button" class="btn-primary" style="width:100%; padding:12px;" id="wiz-num-next">
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
+        <button type="button" class="btn-primary" style="width:100%;padding:12px;" id="wiz-num-next">
           Siguiente →
+        </button>
+        <button type="button" class="btn-sm" style="width:100%;padding:10px;" id="wiz-num-cancel">
+          Cancelar
         </button>
       </div>
     </div>
@@ -275,8 +361,8 @@ function _showWizNum() {
   _renderCopaNames();
 
   _c.querySelector('#wiz-back-num').addEventListener('click', _showPresets);
+  _c.querySelector('#wiz-num-cancel').addEventListener('click', _showPresets);
   _c.querySelector('#wiz-num-next').addEventListener('click', () => {
-    // Persist names from inputs
     _c.querySelectorAll('.wiz-copa-name-input').forEach((inp, i) => {
       if (_wiz.copas[i]) {
         _wiz.copas[i].nombre = inp.value.trim() || (COPA_DEFAULTS[i] ?? `Copa ${i + 1}`);
@@ -302,12 +388,12 @@ function _renderNumGrid() {
         const i    = _wiz.copas.length;
         const prev = _wiz.copas[i - 1];
         _wiz.copas.push({
-          nombre:    COPA_DEFAULTS[i] ?? `Copa ${i + 1}`,
-          equipos:   prev?.equipos ?? 4,
-          modo:      prev?.modo    ?? 'grupo',
+          nombre:     COPA_DEFAULTS[i] ?? `Copa ${i + 1}`,
+          equipos:    prev?.equipos ?? 4,
+          modo:       prev?.modo    ?? 'grupo',
           posiciones: [],
-          desde:     prev?.desde ?? 1,
-          hasta:     prev?.hasta ?? Math.min(totalEquipos, 4),
+          desde:      prev?.desde ?? 1,
+          hasta:      prev?.hasta ?? Math.min(totalEquipos, 4),
         });
       }
       _wiz.copas = _wiz.copas.slice(0, n);
@@ -339,13 +425,12 @@ function _renderCopaNames() {
 
 // ─── Panel 3: Configurar copa ─────────────────────────────────────────────────
 function _showWizCopa(idx) {
-
   if (idx >= _wiz.numCopas) {
     _showPreview(() => _showWizCopa(_wiz.numCopas - 1));
     return;
   }
 
-  const copa = _wiz.copas[idx];
+  const copa  = _wiz.copas[idx];
   const isLast = idx === _wiz.numCopas - 1;
   const { bg, fg } = COPA_COLORS[idx] ?? COPA_COLORS[0];
 
@@ -370,9 +455,12 @@ function _showWizCopa(idx) {
            background:#fef2f2; border:1px solid #fca5a5; border-radius:8px;
            font-size:13px; font-weight:600; color:var(--danger);"></div>
 
-      <div style="margin-top:14px;">
-        <button type="button" class="btn-primary" style="width:100%; padding:12px;" id="wiz-copa-next">
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
+        <button type="button" class="btn-primary" style="width:100%;padding:12px;" id="wiz-copa-next">
           ${isLast ? 'Ver resumen →' : 'Siguiente →'}
+        </button>
+        <button type="button" class="btn-sm" style="width:100%;padding:10px;" id="wiz-copa-cancel">
+          Cancelar
         </button>
       </div>
     </div>
@@ -385,6 +473,7 @@ function _showWizCopa(idx) {
     if (idx === 0) _showWizNum();
     else _showWizCopa(idx - 1);
   });
+  _c.querySelector('#wiz-copa-cancel').addEventListener('click', _showPresets);
 
   _c.querySelector('#wiz-copa-next').addEventListener('click', () => {
     const copa = _wiz.copas[idx];
@@ -405,17 +494,15 @@ function _showWizCopa(idx) {
 }
 
 function _renderCopaContent(idx) {
-  const copa  = _wiz.copas[idx];
-  const nG    = _ctx.numGrupos || 1;
+  const copa   = _wiz.copas[idx];
+  const nG     = _ctx.numGrupos || 1;
   const maxPos = _ctx.equiposPorGrupo || 4;
   const content = _c.querySelector('#wiz-copa-content');
   if (!content) return;
 
-  // Ocultar error al re-renderizar (el usuario cambió algo)
   const errEl = _c.querySelector('#wiz-copa-err');
   if (errEl) errEl.style.display = 'none';
 
-  // Positions already taken by other copas
   const taken = new Set();
   _wiz.copas.forEach((c, i) => {
     if (i !== idx && c.modo === 'grupo') c.posiciones.forEach(p => taken.add(p));
@@ -426,7 +513,6 @@ function _renderCopaContent(idx) {
     return copa.posiciones.length * nG;
   };
 
-  // ── Format selector (2 / 4 / 8 teams) ──────────────────────────────────────
   const segHtml = [2, 4, 8].map(n => {
     const sub = n === 2 ? '1 partido' : n === 4 ? `${labelRonda('SF', true)}+${labelRonda('F', true)}` : labelRonda('QF', true);
     return `
@@ -436,16 +522,14 @@ function _renderCopaContent(idx) {
       </button>`;
   }).join('');
 
-  // ── Position checkboxes ──────────────────────────────────────────────────────
   let posHtml = '';
   if (copa.modo === 'grupo') {
     const teams = calcTeams();
     for (let pos = 1; pos <= maxPos; pos++) {
-      const checked = copa.posiciones.includes(pos);
+      const checked      = copa.posiciones.includes(pos);
       const takenByOther = taken.has(pos) && !checked;
       const wouldExceed  = !checked && (teams + nG) > copa.equipos;
       const disabled     = takenByOther || wouldExceed;
-      const ordinal      = `${pos}°`;
       const checkIcon    = checked
         ? '<svg width="11" height="11" viewBox="0 0 11 11"><polyline points="1.5,5.5 4.5,8.5 9.5,2.5" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'
         : '';
@@ -454,7 +538,7 @@ function _renderCopaContent(idx) {
              data-pos="${pos}" ${disabled ? 'aria-disabled="true"' : ''}>
           <div class="wiz-pos-checkbox">${checkIcon}</div>
           <div class="wiz-pos-label">
-            ${ordinal} de cada grupo
+            ${pos}° de cada grupo
             ${takenByOther ? '<span style="color:var(--muted); font-size:12px;">— ya asignado</span>' : ''}
           </div>
           <div style="font-size:13px; color:var(--muted);">×${nG}</div>
@@ -462,7 +546,6 @@ function _renderCopaContent(idx) {
     }
   }
 
-  // ── Global range ─────────────────────────────────────────────────────────────
   let globalHtml = '';
   if (copa.modo === 'global') {
     const totalEquipos = nG * maxPos;
@@ -491,7 +574,6 @@ function _renderCopaContent(idx) {
       </div>`;
   }
 
-  // ── Team count badge ──────────────────────────────────────────────────────────
   const teams = calcTeams();
   const badgeStyle = teams === copa.equipos ? 'color:var(--success)'
                    : teams > copa.equipos   ? 'color:var(--danger)'
@@ -544,7 +626,6 @@ function _renderCopaContent(idx) {
     `}
   `;
 
-  // Wire: format segment
   content.querySelectorAll('.wiz-seg-opt').forEach(btn => {
     btn.addEventListener('click', () => {
       copa.equipos = parseInt(btn.dataset.eq);
@@ -554,7 +635,6 @@ function _renderCopaContent(idx) {
     });
   });
 
-  // Wire: mode radio
   content.querySelectorAll('.wiz-radio-item').forEach(item => {
     item.addEventListener('click', () => {
       copa.modo = item.dataset.modo;
@@ -567,7 +647,6 @@ function _renderCopaContent(idx) {
     });
   });
 
-  // Wire: position checkboxes
   content.querySelectorAll('.wiz-pos-item:not(.disabled)').forEach(item => {
     item.addEventListener('click', () => {
       const pos = parseInt(item.dataset.pos);
@@ -583,7 +662,6 @@ function _renderCopaContent(idx) {
     });
   });
 
-  // Wire: global selects
   content.querySelector('#wiz-desde')?.addEventListener('change', e => {
     copa.desde = parseInt(e.target.value);
     _renderCopaContent(idx);
@@ -632,7 +710,6 @@ function _showPreview(backFn) {
       </div>`;
   }).join('');
 
-  // Copas inválidas: modo grupo sin posiciones seleccionadas
   const copasInvalidas = _wiz.copas.filter(c => c.modo === 'grupo' && c.posiciones.length === 0);
 
   _c.innerHTML = `
@@ -650,14 +727,14 @@ function _showPreview(backFn) {
       <div class="wiz-save-preset-section">
         <div class="wiz-save-toggle" id="wiz-save-toggle">
           <div>
-            <div style="font-weight:600; font-size:14px;">💾 Guardar como preset</div>
+            <div style="font-weight:600; font-size:14px;">💾 Guardar como plantilla</div>
             <div style="font-size:12px; color:var(--muted); margin-top:2px;">Para reutilizar en futuros torneos</div>
           </div>
           <div class="wiz-toggle-switch" id="wiz-toggle-sw"><div class="wiz-toggle-knob"></div></div>
         </div>
         <div id="wiz-preset-name-area" style="display:none; margin-top:10px;">
           <input type="text" id="wiz-preset-name-input" class="wiz-preset-name-input"
-                 placeholder="Nombre del preset (ej: 2x4 mis brackets)" />
+                 placeholder="Nombre de la plantilla (ej: 2x4 mis brackets)" />
         </div>
       </div>
 
@@ -684,9 +761,8 @@ function _showPreview(backFn) {
   _c.querySelector('#wiz-back-preview').addEventListener('click', backFn ?? _showPresets);
   _c.querySelector('#wiz-btn-cancel').addEventListener('click', _showPresets);
 
-  // Toggle save preset
-  const toggleSw  = _c.querySelector('#wiz-toggle-sw');
-  const nameArea  = _c.querySelector('#wiz-preset-name-area');
+  const toggleSw = _c.querySelector('#wiz-toggle-sw');
+  const nameArea = _c.querySelector('#wiz-preset-name-area');
   _c.querySelector('#wiz-save-toggle').addEventListener('click', () => {
     toggleSw.classList.toggle('on');
     nameArea.style.display = toggleSw.classList.contains('on') ? 'block' : 'none';
@@ -707,9 +783,9 @@ function _showPreview(backFn) {
         const esquemas = _wizToEsquemas();
         const result = await guardarPreset(supabase, { nombre, clave: claveCtx, esquemas });
         if (result.ok) {
-          _dbPresets.push({ id: result.id, nombre, clave: claveCtx, descripcion: null, esquemas, es_default: false });
+          _dbPresets.push({ id: result.id, nombre, clave: claveCtx, descripcion: null, esquemas });
         } else {
-          logMsg(`⚠️ No se pudo guardar el preset: ${result.msg}`);
+          logMsg(`⚠️ No se pudo guardar la plantilla: ${result.msg}`);
         }
       }
     }
@@ -722,17 +798,14 @@ async function _applyEsquemas(esquemas, btn) {
   const result = await guardarEsquemas(supabase, TORNEO_ID, esquemas);
   if (result.ok) {
     logMsg('✅ Plan de copas guardado');
-
-    // Si los grupos ya terminaron, generar propuestas automáticamente
     try {
       const { data } = await supabase.rpc('verificar_y_proponer_copas', { p_torneo_id: TORNEO_ID });
       if (data?.propuestas_generadas > 0) {
         logMsg(`✅ ${data.propuestas_generadas} propuesta(s) generada(s) automáticamente`);
       }
     } catch (_) {
-      // fire-and-forget: si falla, el admin puede refrescar manualmente
+      // fire-and-forget
     }
-
     _setLogVisible(true);
     _onSaved?.();
   } else {
@@ -744,7 +817,6 @@ async function _applyEsquemas(esquemas, btn) {
   }
 }
 
-/** Converts wizard state copas → esquemas_copa rows. */
 function _wizToEsquemas() {
   return _wiz.copas.map((copa, i) => ({
     nombre:  copa.nombre || COPA_DEFAULTS[i] || `Copa ${i + 1}`,
@@ -756,42 +828,60 @@ function _wizToEsquemas() {
   }));
 }
 
-/** Loads existing esquemas into wizard state (best-effort, for "Editar"). */
-function _fromEsquemasToWiz(esquemas) {
-  const nG = _ctx.numGrupos || 2;
+// ─── Wizard state helpers ──────────────────────────────────────────────────────
+function _initWiz(n) {
+  const totalEquipos = _ctx.numGrupos * _ctx.equiposPorGrupo || 4;
   _wiz = {
-    numCopas: esquemas.length,
-    copas: esquemas.map(e => {
-      const r0 = e.reglas?.[0];
-      if (r0?.modo === 'global') {
-        return {
-          nombre:    e.nombre,
-          equipos:   Math.max(2, (r0.hasta ?? 4) - (r0.desde ?? 1) + 1),
-          modo:      'global',
-          posiciones: [],
-          desde:     r0.desde ?? 1,
-          hasta:     r0.hasta ?? 4,
-        };
-      }
-      // Simple posicion-based (ignores criterio rules gracefully)
-      const posiciones = (e.reglas ?? [])
-        .filter(r => r.posicion && !r.criterio)
-        .map(r => r.posicion);
-      const equiposInferred = posiciones.length * nG;
-      const equipos = e.formato === 'direct' ? 2
-                    : equiposInferred <= 4    ? 4
-                    :                          8;
-      return {
-        nombre: e.nombre,
-        equipos,
-        modo:   'grupo',
-        posiciones,
-        desde:  1,
-        hasta:  4,
-      };
-    }),
+    numCopas: n,
+    copas: Array.from({ length: n }, (_, i) => ({
+      nombre:     COPA_DEFAULTS[i] ?? `Copa ${i + 1}`,
+      equipos:    4,
+      modo:       'grupo',
+      posiciones: [],
+      desde:      1,
+      hasta:      Math.min(totalEquipos, 4),
+    })),
   };
+}
 
+// ─── Team labels para bracket diagram ─────────────────────────────────────────
+function _getTeamLabels(copa, numGrupos) {
+  if (!copa.reglas || copa.reglas.length === 0) return [];
+  const r0 = copa.reglas[0];
+
+  if (r0.modo === 'global') {
+    const desde = r0.desde || 1;
+    const hasta = r0.hasta || 4;
+    return Array.from({ length: hasta - desde + 1 }, (_, i) => `Tabla ${desde + i}°`);
+  }
+
+  // Modo grupo: posiciones × grupos
+  const LETRAS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const posiciones = copa.reglas
+    .filter(r => r.posicion && !r.criterio)
+    .map(r => r.posicion)
+    .sort((a, b) => a - b);
+
+  const labels = [];
+  for (const pos of posiciones) {
+    for (let g = 0; g < numGrupos; g++) {
+      labels.push(`${pos}°Gr${LETRAS[g]}`);
+    }
+  }
+  return labels;
+}
+
+// ─── DB preset filter ─────────────────────────────────────────────────────────
+/**
+ * Filtra presets de BD compatibles con el formato actual del torneo.
+ * Todas las plantillas se tratan igual — sin distinción de ningún tipo.
+ */
+function _filterDbCompatible(dbPresets, numGrupos, ppg) {
+  const ppgR   = Math.round(ppg);
+  const prefix = `${numGrupos}x${ppgR}`;
+  return dbPresets.filter(p =>
+    p.clave === prefix || p.clave.startsWith(prefix + '-')
+  );
 }
 
 // ─── Progress dots ────────────────────────────────────────────────────────────
@@ -808,22 +898,7 @@ function _renderProgressDots(containerId, currentStep, totalSteps) {
   el.innerHTML = html;
 }
 
-// ─── DB preset helpers ────────────────────────────────────────────────────────
-
-/**
- * Filtra los presets por defecto de la BD compatibles con el formato actual.
- * Usa el mismo criterio de prefijo que obtenerPresetsCompatibles() en presets.js.
- */
-function _filterDbCompatible(dbPresets, numGrupos, ppg) {
-  const ppgR   = Math.round(ppg);
-  const prefix = `${numGrupos}x${ppgR}`;
-  return dbPresets.filter(p =>
-    p.es_default &&
-    (p.clave === prefix || p.clave.startsWith(prefix + '-'))
-  );
-}
-
-// ─── Log visibility ──────────────────────────────────────────────────────────
+// ─── Log visibility ───────────────────────────────────────────────────────────
 function _setLogVisible(visible) {
   const details = document.querySelector('.admin-log-details');
   if (!details) return;

@@ -236,16 +236,15 @@ export async function resetCopas(supabase, torneoId) {
 }
 
 /**
- * Carga todos los presets de copa (defaults + custom) de la BD.
+ * Carga todos los presets de copa de la BD.
  *
  * @param {Object} supabase - Cliente de Supabase
- * @returns {Array} - Array de presets ordenados (defaults primero)
+ * @returns {Array} - Array de presets ordenados por fecha de creación
  */
 export async function cargarPresets(supabase) {
   const { data, error } = await supabase
     .from('presets_copa')
-    .select('id, nombre, clave, descripcion, esquemas, es_default')
-    .order('es_default', { ascending: false })  // defaults primero
+    .select('id, nombre, clave, descripcion, esquemas')
     .order('created_at', { ascending: true });
 
   if (error) {
@@ -265,7 +264,7 @@ export async function cargarPresets(supabase) {
 export async function guardarPreset(supabase, { nombre, clave, descripcion, esquemas }) {
   const { data, error } = await supabase
     .from('presets_copa')
-    .insert({ nombre, clave, descripcion: descripcion ?? null, esquemas, es_default: false })
+    .insert({ nombre, clave, descripcion: descripcion ?? null, esquemas })
     .select('id')
     .single();
 
@@ -288,14 +287,34 @@ export async function eliminarPreset(supabase, presetId) {
   const { error } = await supabase
     .from('presets_copa')
     .delete()
-    .eq('id', presetId)
-    .eq('es_default', false);  // seguridad: no se pueden borrar los defaults
+    .eq('id', presetId);
 
   if (error) {
     console.error('Error eliminando preset:', error);
     return { ok: false, msg: error.message };
   }
   return { ok: true };
+}
+
+/**
+ * Detecta el formato del torneo desde Supabase y retorna el contexto.
+ * Movida desde presets.js (el fallback estático fue eliminado).
+ *
+ * @param {Object} supabase  - Cliente de Supabase
+ * @param {string} torneoId  - ID del torneo
+ * @returns {{ numGrupos, numParejas, parejasPorGrupo }}
+ */
+export async function detectarYSugerirPreset(supabase, torneoId) {
+  const [{ data: grupos }, { data: parejas }] = await Promise.all([
+    supabase.from('grupos').select('id').eq('torneo_id', torneoId),
+    supabase.from('parejas').select('id').eq('torneo_id', torneoId)
+  ]);
+
+  const numGrupos       = grupos?.length  || 0;
+  const numParejas      = parejas?.length || 0;
+  const parejasPorGrupo = numGrupos > 0 ? numParejas / numGrupos : 0;
+
+  return { numGrupos, numParejas, parejasPorGrupo };
 }
 
 /**

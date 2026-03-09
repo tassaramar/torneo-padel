@@ -5,7 +5,7 @@
 
 import { supabase, TORNEO_ID } from '../context.js';
 import { cargarEsquemas, cargarPropuestas } from './planService.js';
-import { renderPlanEditor } from './planEditor.js';
+import { renderPlanEditor, renderPlanActivo } from './planEditor.js';
 import { renderStatusView } from './statusView.js';
 
 export function initCopas() {
@@ -88,15 +88,21 @@ async function cargarCopasAdmin() {
     }
   }
 
+  const hayEsquemas   = (esquemas && esquemas.length > 0);
   const hasPropuestas = propuestas.some(p => p.estado === 'pendiente');
   const hasCopas      = (copas || []).length > 0;
+  const numGrupos     = grupos?.length || 0;
 
   container.innerHTML = renderIndicadorPaso(paso, infoPaso2);
   const subContainer = document.createElement('div');
   container.appendChild(subContainer);
 
   if (!hasPropuestas && !hasCopas) {
-    renderPlanEditor(subContainer, () => cargarCopasAdmin());
+    if (!hayEsquemas) {
+      renderPlanEditor(subContainer, () => cargarCopasAdmin());         // Estado 1
+    } else {
+      renderPlanActivo(subContainer, esquemas, numGrupos, () => cargarCopasAdmin()); // Estado 2
+    }
   } else {
     renderStatusView(subContainer, esquemas, propuestas, copas || [], () => cargarCopasAdmin());
   }
