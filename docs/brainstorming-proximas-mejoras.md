@@ -35,8 +35,8 @@
 
 > Máximo 3 ítems a la vez. Para agregar uno, sacar uno primero. Obliga a priorizar.
 
-1. [MEJORA] Admin copas — UX wizard presets Etapa 1 → **falta spec**
-2. _(libre)_
+1. [MEJORA] Admin copas — UX wizard presets Etapa 1 → **spec lista** [spec-admin-copas-wizard-ux-etapa1.md](spec-admin-copas-wizard-ux-etapa1.md)
+2. [BUG] index.html — score "Por confirmar" invertido cuando jugador es pareja_b → **spec lista** [spec-bug-score-por-confirmar-invertido.md](spec-bug-score-por-confirmar-invertido.md)
 3. _(libre)_
 
 ---
@@ -85,7 +85,7 @@ Cuando no quedan partidos de grupo pendientes ni en juego, ocultar las secciones
 
 #### [MEJORA] Admin copas — UX del wizard de presets (Etapa 1) `📋 PRIORIZADA`
 
-**Score owner**: 4/5 (plan activo) + 3/5 (info formato + cancelar) · **Spec**: ❌ falta
+**Score owner**: 4/5 (plan activo) + 3/5 (info formato + cancelar) · **Spec**: ✅ [spec-admin-copas-wizard-ux-etapa1.md](spec-admin-copas-wizard-ux-etapa1.md)
 
 Etapa 1 (urgente) del wizard:
 1. **Plan activo prominente**: después de aplicar un preset, mostrar qué plan está activo con detalle de seeds/cruces (problema más urgente — causa confusión real).
@@ -94,6 +94,16 @@ Etapa 1 (urgente) del wizard:
 4. **Botón Cancelar**: poder salir del wizard sin aplicar nada.
 
 **Archivos clave**: `src/admin/copas/planEditor.js`, `src/admin/copas/index.js`
+
+---
+
+#### [BUG] index.html — score "Por confirmar" invertido cuando jugador es pareja_b `📋 PRIORIZADA`
+
+**Score owner**: pendiente · **Spec**: ✅ [spec-bug-score-por-confirmar-invertido.md](spec-bug-score-por-confirmar-invertido.md)
+
+En las secciones "Por confirmar" y "En revisión" del home, cuando el jugador es `pareja_b`, el score se muestra en orden de BD (rival primero). Ejemplo: rival cargó "gané 6-0" y el jugador ve "6-0 Perdiste" en vez de "0-6 Perdiste". Fix: nueva función `invertirScoresPartido` en `formatoResultado.js`, reutilizable en ambas funciones de render y en `orientarPartido` del modal.
+
+**Archivo clave**: `src/viewer/vistaPersonal.js`, `src/utils/formatoResultado.js`
 
 ---
 

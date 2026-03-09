@@ -10,7 +10,7 @@
 
 El sistema de copas funciona, pero la vista del jugador carece de dos mejoras visuales que hacen la diferencia en la experiencia:
 
-1. Las cards de partidos de copa no muestran el **nombre completo de la copa** — solo se muestra la ronda ("Semifinal") sin contexto de en qué copa es.
+1. Las cards de partidos de copa no muestran el **nombre completo de la copa** — solo se muestra la ronda ("Semi") sin contexto de en qué copa es.
 2. En el **modal de consulta**, todas las apariciones del jugador se resaltan en verde, tanto victorias como derrotas, haciendo imposible distinguir a simple vista cuándo ganó y cuándo perdió.
 
 Ambos son cambios visuales de bajo riesgo que mejoran significativamente la legibilidad.
@@ -21,20 +21,22 @@ Ambos son cambios visuales de bajo riesgo que mejoran significativamente la legi
 
 ### Estado actual
 
-`src/viewer/vistaPersonal.js` carga los partidos de copa con `copa_id` y `ronda_copa` (línea ~167-168), y los renderiza en la sección "🏆 Copa" (línea ~1412) con un badge de ronda:
+`src/viewer/vistaPersonal.js` carga los partidos de copa con `copa_id` y `ronda_copa` (línea ~168-169), y los renderiza con un badge de ronda usando `labelRonda()` (importada de `src/utils/copaRondas.js`):
 
 ```javascript
-const _RONDA_COPA_LABEL = { SF: 'Semi', F: 'Final', '3P': '3° Puesto', direct: 'Cruce' };
-const rondalabel = _RONDA_COPA_LABEL[p.ronda_copa] || p.ronda_copa || 'Copa';
+// línea ~1420
+const rondalabel = labelRonda(p.ronda_copa, true) || 'Copa';
+// línea ~1426
+<div class="partido-badge badge-copa">${escapeHtml(rondalabel)}</div>
 ```
 
-El badge muestra "🏆 Semi", "🏆 Final", etc., pero **no se carga ni muestra el nombre de la copa** ("Copa Oro", "Copa Plata").
+El badge muestra "Semi", "Final", etc., pero **no muestra el nombre de la copa** ("Copa Oro", "Copa Plata").
 
 ### Fix
 
 **Paso 1 — Agregar join en la query SELECT**
 
-En la query de `vistaPersonal.js` que carga los partidos (línea ~167), agregar:
+En la query de `vistaPersonal.js` que carga los partidos (línea ~168), agregar:
 
 ```javascript
 // Antes: copa_id, ronda_copa
@@ -44,27 +46,43 @@ copa_id, ronda_copa, copa:copas ( id, nombre )
 
 Supabase devuelve el objeto `copa: { id: '...', nombre: 'Copa Oro' }` embebido en cada partido.
 
-**Paso 2 — Actualizar el badge en las cards**
+**Paso 2 — Actualizar el badge en las cards de copa pendientes**
 
-En el template de la card de partido de copa, cambiar el badge de:
+En el template de la card de partido de copa (~línea 1426), cambiar el badge de:
 
 ```html
-🏆 ${rondalabel}
+${escapeHtml(rondalabel)}
 ```
 
 A:
 
 ```html
-🏆 ${p.copa?.nombre || 'Copa'} — ${rondalabel}
+${escapeHtml(p.copa?.nombre ? `${p.copa.nombre} — ${rondalabel}` : rondalabel)}
 ```
 
-Resultado visible: **"🏆 Copa Oro — Semi"**, **"🏆 Copa Plata — Final"**, etc.
+Resultado visible: **"Copa Oro — Semi"**, **"Copa Plata — Final"**, etc. (el icono 🏆 ya está en la clase CSS `badge-copa`).
 
-**Nota**: El mismo join aplica para los partidos de copa que aparecen en "Partidos confirmados" (historial). Revisar la función `renderPartidosConfirmados()` (línea ~1459) para asegurar consistencia.
+**Paso 3 — Actualizar el badge en partidos confirmados (historial)**
+
+En la función que renderiza partidos confirmados (~línea 1463-1469), hay un badge similar:
+
+```javascript
+const copaLabel = p.copa_id ? (labelRonda(p.ronda_copa, true) || 'Copa') : null;
+// ...
+<span class="badge-mini badge-copa">🏆 ${escapeHtml(copaLabel)}</span>
+```
+
+Cambiar a:
+
+```javascript
+const copaLabel = p.copa_id
+  ? (p.copa?.nombre ? `${p.copa.nombre} — ${labelRonda(p.ronda_copa, true) || 'Copa'}` : labelRonda(p.ronda_copa, true) || 'Copa')
+  : null;
+```
 
 ### Archivos a modificar
 
-- `src/viewer/vistaPersonal.js` — query SELECT (línea ~167), template del badge de copa (~1412 y ~1459)
+- `src/viewer/vistaPersonal.js` — query SELECT (~168), template badge copa pendientes (~1426), template badge copa confirmados (~1463-1469)
 
 ---
 
@@ -76,62 +94,112 @@ Resultado visible: **"🏆 Copa Oro — Semi"**, **"🏆 Copa Plata — Final"**
 
 ### Estado actual
 
-En `src/viewer/modalConsulta.js`, los tabs "Mi grupo" y "Otros grupos" renderizan los partidos jugados del grupo. La fila de la pareja del jugador se resalta en **verde** siempre, sin distinción entre victorias y derrotas.
+En `src/viewer/modalConsulta.js`:
 
-### Fix
+- **Función `renderPartidosGrupo`** (~línea 640): renderiza partidos en tabs "Mi grupo" / "Otros grupos". La fila del jugador se resalta con clase `es-mio` (verde neutro), sin distinguir victoria/derrota.
+- **Tab Copas** (~línea 517): mismo problema, usa clase `es-mio` sin distinción.
 
-**Lógica de victoria/derrota**
-
-Dado que el modelo es de sets (set1_p1, set1_p2, set2_p1, set2_p2), determinar quién ganó:
-
-```javascript
-function determinarResultadoParaJugador(partido, parejaId) {
-  const esPareja1 = partido.pareja1_id === parejaId;
-  let setsP1 = 0, setsP2 = 0;
-  if (partido.set1_p1 != null && partido.set1_p2 != null) {
-    if (partido.set1_p1 > partido.set1_p2) setsP1++;
-    else if (partido.set1_p2 > partido.set1_p1) setsP2++;
-  }
-  if (partido.set2_p1 != null && partido.set2_p2 != null) {
-    if (partido.set2_p1 > partido.set2_p2) setsP1++;
-    else if (partido.set2_p2 > partido.set2_p1) setsP2++;
-  }
-  const ganoP1 = setsP1 > setsP2;
-  return (esPareja1 ? ganoP1 : !ganoP1) ? 'victoria' : 'derrota';
+CSS actual:
+```css
+.modal-partido.es-mio {
+  background: var(--primary-soft);  /* Verde neutro siempre */
 }
 ```
 
-**Aplicación en el renderizado**
+### Función existente — NO crear una nueva
 
-- `resultado === 'victoria'` → verde (`#16A34A`)
-- `resultado === 'derrota'` → rojo/naranja (`#EF4444`)
+Ya existe `determinarGanadorParaPareja(partido, parejaId)` en `src/utils/formatoResultado.js` (línea ~61-85):
+- Retorna `'yo'` si la pareja ganó, `'rival'` si perdió, `null` si no hay resultado
+- Ya usa los campos correctos `set1_a`, `set1_b`, `sets_a`, `sets_b`
+- **Ya se usa en `vistaPersonal.js`** — importarla también en `modalConsulta.js`
+
+### Fix
+
+**En `renderPartidosGrupo` y en el tab Copas**, donde hoy se hace:
+
+```javascript
+const esMiPartido = identidad &&
+  (p.pareja_a?.id === identidad.parejaId || p.pareja_b?.id === identidad.parejaId);
+
+// template:
+<div class="modal-partido ${jugado ? 'jugado' : 'pendiente'} ${esMiPartido ? 'es-mio' : ''}">
+```
+
+Cambiar a:
+
+```javascript
+const esMiPartido = identidad &&
+  (p.pareja_a?.id === identidad.parejaId || p.pareja_b?.id === identidad.parejaId);
+
+let claseResultado = '';
+if (esMiPartido && jugado) {
+  const resultado = determinarGanadorParaPareja(p, identidad.parejaId);
+  claseResultado = resultado === 'yo' ? 'mi-victoria' : resultado === 'rival' ? 'mi-derrota' : '';
+}
+
+// template:
+<div class="modal-partido ${jugado ? 'jugado' : 'pendiente'} ${esMiPartido ? 'es-mio' : ''} ${claseResultado}">
+```
+
+**CSS a agregar en `src/style.css`**:
+
+```css
+/* Victoria/derrota en modal de consulta */
+.modal-partido.es-mio.mi-victoria {
+  background: rgba(22, 163, 74, 0.12);  /* Verde suave */
+  border-left: 3px solid #16A34A;
+}
+
+.modal-partido.es-mio.mi-derrota {
+  background: rgba(239, 68, 68, 0.08);  /* Rojo muy suave */
+  border-left: 3px solid #EF4444;
+}
+```
 
 **Scope de la distinción**:
-- ✅ Aplica a: partidos jugados en tabs "Mi grupo" y "Otros grupos" del modal
-- ✅ Aplica a: partidos de copa en el **nuevo tab "Copas"** (de Doc 1) — si la pareja del jugador participa, marcar sus resultados con victoria/derrota
+- ✅ Aplica a: partidos jugados en `renderPartidosGrupo` (tabs "Mi grupo" / "Otros grupos")
+- ✅ Aplica a: partidos de copa en el tab "Copas"
 - ❌ NO aplica a: la fila de posición en la tabla de posiciones (mantiene verde neutro de "mi pareja")
-
-**Nota**: La función `determinarResultadoParaJugador` se necesita en el modal (grupos + copas) y potencialmente en Doc 7 (mensaje final). Considerar ubicarla en `src/utils/` para reutilizar.
+- ❌ NO aplica a: partidos pendientes (sin resultado → mantiene `es-mio` verde neutro)
 
 ### Archivos a modificar
 
-- `src/viewer/modalConsulta.js` — función que renderiza partidos en "Mi grupo", "Otros grupos" y "Copas"
-- `src/style.css` — clases `.resultado-victoria` y `.resultado-derrota` (si se necesitan en más de un lugar)
+- `src/viewer/modalConsulta.js` — importar `determinarGanadorParaPareja` de `src/utils/formatoResultado.js`, aplicar en `renderPartidosGrupo` y en el bloque del tab Copas
+- `src/style.css` — agregar clases `.mi-victoria` y `.mi-derrota`
 
 ---
 
-## Dependencia entre ítems
+## Nomenclatura de campos (referencia rápida)
 
-El Ítem 1 (nombre de copa en cards de `vistaPersonal.js`) es prerequisito del [Doc 7 (mensaje final)](spec-vista-jugador-mensaje-final.md), que también necesita cargar `copa:copas(nombre)`. Conviene implementar ambos en el mismo bloque para no hacer el join dos veces.
+La BD y el código usan estos nombres. **No inventar otros**:
+
+| Campo | Significado |
+|-------|-------------|
+| `pareja_a_id` / `pareja_b_id` | IDs de las parejas |
+| `set1_a` / `set1_b` | Games del set 1 (pareja A / pareja B) |
+| `set2_a` / `set2_b` | Games del set 2 |
+| `sets_a` / `sets_b` | Sets ganados (calculados por trigger) |
+| `copa_id` | FK a tabla `copas` (NULL = partido de grupo) |
+| `ronda_copa` | `'SF'`, `'F'`, `'3P'`, `'direct'`, `'QF'` |
 
 ---
 
 ## Criterios de aceptación
 
-- [ ] Cards de partidos de copa muestran "🏆 [Nombre Copa] — [Ronda]" en lugar de solo "🏆 [Ronda]"
-- [ ] El nombre de copa es correcto (viene de `copas.nombre` en BD, no hardcodeado)
-- [ ] Partidos confirmados del historial también muestran el nombre de copa
-- [ ] En el modal, partidos ganados → resaltado verde; partidos perdidos → resaltado rojo/naranja
-- [ ] La fila de posición en la tabla NO cambia de color (mantiene verde neutro)
-- [ ] El cambio de color funciona tanto en tab "Mi grupo" como "Otros grupos"
+**Ítem 1 — Nombre de copa en cards**:
+- [ ] Cards de partidos de copa pendientes muestran "Copa Oro — Semi" (no solo "Semi")
+- [ ] Cards de partidos de copa confirmados (historial) también muestran el nombre
+- [ ] El nombre viene de `copas.nombre` en BD vía join, no hardcodeado
+- [ ] Si `copa.nombre` es null por alguna razón, fallback a solo mostrar la ronda
+
+**Ítem 2 — Colores victoria/derrota en modal**:
+- [ ] En el modal, partidos ganados por mi pareja → fondo verde suave + borde verde
+- [ ] Partidos perdidos por mi pareja → fondo rojo suave + borde rojo
+- [ ] Partidos pendientes (sin resultado) → mantienen verde neutro (`es-mio`)
+- [ ] La fila de posición en la tabla de posiciones NO cambia de color
+- [ ] Funciona en tab "Mi grupo", "Otros grupos" Y tab "Copas"
+- [ ] Usa la función existente `determinarGanadorParaPareja` de `src/utils/formatoResultado.js` (NO crear función nueva)
+
+**General**:
 - [ ] `npm run build` sin errores nuevos
+- [ ] No duplicar código — reutilizar funciones y clases existentes
