@@ -216,6 +216,8 @@ function _renderEsquemaPropuestas(esquema, propuestasEsquema, standingsData) {
     </div>
   ` : '';
 
+  const tablaCompletaHtml = _renderTablaCompleta(standingsData, d1.clasificados);
+
   // D1 section: compact if auto-confirmed and no zona gris
   const d1Collapsed = autoConfirmado && !hayZonaGris;
   const d1Html = `
@@ -228,6 +230,7 @@ function _renderEsquemaPropuestas(esquema, propuestasEsquema, standingsData) {
       ${pendientesHtml}
       ${zonaGrisHtml}
       ${d1WarningsHtml}
+      ${tablaCompletaHtml}
       ${confirmD1Btn}
     </div>
   `;
@@ -905,6 +908,67 @@ function _refreshCruceWarningBadge(container, esquemaId, cruceIdx, cruce) {
       existingBadge?.remove();
     }
   }
+}
+
+/**
+ * Tabla collapsible con TODOS los equipos del torneo rankeados globalmente,
+ * marcando ✅ a los que clasifican para este esquema.
+ */
+function _renderTablaCompleta(standingsData, clasificados) {
+  const { standings } = standingsData || {};
+  if (!standings || standings.length === 0) return '';
+
+  const clasificadosIds = new Set((clasificados || []).map(c => c.pareja_id));
+
+  const sorted = [...standings].sort((a, b) => {
+    if (b.puntos !== a.puntos) return b.puntos - a.puntos;
+    if (b.ds     !== a.ds)     return b.ds     - a.ds;
+    if (b.gf     !== a.gf)     return b.gf     - a.gf;
+    return String(a.nombre || '').localeCompare(String(b.nombre || ''));
+  });
+
+  // Índice del último clasificado en el ranking global (para trazar el corte)
+  let lastClasifIdx = -1;
+  sorted.forEach((t, i) => { if (clasificadosIds.has(t.pareja_id)) lastClasifIdx = i; });
+
+  const rows = sorted.map((team, idx) => {
+    const esClasif  = clasificadosIds.has(team.pareja_id);
+    const cutAfter  = idx === lastClasifIdx && lastClasifIdx < sorted.length - 1;
+    return `
+      <div style="display:flex; align-items:center; gap:8px; padding:3px 0; font-size:12px;
+                  ${!esClasif ? 'opacity:0.5;' : ''}">
+        <span style="min-width:18px; color:var(--muted); font-size:11px; text-align:right;">${idx + 1}.</span>
+        <span style="min-width:14px;">${esClasif ? '✅' : ''}</span>
+        <span style="flex:1; font-weight:${esClasif ? '500' : '400'};">${_esc(team.nombre)}</span>
+        <span style="color:var(--muted); white-space:nowrap;">${team.puntos} pts</span>
+        <span style="color:var(--muted); white-space:nowrap;">DS ${_signo(team.ds)}${Math.abs(team.ds || 0)}</span>
+        <span style="color:var(--muted); font-size:11px; white-space:nowrap;">${_esc(team.grupoNombre)} ${team.posicion_en_grupo}°</span>
+      </div>
+      ${cutAfter ? '<div style="border-top:1px dashed #d1d5db; margin:4px 0;"></div>' : ''}
+    `;
+  }).join('');
+
+  return `
+    <details style="margin:6px 0 2px;">
+      <summary style="cursor:pointer; font-size:12px; color:var(--muted); user-select:none; padding:2px 0;">
+        Ver tabla completa (${sorted.length} equipos)
+      </summary>
+      <div style="margin-top:6px; padding:8px; background:#f9fafb;
+                  border-radius:8px; border:1px solid var(--border);">
+        <div style="display:flex; gap:8px; padding-bottom:4px; margin-bottom:4px;
+                    font-size:11px; font-weight:600; color:var(--muted);
+                    border-bottom:1px solid var(--border);">
+          <span style="min-width:18px;">#</span>
+          <span style="min-width:14px;"></span>
+          <span style="flex:1;">Pareja</span>
+          <span>Pts</span>
+          <span style="min-width:52px;">DS</span>
+          <span style="min-width:60px;">Grupo</span>
+        </div>
+        ${rows}
+      </div>
+    </details>
+  `;
 }
 
 function _esc(str) {
