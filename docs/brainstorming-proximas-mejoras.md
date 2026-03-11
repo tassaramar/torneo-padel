@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-11 (bugfix detección empates circulares triples en tablaPosiciones)
+**Última actualización**: 2026-03-11 (procesado Bugs-Mejoras-raw.md testing Copa v1)
 
 ---
 
@@ -73,6 +73,56 @@ Cuando no quedan partidos de grupo pendientes ni en juego, ocultar las secciones
 ---
 
 ### Bloque C — Necesitan spec, luego implementar
+
+---
+
+#### [BUG] fixture.html — badge ✅ no aparece en pareja nueva tras edición `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+Al cambiar una pareja (editar integrantes), la pareja original conserva el badge ✅ pero la nueva no lo muestra aunque sus jugadores estén presentes. Probable desfase entre el nombre guardado en `presentes[]` y el nombre nuevo.
+
+**Archivo clave**: `src/fixture.js` o `src/utils/colaFixture.js`
+
+---
+
+#### [BUG] fixture.html — partidos de copa no muestran estado "En curso" `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+Al marcar un partido de copa como en juego desde fixture.html, la sección "En curso" a nivel copa no refleja el cambio (7.3 y 8.2 del test plan). Los partidos de grupo sí lo muestran correctamente.
+
+**Archivo clave**: `src/fixture.js`
+
+---
+
+#### [MEJORA] index.html — sección "Partidos por confirmar" desplegada por defecto `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+Cuando hay partidos en estado `a_confirmar` o `en_revision` para mi pareja, la sección debería aparecer expandida automáticamente al cargar la página. Hoy el jugador puede no notar que tiene partidos pendientes de confirmar.
+
+**Archivo clave**: `src/viewer/vistaPersonal.js`
+
+---
+
+#### [BUG] Wizard copas — método de clasificación debe ser consistente entre todas las copas `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+Hoy el admin puede configurar una copa con seeding "por posición de grupo" y otra con seeding "global" dentro del mismo torneo. Esto no tiene sentido — el ranking de clasificados es uno solo. Todas las copas de un torneo deben usar el mismo método. Es más un bug de UX que de lógica (el admin puede hacer algo incorrecto sin saberlo).
+
+**Archivo clave**: `src/admin/copas/planEditor.js`
+
+---
+
+#### [MEJORA] Wizard copas — último panel muestra diagrama gráfico de cruces `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+El paso 4 (preview) muestra un resumen textual del plan configurado. Sería más útil mostrar el cruce gráfico (el mismo bracket visual que se usa en los presets del panel 1). Facilita confirmar visualmente lo que se configuró antes de aplicar.
+
+**Archivo clave**: `src/admin/copas/planEditor.js`
 
 ---
 
