@@ -205,9 +205,9 @@ export function optimizarEndogenos(cruces, equiposProtegidosIds) {
 
     let swapEncontrado = false;
 
-    // Buscar swap válido de abajo hacia arriba (desde el último hasta i+1)
+    // Buscar swap válido desde el cruce siguiente hacia el último
     outer:
-    for (let j = result.length - 1; j > i; j--) {
+    for (let j = i + 1; j < result.length; j++) {
       const cruceJ = result[j];
 
       // Preferir parejaB primero, luego parejaA
