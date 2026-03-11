@@ -285,6 +285,16 @@ function _renderTablaGeneral(standingsData, clasificadosIds) {
     return String(a.nombre || '').localeCompare(String(b.nombre || ''));
   });
 
+  const COL = {
+    num:   'min-width:22px; text-align:right;',
+    check: 'min-width:18px; text-align:center;',
+    pts:   'min-width:30px; text-align:right;',
+    ds:    'min-width:34px; text-align:right;',
+    dg:    'min-width:34px; text-align:right;',
+    gf:    'min-width:26px; text-align:right;',
+    grp:   'min-width:64px;'
+  };
+
   let lastTier = null;
   const rows = sorted.map((team, idx) => {
     const esClasif   = clasificadosSet.has(team.pareja_id);
@@ -299,16 +309,16 @@ function _renderTablaGeneral(standingsData, clasificadosIds) {
 
     return `
       ${divider}
-      <div style="display:flex; align-items:center; gap:6px; padding:3px 0; font-size:12px;
+      <div style="display:flex; align-items:center; gap:10px; padding:3px 0; font-size:12px;
                   ${!esClasif ? 'opacity:0.5;' : ''}">
-        <span style="min-width:18px; color:var(--muted); text-align:right;">${idx + 1}.</span>
-        <span style="min-width:14px;">${esClasif ? '✅' : ''}</span>
+        <span style="${COL.num} color:var(--muted);">${idx + 1}.</span>
+        <span style="${COL.check}">${esClasif ? '✅' : ''}</span>
         <span style="flex:1; font-weight:${esClasif ? '500' : '400'};">${_esc(team.nombre)}</span>
-        <span style="color:var(--muted); white-space:nowrap;">${team.puntos} pts</span>
-        <span style="color:var(--muted); white-space:nowrap;">DS ${_signo(dsVal)}${Math.abs(dsVal)}</span>
-        <span style="color:var(--muted); white-space:nowrap;">DG ${_signo(dgVal)}${Math.abs(dgVal)}</span>
-        <span style="color:var(--muted); white-space:nowrap;">GF ${team.gf ?? 0}</span>
-        <span style="color:var(--muted); font-size:11px; white-space:nowrap;">${_esc(team.grupoNombre || '')} ${tierActual || ''}°</span>
+        <span style="${COL.pts} color:var(--muted);">${team.puntos}</span>
+        <span style="${COL.ds} color:var(--muted);">${_signo(dsVal)}${Math.abs(dsVal)}</span>
+        <span style="${COL.dg} color:var(--muted);">${_signo(dgVal)}${Math.abs(dgVal)}</span>
+        <span style="${COL.gf} color:var(--muted);">${team.gf ?? 0}</span>
+        <span style="${COL.grp} color:var(--muted); font-size:11px; white-space:nowrap;">${_esc(team.grupoNombre || '')} ${tierActual || ''}°</span>
       </div>
     `;
   }).join('');
@@ -320,17 +330,17 @@ function _renderTablaGeneral(standingsData, clasificadosIds) {
       </summary>
       <div style="margin-top:6px; padding:8px; background:#f9fafb;
                   border-radius:8px; border:1px solid var(--border); overflow-x:auto;">
-        <div style="display:flex; gap:6px; padding-bottom:4px; margin-bottom:4px;
+        <div style="display:flex; gap:10px; padding-bottom:4px; margin-bottom:4px;
                     font-size:11px; font-weight:600; color:var(--muted);
                     border-bottom:1px solid var(--border);">
-          <span style="min-width:18px;">#</span>
-          <span style="min-width:14px;"></span>
+          <span style="${COL.num}">#</span>
+          <span style="${COL.check}"></span>
           <span style="flex:1;">Pareja</span>
-          <span>Pts</span>
-          <span style="min-width:52px;">DS</span>
-          <span style="min-width:52px;">DG</span>
-          <span style="min-width:36px;">GF</span>
-          <span style="min-width:60px;">Grupo</span>
+          <span style="${COL.pts}">Pts</span>
+          <span style="${COL.ds}">DS</span>
+          <span style="${COL.dg}">DG</span>
+          <span style="${COL.gf}">GF</span>
+          <span style="${COL.grp}">Grupo</span>
         </div>
         ${rows}
       </div>
