@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-09 (aprobación de copas con visibilidad y control de cruces implementada)
+**Última actualización**: 2026-03-10 (E1 SQL Foundation de Copa Approval v2 implementada)
 
 ---
 
@@ -35,7 +35,7 @@
 
 > Máximo 3 ítems a la vez. Para agregar uno, sacar uno primero. Obliga a priorizar.
 
-1. [MEJORA] Admin copas — gestión sin doble confirmación · `🔍 EN ANÁLISIS` · falta spec
+1. [MEJORA] Copa Approval v2 — standings + sorteo + cruces automáticos · `🚧 EN DESARROLLO` · **E1 ✅** (SQL Foundation) **E2-E7** (RPC + JS) · **Spec**: [spec-copa-approval-v2.md](spec-copa-approval-v2.md) · **Plan**: [prompt-implementacion-copa-v2.md](prompt-implementacion-copa-v2.md)
 2. _(libre)_
 3. _(libre)_
 
@@ -116,13 +116,9 @@ Partido con super tiebreak: se carga el STB y el mismo mensaje ("contame qué pa
 
 ---
 
-#### [MEJORA] Admin copas — gestión sin esperar doble confirmación `🔍 EN ANÁLISIS`
+#### [MEJORA] Admin copas — gestión sin esperar doble confirmación `🔍 EN ANÁLISIS — SUBSUMIDA`
 
-**Score owner**: 4/5 · **Spec**: ❌ falta
-
-Idea del owner: si hay partidos con resultados cargados pero en estado `a_confirmar`, mostrar al admin la info de qué se cargó y permitirle avanzar (aprobar propuestas o generar siguiente ronda) sin esperar que ambas parejas confirmen. La misma lógica aplica tanto a la creación de los primeros partidos de copa como a los siguientes. Requiere diseño detallado.
-
-**Archivos clave**: `src/admin/copas/statusView.js`, RPC `avanzar_ronda_copa`
+**Score owner**: 4/5 · **Nota**: subsumida en Copa Approval v2 ([spec-copa-approval-v2.md](spec-copa-approval-v2.md)). El rediseño del flujo de aprobación cubre este caso. Se implementará como parte de la v2.
 
 ---
 
@@ -146,13 +142,9 @@ Nombre de la pareja ganadora en **negrita** en la vista admin de copas.
 
 ---
 
-#### [MEJORA] Tabla de posiciones del grupo — mostrar empates y criterios de desempate `💡 CRUDA`
+#### [MEJORA] Tabla de posiciones del grupo — mostrar empates y criterios de desempate `🔍 EN ANÁLISIS — SUBSUMIDA`
 
-**Score owner**: pendiente · **Spec**: ❌ falta
-
-La tabla de posiciones del grupo no explica los criterios utilizados para desempatar ni identifica empates a 3 equipos. El admin puede reordenar posiciones manualmente, pero no tiene visibilidad de por qué el sistema ordenó así. Importante para que la transición grupos → copas sea confiable.
-
-**Archivos clave**: `src/admin/groups/compute.js`, `src/utils/tablaPosiciones.js`
+**Score owner**: pendiente · **Nota**: subsumida en Copa Approval v2 ([spec-copa-approval-v2.md](spec-copa-approval-v2.md)). El sorteo como mecanismo de desempate + DG en la tabla + alertas de empates sin resolver cubren este requerimiento.
 
 ---
 
@@ -260,6 +252,19 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ---
 
 ## Historial — Implementado / Validado
+
+### Copa Approval v2 — Etapa 1: SQL Foundation `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-10 · **Spec técnica**: [etapa1-sql-foundation.md](etapa1-sql-foundation.md)
+
+3 cambios SQL aplicados en Supabase:
+- **Tabla `sorteos`**: almacena resultados de sorteos para desempate (intra_grupo e inter_grupo) con RLS policies completo
+- **Fix `obtener_standings_torneo`**: retorna `gc` (games contra), `dg` (diferencia de games) y `sorteo_orden`; ORDER BY del ranking incluye DG y sorteo
+- **Nueva RPC `crear_partidos_copa`**: crea copa + partidos desde JSONB de cruces (reemplazará `aprobar_propuestas_copa` en v2)
+
+Migración: `supabase/migrations/20260310000000_copa_approval_v2_foundation.sql`
+
+---
 
 ### Admin copas — Aprobación con visibilidad y control de cruces `✅ IMPLEMENTADA`
 
