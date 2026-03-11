@@ -280,22 +280,6 @@ export async function cargarOverrides(supabase, torneoId, grupoId) {
 }
 
 /**
- * Detecta si dos parejas están en empate real
- * Empate real = mismo P, DS, DG, GF, sin enfrentamiento directo
- */
-function esEmpateReal(a, b, partidos) {
-  if (a.P !== b.P || a.DS !== b.DS || a.DG !== b.DG || a.GF !== b.GF) return false;
-  
-  // Si se enfrentaron, no es empate real
-  if (partidos) {
-    const enfrentamiento = obtenerEnfrentamientoDirecto(a.pareja_id, b.pareja_id, partidos);
-    if (enfrentamiento !== null) return false;
-  }
-  
-  return true;
-}
-
-/**
  * Aplica overrides SOLO en caso de empate real
  */
 export function ordenarConOverrides(tabla, overridesMap, partidos) {
@@ -306,32 +290,46 @@ export function ordenarConOverrides(tabla, overridesMap, partidos) {
   // Primero ordenar automáticamente
   const tablaOrdenada = ordenarTabla(tabla, partidos);
 
-  // Detectar grupos de empate real
+  // Detectar grupos de empate real usando dominator chain
+  // Un equipo se puede rankear si gana a TODOS los no-rankeados del bucket por H2H.
+  // El resto (circular o sin H2H) forma el grupo de empate real.
   const gruposEmpate = [];
-  const procesados = new Set();
+  const statsBuckets = new Map();
+  tablaOrdenada.forEach((r, i) => {
+    const key = `${r.P}|${r.DS}|${r.DG}|${r.GF}`;
+    if (!statsBuckets.has(key)) statsBuckets.set(key, []);
+    statsBuckets.get(key).push(i);
+  });
 
-  for (let i = 0; i < tablaOrdenada.length; i++) {
-    if (procesados.has(i)) continue;
+  for (const indices of statsBuckets.values()) {
+    if (indices.length < 2) continue;
+    const arr = indices.map(i => tablaOrdenada[i]);
 
-    const grupo = [i];
-    const parejaActual = tablaOrdenada[i];
-
-    for (let j = i + 1; j < tablaOrdenada.length; j++) {
-      if (procesados.has(j)) continue;
-
-      const parejaComparar = tablaOrdenada[j];
-      
-      if (!esEmpateReal(parejaActual, parejaComparar, partidos)) {
-        break;
+    const clearlyRankedIds = new Set();
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const candidate of arr) {
+        if (clearlyRankedIds.has(candidate.pareja_id)) continue;
+        const unrankedOthers = arr.filter(x =>
+          x.pareja_id !== candidate.pareja_id &&
+          !clearlyRankedIds.has(x.pareja_id)
+        );
+        if (unrankedOthers.length === 0) continue;
+        const beatsAll = unrankedOthers.every(other => {
+          const h2h = obtenerEnfrentamientoDirecto(candidate.pareja_id, other.pareja_id, partidos);
+          return h2h === 'ganaA';
+        });
+        if (beatsAll) {
+          clearlyRankedIds.add(candidate.pareja_id);
+          changed = true;
+        }
       }
-
-      grupo.push(j);
-      procesados.add(j);
     }
 
-    if (grupo.length >= 2) {
-      gruposEmpate.push(grupo);
-      grupo.forEach(idx => procesados.add(idx));
+    const tieIndices = indices.filter(i => !clearlyRankedIds.has(tablaOrdenada[i].pareja_id));
+    if (tieIndices.length >= 2) {
+      gruposEmpate.push(tieIndices);
     }
   }
 
@@ -406,33 +404,34 @@ export function detectarEmpatesReales(tabla, partidos, overridesMap = {}) {
   for (const arr of buckets.values()) {
     if (arr.length < 2) continue;
 
-    const empatesReales = [];
-    for (let i = 0; i < arr.length; i++) {
-      let esEmpate = true;
-      
-      for (let j = 0; j < arr.length; j++) {
-        if (i === j) continue;
-        
-        const enfrentamiento = obtenerEnfrentamientoDirecto(
-          arr[i].pareja_id, 
-          arr[j].pareja_id, 
-          partidos
+    // Dominator chain: un equipo se rankea si gana a TODOS los no-rankeados por H2H
+    const clearlyRankedIds = new Set();
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const candidate of arr) {
+        if (clearlyRankedIds.has(candidate.pareja_id)) continue;
+        const unrankedOthers = arr.filter(x =>
+          x.pareja_id !== candidate.pareja_id &&
+          !clearlyRankedIds.has(x.pareja_id)
         );
-        
-        if (enfrentamiento !== null) {
-          esEmpate = false;
-          break;
+        if (unrankedOthers.length === 0) continue;
+        const beatsAll = unrankedOthers.every(other => {
+          const h2h = obtenerEnfrentamientoDirecto(candidate.pareja_id, other.pareja_id, partidos);
+          return h2h === 'ganaA';
+        });
+        if (beatsAll) {
+          clearlyRankedIds.add(candidate.pareja_id);
+          changed = true;
         }
       }
-      
-      if (ovMap[arr[i].pareja_id] !== undefined) {
-        esEmpate = false;
-      }
-      
-      if (esEmpate) {
-        empatesReales.push(arr[i]);
-      }
     }
+
+    // Empate real: no rankeados por H2H y sin sorteo guardado
+    const empatesReales = arr.filter(p =>
+      !clearlyRankedIds.has(p.pareja_id) &&
+      ovMap[p.pareja_id] === undefined
+    );
 
     if (empatesReales.length >= 2) {
       sizes.push(empatesReales.length);

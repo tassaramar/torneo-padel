@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-11 (E3 Sorteo Service + UI de Copa Approval v2 implementado)
+**Última actualización**: 2026-03-11 (bugfix detección empates circulares triples en tablaPosiciones)
 
 ---
 
@@ -256,6 +256,8 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ### Copa Approval v2 — Etapa 3: Sorteo Service + UI `✅ IMPLEMENTADA`
 
 **Fecha**: 2026-03-11 · **Spec técnica**: [etapa3-sorteo-service-ui.md](etapa3-sorteo-service-ui.md)
+
+**Bugfix post-implementación** (2026-03-11): `detectarEmpatesReales` y `ordenarConOverrides` no detectaban empates triples circulares (A>B, B>C, C>A). Fix: reemplazar chequeo "tiene H2H → no es empate" por algoritmo dominator chain ("gana a TODOS los no-rankeados → se puede rankear; el resto forma el empate circular").
 
 7 archivos modificados/creados:
 - **Nuevo `src/admin/copas/copaDecisionService.js`**: CRUD tabla `sorteos` (4 funciones: `cargarSorteos`, `guardarSorteoIntraGrupo`, `guardarSorteoInterGrupo`, `resetSorteo`)
