@@ -96,6 +96,16 @@ Al marcar un partido de copa como en juego desde fixture.html, la sección "En c
 
 ---
 
+#### [MEJORA] index.html — tabla de posiciones muestra badge cuando hay sorteo guardado `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+La tabla de posiciones en `index.html` (vista del jugador) no refleja el sorteo intra-grupo. Si hay sorteo guardado, mostrar el mismo badge de posición absoluta (1°, 2°, 3°) que se muestra en el admin, más una nota aclaratoria debajo de la tabla: "Los empates se resolvieron por sorteo".
+
+**Archivos clave**: `src/viewer/modalConsulta.js`, `src/utils/tablaPosiciones.js`
+
+---
+
 #### [MEJORA] index.html — sección "Partidos por confirmar" desplegada por defecto `💡 CRUDA`
 
 **Score owner**: pendiente · **Spec**: ❌ falta
