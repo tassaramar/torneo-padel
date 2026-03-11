@@ -272,6 +272,7 @@ export async function cargarGrupoCierre(grupo) {
     editableBase: faltan === 0,
     unlocked: false,
     autoPosMap,
+    ovMap,
     tieSet,
     tieLabel,
     tieGroups,

@@ -152,14 +152,10 @@ function updateTablaBody(groupId) {
 
   g.rows.forEach((r, idx) => {
     const posActual = idx + 1;
-    const posAuto = g.autoPosMap[r.pareja_id] ?? posActual;
-    const delta = posAuto - posActual;
 
     let sup = '';
-    if (delta !== 0) {
-      const txt = delta > 0 ? `+${delta}` : `${delta}`;
-      const color = delta > 0 ? '#1a7f37' : '#d1242f';
-      sup = ` <sup style="font-size:12px; color:${color}; font-weight:700; margin-left:6px;">${txt}</sup>`;
+    if (g.hasSavedOverride) {
+      sup = ` <sup style="font-size:11px; color:#0b7285; font-weight:700; margin-left:3px;">${posActual}°</sup>`;
     }
 
     const tr = document.createElement('tr');
