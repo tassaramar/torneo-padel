@@ -26,6 +26,18 @@ export async function requireAdmin(supabase, { onReady, containerId = null }) {
     return;
   }
 
+  // QA Token: permite acceso admin via ?qa_token=XXXX (para agentes de testing)
+  // Configurar VITE_QA_TOKEN en Vercel para habilitar
+  const qaToken = import.meta.env.VITE_QA_TOKEN;
+  if (qaToken) {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('qa_token') === qaToken) {
+      mostrarContenido(containerId);
+      onReady({ isAdmin: true, user: { email: 'qa@bot' }, nombre: 'QA Bot', rol: 'admin' });
+      return;
+    }
+  }
+
   const result = await checkAdmin(supabase);
 
   if (result.isAdmin) {
