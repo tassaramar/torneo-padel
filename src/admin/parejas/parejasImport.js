@@ -221,6 +221,7 @@ async function borrarTodoTorneo() {
     { table: 'partidos', msg: '🧹 Eliminando partidos…' },
     { table: 'copas', msg: '🧹 Eliminando copas…' },
     { table: 'esquemas_copa', msg: '🧹 Eliminando esquemas de copa…' }, // CASCADE borra propuestas_copa
+    { table: 'sorteos', msg: '🧹 Eliminando sorteos…' },
     { table: 'posiciones_manual', msg: '🧹 Eliminando overrides…' },
     { table: 'parejas', msg: '🧹 Eliminando parejas…' },
     { table: 'grupos', msg: '🧹 Eliminando grupos…' }

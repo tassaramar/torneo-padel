@@ -259,8 +259,8 @@ export function calcularTablaGrupo(partidos, parejas = [], configPuntos = {}) {
  */
 export async function cargarOverrides(supabase, torneoId, grupoId) {
   const { data, error } = await supabase
-    .from('posiciones_manual')
-    .select('pareja_id, orden_manual')
+    .from('sorteos')
+    .select('pareja_id, orden_sorteo')
     .eq('torneo_id', torneoId)
     .eq('grupo_id', grupoId);
 
@@ -271,8 +271,8 @@ export async function cargarOverrides(supabase, torneoId, grupoId) {
 
   const overridesMap = {};
   (data || []).forEach(ov => {
-    if (ov.orden_manual !== null) {
-      overridesMap[ov.pareja_id] = ov.orden_manual;
+    if (ov.orden_sorteo !== null) {
+      overridesMap[ov.pareja_id] = ov.orden_sorteo;
     }
   });
 

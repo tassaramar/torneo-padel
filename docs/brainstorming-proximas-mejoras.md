@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-10 (E2 Motor matchups de Copa Approval v2 implementado)
+**Última actualización**: 2026-03-11 (E3 Sorteo Service + UI de Copa Approval v2 implementado)
 
 ---
 
@@ -35,7 +35,7 @@
 
 > Máximo 3 ítems a la vez. Para agregar uno, sacar uno primero. Obliga a priorizar.
 
-1. [MEJORA] Copa Approval v2 — standings + sorteo + cruces automáticos · `🚧 EN DESARROLLO` · **E1 ✅** (SQL Foundation) **E2 ✅** (Motor matchups JS) **E3-E7** (RPC sorteo + UI) · **Spec**: [spec-copa-approval-v2.md](spec-copa-approval-v2.md) · **Plan**: [prompt-implementacion-copa-v2.md](prompt-implementacion-copa-v2.md)
+1. [MEJORA] Copa Approval v2 — standings + sorteo + cruces automáticos · `🚧 EN DESARROLLO` · **E1 ✅** (SQL Foundation) **E2 ✅** (Motor matchups JS) **E3 ✅** (Sorteo Service + UI) **E4-E7** (StatusView + edición + cleanup) · **Spec**: [spec-copa-approval-v2.md](spec-copa-approval-v2.md) · **Plan**: [prompt-implementacion-copa-v2.md](prompt-implementacion-copa-v2.md)
 2. _(libre)_
 3. _(libre)_
 
@@ -252,6 +252,21 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ---
 
 ## Historial — Implementado / Validado
+
+### Copa Approval v2 — Etapa 3: Sorteo Service + UI `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-11 · **Spec técnica**: [etapa3-sorteo-service-ui.md](etapa3-sorteo-service-ui.md)
+
+7 archivos modificados/creados:
+- **Nuevo `src/admin/copas/copaDecisionService.js`**: CRUD tabla `sorteos` (4 funciones: `cargarSorteos`, `guardarSorteoIntraGrupo`, `guardarSorteoInterGrupo`, `resetSorteo`)
+- **`src/utils/tablaPosiciones.js`**: `cargarOverrides` lee de `sorteos` en vez de `posiciones_manual`
+- **`src/admin/groups/service.js`**: 3 cambios — `cargarGrupoCierre`, `guardarOrdenGrupo` y `resetOrdenGrupo` usan tabla `sorteos`
+- **`src/carga/posiciones.js`**: `cargarOverridesPosiciones` lee de `sorteos`
+- **`src/admin.js`**: reset también limpia tabla `sorteos` (además de `posiciones_manual`)
+- **`src/admin/parejas/parejasImport.js`**: import también borra tabla `sorteos`
+- **`src/admin/groups/ui.js`**: badges y botones con terminología "sorteo"; mensaje guía al detectar empates
+
+---
 
 ### Copa Approval v2 — Etapa 2: Motor matchups JS `✅ IMPLEMENTADA`
 

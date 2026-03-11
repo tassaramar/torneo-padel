@@ -245,8 +245,8 @@ export async function cargarGrupoCierre(grupo) {
   autoOrder.forEach((r, idx) => (autoPosMap[r.pareja_id] = idx + 1));
 
   const { data: ov, error: errOv } = await supabase
-    .from('posiciones_manual')
-    .select('pareja_id, orden_manual')
+    .from('sorteos')
+    .select('pareja_id, orden_sorteo')
     .eq('torneo_id', TORNEO_ID)
     .eq('grupo_id', grupo.id);
 
@@ -254,7 +254,7 @@ export async function cargarGrupoCierre(grupo) {
 
   const ovMap = {};
   (ov || []).forEach(x => {
-    if (x.orden_manual !== null) ovMap[x.pareja_id] = x.orden_manual;
+    if (x.orden_sorteo !== null) ovMap[x.pareja_id] = x.orden_sorteo;
   });
 
   const hasSavedOverride = Object.keys(ovMap).length > 0;
@@ -289,12 +289,13 @@ export async function guardarOrdenGrupo(groupId) {
     torneo_id: TORNEO_ID,
     grupo_id: groupId,
     pareja_id: r.pareja_id,
-    orden_manual: i + 1
+    orden_sorteo: i + 1,
+    tipo: 'intra_grupo'
   }));
 
   const { error } = await supabase
-    .from('posiciones_manual')
-    .upsert(payload, { onConflict: 'torneo_id,grupo_id,pareja_id' });
+    .from('sorteos')
+    .upsert(payload, { onConflict: 'torneo_id,pareja_id' });
 
   if (error) {
     console.error(error);
@@ -302,7 +303,7 @@ export async function guardarOrdenGrupo(groupId) {
     return false;
   }
 
-  logMsg(`✅ Orden manual guardado para grupo ${g.grupo.nombre}`);
+  logMsg(`✅ Sorteo guardado para grupo ${g.grupo.nombre}`);
   state.groups[groupId].hasSavedOverride = true;
   return true;
 }
@@ -312,7 +313,7 @@ export async function resetOrdenGrupo(groupId) {
   if (!g) return false;
 
   const { error } = await supabase
-    .from('posiciones_manual')
+    .from('sorteos')
     .delete()
     .eq('torneo_id', TORNEO_ID)
     .eq('grupo_id', groupId);
@@ -323,6 +324,6 @@ export async function resetOrdenGrupo(groupId) {
     return false;
   }
 
-  logMsg(`🧽 Orden manual reseteado para grupo ${g.grupo.nombre}`);
+  logMsg(`🧽 Sorteo reseteado para grupo ${g.grupo.nombre}`);
   return true;
 }

@@ -48,8 +48,8 @@ export function renderOrUpdateGrupoCard(groupId) {
       </table>
 
       <div class="admin-actions" style="margin-top:10px;">
-        <button type="button" data-action="save">Guardar orden final</button>
-        <button type="button" data-action="reset">Reset orden manual</button>
+        <button type="button" data-action="save">💾 Guardar sorteo</button>
+        <button type="button" data-action="reset">🧽 Reset sorteo</button>
       </div>
     `;
     dom.contGrupos.appendChild(card);
@@ -67,11 +67,17 @@ export function renderOrUpdateGrupoCard(groupId) {
     flags.appendChild(
       el('span', {}, `<span style="display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid #d39e00; background:#fff3cd;">⚠️ ${g.tieLabel}</span>`)
     );
+    if (g.editableBase && !g.hasSavedOverride) {
+      flags.appendChild(
+        el('p', { style: 'margin:6px 0 0; font-size:13px; color:#856404;' },
+          '🎲 Realizá un sorteo físico, ordená los empatados con ▲▼ y guardá el resultado.')
+      );
+    }
   }
 
   if (g.hasSavedOverride) {
     flags.appendChild(
-      el('span', { style: 'margin-left:8px;' }, `<span style="display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid #0b7285; background:#e6fcff;">📌 Orden manual</span>`)
+      el('span', { style: 'margin-left:8px;' }, `<span style="display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid #0b7285; background:#e6fcff;">🎲 Sorteo guardado</span>`)
     );
   }
 

@@ -128,6 +128,19 @@ export async function resetearResultados() {
     logMsg(`✅ Posiciones manuales limpiadas: ${countPos || 0}`);
   }
 
+  // Limpiar sorteos
+  const { error: errorSorteos } = await supabase
+    .from('sorteos')
+    .delete()
+    .eq('torneo_id', TORNEO_ID);
+
+  if (errorSorteos) {
+    console.error(errorSorteos);
+    logMsg('⚠️ Error limpiando sorteos (ver consola)');
+  } else {
+    logMsg('✅ Sorteos limpiados');
+  }
+
   logMsg('');
   logMsg('🎯 Resultados de grupos limpiados');
   logMsg('💡 Todos los partidos de grupo están en estado pendiente');

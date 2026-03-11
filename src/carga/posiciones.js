@@ -8,20 +8,20 @@ import {
 
 async function cargarOverridesPosiciones(supabase, torneoId) {
   const { data, error } = await supabase
-    .from('posiciones_manual')
-    .select('grupo_id, pareja_id, orden_manual')
+    .from('sorteos')
+    .select('grupo_id, pareja_id, orden_sorteo')
     .eq('torneo_id', torneoId);
 
   if (error) {
-    console.error('Error cargando posiciones_manual', error);
+    console.error('Error cargando sorteos', error);
     return {};
   }
 
   const map = {}; // grupoId -> { parejaId -> orden }
   (data || []).forEach(r => {
-    if (r.orden_manual == null) return;
+    if (r.orden_sorteo == null) return;
     if (!map[r.grupo_id]) map[r.grupo_id] = {};
-    map[r.grupo_id][r.pareja_id] = r.orden_manual;
+    map[r.grupo_id][r.pareja_id] = r.orden_sorteo;
   });
 
   return map;
