@@ -12,6 +12,8 @@ App web para gestión de torneos de pádel con sistema de autogestión para juga
 
 **Product Philosophy**: Pensar siempre desde el usuario, no desde el código. Antes de diseñar una solución, preguntarse: "¿Qué pregunta tiene el usuario cuando llega a esta pantalla? ¿Qué información le falta?" Las decisiones de UX son decisiones de producto — no tomarlas sin validar con el owner. Presentar alternativas funcionales (no código) y pedir feedback antes de implementar.
 
+**Critical Thinking**: Ser crítico con las ideas del owner. Si una idea parece incorrecta, cuestionarla. No dar por buenas las propuestas sin validarlas. Al owner le interesa llegar a la mejor solución, no tener la razón. Cuestionar supuestos, señalar edge cases, y proponer alternativas cuando algo no cierra.
+
 ## Commands
 
 ```bash
