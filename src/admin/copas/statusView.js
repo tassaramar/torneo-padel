@@ -17,6 +17,7 @@ import { labelRonda } from '../../utils/copaRondas.js';
 
 // Cruces calculados durante el render — accesibles en los event handlers
 const _crucesCalculados = {}; // esquemaId → Array<cruce>
+const _crucesEditados = {}; // esquemaId → Array<cruce> (copia editable)
 
 // ============================================================
 // Entrada pública
@@ -122,24 +123,8 @@ export async function renderStatusView(container, esquemas, copas, standingsData
 // ============================================================
 
 function _renderEsquemaPorAprobar(esq, pool, cruces, warnings, standingsData) {
-  // ---- Warnings ----
   const warningsHtml = _renderWarnings(warnings, esq.id);
 
-  // ---- Cruces ----
-  const hayEndogenos = cruces.some(c => c.endogeno);
-  const crucesHtml = _renderCruces(cruces);
-
-  const endogenoHint = hayEndogenos ? `
-    <p style="font-size:12px; color:var(--muted); margin-top:6px;">
-      ℹ️ No se pudieron evitar cruces entre equipos del mismo grupo.
-      Podés editar los cruces manualmente (disponible próximamente).
-    </p>
-  ` : '';
-
-  // ---- Clasificados (acordeón) ----
-  const tablaHtml = _renderTablaGeneral(standingsData, pool.map(p => p.pareja_id));
-
-  // ---- Borde: naranja si hay warnings, gris si no ----
   const hayWarningsBloqueantes = warnings.some(
     w => w.tipo === 'empate_frontera' || w.tipo === 'empate_inter_grupo'
   );
@@ -152,23 +137,431 @@ function _renderEsquemaPorAprobar(esq, pool, cruces, warnings, standingsData) {
                 padding:12px 14px; margin-bottom:10px; background:${bgColor};">
       <div style="font-weight:600; margin-bottom:10px;">${_esc(esq.nombre)}</div>
       ${warningsHtml}
-      <div style="font-size:12px; font-weight:600; color:var(--muted); margin-bottom:6px;">CRUCES</div>
-      ${crucesHtml}
-      ${endogenoHint}
-      ${tablaHtml}
-      <div class="admin-actions" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-        <button type="button" class="btn-aprobar-copa btn-primary btn-sm"
-                data-esquema-id="${esq.id}">
-          ✅ Aprobar copa
-        </button>
+      <div class="cruces-container" data-esquema-id="${esq.id}">
+        ${_renderCrucesReadOnly(esq, pool, cruces, warnings, standingsData)}
       </div>
-      ${hayWarningsBloqueantes ? `
-        <p style="font-size:12px; color:#d97706; margin-top:6px;">
-          ⚠️ Hay empates sin resolver. Podés aprobar igual — los cruces se generan con el orden actual.
-        </p>
-      ` : ''}
     </div>
   `;
+}
+
+// ============================================================
+// Render: contenido read-only del cruces-container
+// ============================================================
+
+function _renderCrucesReadOnly(esq, pool, cruces, warnings, standingsData) {
+  const hayEndogenos = cruces.some(c => c.endogeno);
+  const endogenoHint = hayEndogenos ? `
+    <p style="font-size:12px; color:var(--muted); margin-top:6px;">
+      ℹ️ No se pudieron evitar todos los cruces entre equipos del mismo grupo.
+      Podés editarlos manualmente con el botón ✏️ Editar cruces.
+    </p>
+  ` : '';
+
+  const tablaHtml = _renderTablaGeneral(standingsData, pool.map(p => p.pareja_id));
+
+  const hayWarningsBloqueantes = warnings.some(
+    w => w.tipo === 'empate_frontera' || w.tipo === 'empate_inter_grupo'
+  );
+
+  return `
+    <div style="font-size:12px; font-weight:600; color:var(--muted); margin-bottom:6px;">CRUCES</div>
+    ${_renderCruces(cruces)}
+    ${endogenoHint}
+    ${tablaHtml}
+    <div class="copa-actions admin-actions" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+      <button type="button" class="btn-aprobar-copa btn-primary btn-sm"
+              data-esquema-id="${_esc(esq.id)}">
+        ✅ Aprobar copa
+      </button>
+      <button type="button" class="btn-editar-cruces btn-sm"
+              data-esquema-id="${_esc(esq.id)}"
+              style="border:1px solid var(--border); background:transparent;">
+        ✏️ Editar cruces
+      </button>
+    </div>
+    ${hayWarningsBloqueantes ? `
+      <p style="font-size:12px; color:#d97706; margin-top:6px;">
+        ⚠️ Hay empates sin resolver. Podés aprobar igual — los cruces se generan con el orden actual.
+      </p>
+    ` : ''}
+  `;
+}
+
+// ============================================================
+// Render: formulario de edición de cruces
+// ============================================================
+
+function _renderFormEdicion(esquemaId, crucesBase, pool, allStandings) {
+  const poolIds = new Set(pool.map(e => e.pareja_id));
+
+  const clasificados = allStandings
+    .filter(s => poolIds.has(s.pareja_id))
+    .sort((a, b) => {
+      if ((a.posicion_en_grupo || 0) !== (b.posicion_en_grupo || 0))
+        return (a.posicion_en_grupo || 0) - (b.posicion_en_grupo || 0);
+      return String(a.grupoNombre || '').localeCompare(String(b.grupoNombre || ''));
+    });
+
+  const otros = allStandings.filter(s => !poolIds.has(s.pareja_id));
+
+  const buildSelect = (extraClass, selectedId) => {
+    const opClas = clasificados.map(s =>
+      `<option value="${_esc(s.pareja_id)}"${s.pareja_id === selectedId ? ' selected' : ''}>` +
+      `✅ ${_esc(s.nombre)} (${_esc(s.grupoNombre || '?')} ${s.posicion_en_grupo || '?'}°)</option>`
+    ).join('');
+    const opOtros = otros.map(s =>
+      `<option value="${_esc(s.pareja_id)}"${s.pareja_id === selectedId ? ' selected' : ''}>` +
+      `${_esc(s.nombre)} (${_esc(s.grupoNombre || '?')})</option>`
+    ).join('');
+
+    return `
+      <select class="sel-equipo ${_esc(extraClass)}"
+              style="flex:1; min-width:130px; max-width:220px; font-size:12px;
+                     padding:4px 6px; border:1px solid var(--border); border-radius:6px;">
+        <option value="">— elegir —</option>
+        ${clasificados.length ? `<optgroup label="Clasificados">${opClas}</optgroup>` : ''}
+        ${otros.length ? `<optgroup label="Otros equipos">${opOtros}</optgroup>` : ''}
+      </select>
+    `;
+  };
+
+  const filas = crucesBase.map(c => {
+    const rondaLabel = labelRonda(c.ronda, true) + (c.orden ? ` ${c.orden}` : '');
+    const idA = c.parejaA?.pareja_id ?? '';
+    const idB = c.parejaB?.pareja_id ?? '';
+
+    return `
+      <div class="edicion-cruce"
+           data-ronda="${_esc(c.ronda)}" data-orden="${c.orden ?? ''}"
+           style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+                  padding:6px 0; border-bottom:1px solid var(--border);">
+        <span style="font-size:12px; color:var(--muted); min-width:60px; flex-shrink:0;">${_esc(rondaLabel)}</span>
+        ${buildSelect('sel-a', idA)}
+        <span style="color:var(--muted); font-size:12px; flex-shrink:0;">vs</span>
+        ${buildSelect('sel-b', idB)}
+        <span class="cruce-warning" style="font-size:11px; color:#d97706; white-space:nowrap;"></span>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div style="font-size:12px; font-weight:600; color:var(--muted); margin-bottom:6px;">CRUCES (edición)</div>
+    ${filas}
+    <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+      <button type="button" class="btn-aprobar-editados btn-primary btn-sm"
+              data-esquema-id="${_esc(esquemaId)}">
+        ✅ Aprobar con estos cruces
+      </button>
+      <button type="button" class="btn-volver-sugeridos btn-sm"
+              data-esquema-id="${_esc(esquemaId)}"
+              style="border:1px solid var(--border); background:transparent;">
+        ↩ Volver a sugeridos
+      </button>
+    </div>
+  `;
+}
+
+// ============================================================
+// Modo edición: activar / desactivar
+// ============================================================
+
+function _activarModoEdicion(container, esquemaId, pool, allStandings) {
+  const crucesContainer = container.querySelector(`.cruces-container[data-esquema-id="${esquemaId}"]`);
+  if (!crucesContainer) return;
+
+  const crucesBase = _crucesCalculados[esquemaId] || [];
+  _crucesEditados[esquemaId] = crucesBase.map(c => ({ ...c }));
+
+  crucesContainer.innerHTML = _renderFormEdicion(esquemaId, crucesBase, pool, allStandings);
+  _actualizarSelectores(crucesContainer, allStandings);
+}
+
+function _desactivarModoEdicion(container, esquemaId, esq, pool, allStandings, standingsData) {
+  const crucesContainer = container.querySelector(`.cruces-container[data-esquema-id="${esquemaId}"]`);
+  if (!crucesContainer) return;
+
+  delete _crucesEditados[esquemaId];
+
+  const cruces = _crucesCalculados[esquemaId] || [];
+  const { warnings } = detectarEmpates(pool, allStandings, esq.reglas);
+  crucesContainer.innerHTML = _renderCrucesReadOnly(esq, pool, cruces, warnings, standingsData);
+}
+
+// ============================================================
+// Auto-dedup + warnings inline
+// ============================================================
+
+function _actualizarSelectores(crucesContainer, allStandings) {
+  const standingsMap = Object.fromEntries(allStandings.map(s => [s.pareja_id, s]));
+  const filas = crucesContainer.querySelectorAll('.edicion-cruce');
+
+  // Paso 1: recolectar todos los valores seleccionados
+  // Map: pareja_id → Array de { filaIdx, slot }
+  const seleccionados = new Map();
+  filas.forEach((fila, filaIdx) => {
+    ['a', 'b'].forEach(slot => {
+      const sel = fila.querySelector(`.sel-${slot}`);
+      const val = sel?.value;
+      if (val) {
+        if (!seleccionados.has(val)) seleccionados.set(val, []);
+        seleccionados.get(val).push({ filaIdx, slot });
+      }
+    });
+  });
+
+  // Paso 2: deshabilitar opciones usadas en OTROS slots
+  filas.forEach((fila, filaIdx) => {
+    ['a', 'b'].forEach(slot => {
+      const sel = fila.querySelector(`.sel-${slot}`);
+      if (!sel) return;
+      Array.from(sel.options).forEach(opt => {
+        if (!opt.value) return; // skip "— elegir —"
+        const usados = seleccionados.get(opt.value) || [];
+        const usadoEnOtroLado = usados.some(u => !(u.filaIdx === filaIdx && u.slot === slot));
+        opt.disabled = usadoEnOtroLado;
+      });
+    });
+
+    // Paso 3: actualizar warning inline de la fila
+    const selA = fila.querySelector('.sel-a');
+    const selB = fila.querySelector('.sel-b');
+    const warnEl = fila.querySelector('.cruce-warning');
+    if (!warnEl) return;
+
+    const teamA = selA?.value ? standingsMap[selA.value] : null;
+    const teamB = selB?.value ? standingsMap[selB.value] : null;
+
+    const warns = [];
+    if (teamA && teamB && teamA.grupo_id && teamA.grupo_id === teamB.grupo_id) {
+      warns.push('⚠️ mismo grupo');
+    }
+    warnEl.textContent = warns.join(' ');
+  });
+}
+
+// ============================================================
+// Leer cruces desde el formulario
+// ============================================================
+
+function _crucesDesdeForm(crucesContainer, allStandings) {
+  const standingsMap = Object.fromEntries(allStandings.map(s => [s.pareja_id, s]));
+  const filas = crucesContainer.querySelectorAll('.edicion-cruce');
+
+  const cruces = [];
+  let hayVacios = false;
+
+  filas.forEach(fila => {
+    const ronda = fila.dataset.ronda;
+    const orden = fila.dataset.orden ? Number(fila.dataset.orden) : null;
+    const idA   = fila.querySelector('.sel-a')?.value || null;
+    const idB   = fila.querySelector('.sel-b')?.value || null;
+
+    if (!idA || !idB) hayVacios = true;
+
+    const teamA = idA ? (standingsMap[idA] ?? { pareja_id: idA }) : null;
+    const teamB = idB ? (standingsMap[idB] ?? { pareja_id: idB }) : null;
+
+    cruces.push({
+      ronda,
+      orden,
+      parejaA:  teamA,
+      parejaB:  teamB,
+      endogeno: !!(teamA && teamB && teamA.grupo_id && teamA.grupo_id === teamB.grupo_id)
+    });
+  });
+
+  if (hayVacios) {
+    const ok = window.confirm('Hay slots sin equipo asignado. ¿Aprobar igual con cruces incompletos?');
+    if (!ok) return null;
+  }
+
+  return cruces;
+}
+
+// ============================================================
+// Aprobación compartida
+// ============================================================
+
+async function _aprobarCopa(btn, esquemaId, cruces, onRefresh) {
+  btn.disabled    = true;
+  btn.textContent = '⏳ Creando partidos…';
+
+  const { ok, partidos_creados, msg } = await crearPartidosCopa(supabase, esquemaId, cruces);
+
+  if (ok) {
+    logMsg(`✅ Copa aprobada — ${partidos_creados} partidos creados`);
+    onRefresh?.();
+  } else {
+    logMsg(`❌ Error: ${msg}`);
+    btn.disabled    = false;
+    btn.textContent = btn.classList.contains('btn-aprobar-editados')
+      ? '✅ Aprobar con estos cruces'
+      : '✅ Aprobar copa';
+  }
+}
+
+// ============================================================
+// Eventos (event delegation)
+// ============================================================
+
+function _wireStatusEvents(container, esquemas, standingsData, onRefresh) {
+  const esqMap      = Object.fromEntries(esquemas.map(e => [e.id, e]));
+  const allStandings = standingsData.standings || [];
+
+  // ---- Delegated click handler ----
+  container.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button');
+    if (!btn) return;
+
+    // Aprobar copa (cruces calculados, modo read-only)
+    if (btn.classList.contains('btn-aprobar-copa')) {
+      const esquemaId = btn.dataset.esquemaId;
+      const cruces    = _crucesCalculados[esquemaId];
+      if (!cruces?.length) { logMsg('❌ No hay cruces calculados para aprobar'); return; }
+      await _aprobarCopa(btn, esquemaId, cruces, onRefresh);
+      return;
+    }
+
+    // Editar cruces
+    if (btn.classList.contains('btn-editar-cruces')) {
+      const esquemaId = btn.dataset.esquemaId;
+      const esq       = esqMap[esquemaId];
+      if (!esq) return;
+      const { pool } = armarPoolParaCopa(standingsData.standings, standingsData.grupos, esq.reglas, new Set());
+      _activarModoEdicion(container, esquemaId, pool, allStandings);
+      return;
+    }
+
+    // Aprobar con cruces editados
+    if (btn.classList.contains('btn-aprobar-editados')) {
+      const esquemaId      = btn.dataset.esquemaId;
+      const crucesContainer = container.querySelector(`.cruces-container[data-esquema-id="${esquemaId}"]`);
+      if (!crucesContainer) return;
+      const cruces = _crucesDesdeForm(crucesContainer, allStandings);
+      if (!cruces) return; // usuario canceló
+      await _aprobarCopa(btn, esquemaId, cruces, onRefresh);
+      return;
+    }
+
+    // Volver a sugeridos
+    if (btn.classList.contains('btn-volver-sugeridos')) {
+      const esquemaId = btn.dataset.esquemaId;
+      const esq       = esqMap[esquemaId];
+      if (!esq) return;
+      const { pool } = armarPoolParaCopa(standingsData.standings, standingsData.grupos, esq.reglas, new Set());
+      _desactivarModoEdicion(container, esquemaId, esq, pool, allStandings, standingsData);
+      return;
+    }
+
+    // Editar plan
+    if (btn.id === 'btn-editar-plan') {
+      const { renderPlanEditor } = await import('./planEditor.js');
+      const co = document.getElementById('copas-admin');
+      if (co) renderPlanEditor(co, onRefresh, esquemas);
+      return;
+    }
+
+    // Reset copas
+    if (btn.id === 'btn-reset-copas') {
+      _handleResetClick(container, btn, onRefresh);
+      return;
+    }
+  });
+
+  // ---- Delegated change handler (selects en modo edición) ----
+  container.addEventListener('change', (e) => {
+    if (e.target.classList.contains('sel-equipo')) {
+      const crucesContainer = e.target.closest('.cruces-container');
+      if (crucesContainer) _actualizarSelectores(crucesContainer, allStandings);
+    }
+  });
+}
+
+// ============================================================
+// Reset dialog
+// ============================================================
+
+function _handleResetClick(container, btn, onRefresh) {
+  const dialog = document.createElement('div');
+  dialog.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;';
+  dialog.innerHTML = `
+    <div style="background:#fff;border-radius:12px;padding:20px;max-width:340px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+      <div style="font-weight:700;font-size:16px;margin-bottom:6px;">🔄 RESET COPAS</div>
+      <p style="font-size:14px;color:#374151;margin-bottom:14px;">¿Qué querés resetear?</p>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button id="dlg-solo-resultados" style="text-align:left;padding:12px 14px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;cursor:pointer;">
+          <div style="font-weight:600;font-size:14px;">Solo resultados</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:3px;">Limpia scores de partidos de copa. Mantiene partidos y plan.</div>
+        </button>
+        <button id="dlg-todo-copas" style="text-align:left;padding:12px 14px;border:1px solid #fca5a5;border-radius:8px;background:#fff7f7;cursor:pointer;">
+          <div style="font-weight:600;font-size:14px;color:#dc2626;">Todo (partidos + plan)</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:3px;">Borra partidos de copa, copas y esquemas. Vuelve al paso "Definir plan".</div>
+        </button>
+        <button id="dlg-cancelar" style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;background:transparent;cursor:pointer;font-size:14px;">Cancelar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(dialog);
+
+  const closeDialog = () => dialog.remove();
+  dialog.querySelector('#dlg-cancelar').addEventListener('click', closeDialog);
+  dialog.addEventListener('click', e => { if (e.target === dialog) closeDialog(); });
+
+  dialog.querySelector('#dlg-solo-resultados').addEventListener('click', async () => {
+    closeDialog();
+    btn.disabled    = true;
+    btn.textContent = '⏳ Limpiando…';
+
+    const copaIds = await _getCopaIds();
+    if (!copaIds.length) {
+      logMsg('⚠️ No hay copas para limpiar');
+      btn.disabled    = false;
+      btn.textContent = '🗑 Reset copas';
+      return;
+    }
+
+    const { error } = await supabase
+      .from('partidos')
+      .update({
+        set1_a: null, set1_b: null,
+        set2_a: null, set2_b: null,
+        set3_a: null, set3_b: null,
+        set1_temp_a: null, set1_temp_b: null,
+        set2_temp_a: null, set2_temp_b: null,
+        set3_temp_a: null, set3_temp_b: null,
+        estado: 'pendiente',
+        cargado_por_pareja_id: null,
+        notas_revision: null,
+      })
+      .in('copa_id', copaIds);
+
+    if (error) {
+      logMsg(`❌ Error limpiando resultados: ${error.message}`);
+    } else {
+      logMsg('✅ Resultados de copas limpiados — partidos y plan conservados');
+      onRefresh?.();
+    }
+    btn.disabled    = false;
+    btn.textContent = '🗑 Reset copas';
+  });
+
+  dialog.querySelector('#dlg-todo-copas').addEventListener('click', async () => {
+    closeDialog();
+    btn.disabled    = true;
+    btn.textContent = '⏳ Reseteando…';
+
+    const result = await resetCopas(supabase, TORNEO_ID);
+    if (result.ok) {
+      Object.keys(_crucesCalculados).forEach(k => delete _crucesCalculados[k]);
+      Object.keys(_crucesEditados).forEach(k => delete _crucesEditados[k]);
+      logMsg(`✅ Reset listo — ${result.partidos_borrados} partidos y ${result.copas_borradas} copas borradas`);
+      onRefresh?.();
+    } else {
+      logMsg(`❌ Error en reset: ${result.msg}`);
+      btn.disabled    = false;
+      btn.textContent = '🗑 Reset copas';
+    }
+  });
 }
 
 // ============================================================
@@ -436,138 +829,6 @@ function _renderEsquemaEnCurso(esq, copa, partidos) {
       ${autoFinalHint}
     </div>
   `;
-}
-
-// ============================================================
-// Eventos
-// ============================================================
-
-function _wireStatusEvents(container, esquemas, standingsData, onRefresh) {
-
-  // ---- Aprobar copa ----
-  container.querySelectorAll('.btn-aprobar-copa').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const esquemaId = btn.dataset.esquemaId;
-      const cruces    = _crucesCalculados[esquemaId];
-
-      if (!cruces?.length) {
-        logMsg('❌ No hay cruces calculados para aprobar');
-        return;
-      }
-
-      const crucesCompletos = cruces.filter(c => c.parejaA && c.parejaB);
-      if (crucesCompletos.length === 0) {
-        logMsg('⚠️ No hay cruces completos (faltan equipos)');
-        return;
-      }
-
-      btn.disabled     = true;
-      btn.textContent  = '⏳ Creando partidos…';
-
-      const { ok, partidos_creados, msg } = await crearPartidosCopa(supabase, esquemaId, cruces);
-
-      if (ok) {
-        logMsg(`✅ Copa aprobada — ${partidos_creados} partidos creados`);
-        onRefresh?.();
-      } else {
-        logMsg(`❌ Error: ${msg}`);
-        btn.disabled    = false;
-        btn.textContent = '✅ Aprobar copa';
-      }
-    });
-  });
-
-  // ---- Editar plan ----
-  container.querySelector('#btn-editar-plan')?.addEventListener('click', async () => {
-    const { renderPlanEditor } = await import('./planEditor.js');
-    const co = document.getElementById('copas-admin');
-    if (co) renderPlanEditor(co, onRefresh, esquemas);
-  });
-
-  // ---- Reset copas ----
-  container.querySelector('#btn-reset-copas')?.addEventListener('click', () => {
-    const btn = container.querySelector('#btn-reset-copas');
-
-    const dialog = document.createElement('div');
-    dialog.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;';
-    dialog.innerHTML = `
-      <div style="background:#fff;border-radius:12px;padding:20px;max-width:340px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
-        <div style="font-weight:700;font-size:16px;margin-bottom:6px;">🔄 RESET COPAS</div>
-        <p style="font-size:14px;color:#374151;margin-bottom:14px;">¿Qué querés resetear?</p>
-        <div style="display:flex;flex-direction:column;gap:10px;">
-          <button id="dlg-solo-resultados" style="text-align:left;padding:12px 14px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;cursor:pointer;">
-            <div style="font-weight:600;font-size:14px;">Solo resultados</div>
-            <div style="font-size:12px;color:#6b7280;margin-top:3px;">Limpia scores de partidos de copa. Mantiene partidos y plan.</div>
-          </button>
-          <button id="dlg-todo-copas" style="text-align:left;padding:12px 14px;border:1px solid #fca5a5;border-radius:8px;background:#fff7f7;cursor:pointer;">
-            <div style="font-weight:600;font-size:14px;color:#dc2626;">Todo (partidos + plan)</div>
-            <div style="font-size:12px;color:#6b7280;margin-top:3px;">Borra partidos de copa, copas y esquemas. Vuelve al paso "Definir plan".</div>
-          </button>
-          <button id="dlg-cancelar" style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;background:transparent;cursor:pointer;font-size:14px;">Cancelar</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(dialog);
-
-    const closeDialog = () => dialog.remove();
-    dialog.querySelector('#dlg-cancelar').addEventListener('click', closeDialog);
-    dialog.addEventListener('click', e => { if (e.target === dialog) closeDialog(); });
-
-    dialog.querySelector('#dlg-solo-resultados').addEventListener('click', async () => {
-      closeDialog();
-      btn.disabled    = true;
-      btn.textContent = '⏳ Limpiando…';
-
-      const copaIds = await _getCopaIds();
-      if (!copaIds.length) {
-        logMsg('⚠️ No hay copas para limpiar');
-        btn.disabled    = false;
-        btn.textContent = '🗑 Reset copas';
-        return;
-      }
-
-      const { error } = await supabase
-        .from('partidos')
-        .update({
-          set1_a: null, set1_b: null,
-          set2_a: null, set2_b: null,
-          set3_a: null, set3_b: null,
-          set1_temp_a: null, set1_temp_b: null,
-          set2_temp_a: null, set2_temp_b: null,
-          set3_temp_a: null, set3_temp_b: null,
-          estado: 'pendiente',
-          cargado_por_pareja_id: null,
-          notas_revision: null,
-        })
-        .in('copa_id', copaIds);
-
-      if (error) {
-        logMsg(`❌ Error limpiando resultados: ${error.message}`);
-      } else {
-        logMsg('✅ Resultados de copas limpiados — partidos y plan conservados');
-        onRefresh?.();
-      }
-      btn.disabled    = false;
-      btn.textContent = '🗑 Reset copas';
-    });
-
-    dialog.querySelector('#dlg-todo-copas').addEventListener('click', async () => {
-      closeDialog();
-      btn.disabled    = true;
-      btn.textContent = '⏳ Reseteando…';
-
-      const result = await resetCopas(supabase, TORNEO_ID);
-      if (result.ok) {
-        Object.keys(_crucesCalculados).forEach(k => delete _crucesCalculados[k]);
-        logMsg(`✅ Reset listo — ${result.partidos_borrados} partidos y ${result.copas_borradas} copas borradas`);
-        onRefresh?.();
-      } else {
-        logMsg(`❌ Error en reset: ${result.msg}`);
-        btn.disabled    = false;
-        btn.textContent = '🗑 Reset copas';
-      }
-    });
-  });
 }
 
 // ============================================================

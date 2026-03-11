@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-11 (E4a StatusView pipeline — nueva vista de copas sin propuestas_copa)
+**Última actualización**: 2026-03-11 (E4b Editar cruces — modo edición con selectores, auto-dedup, aprobación con cruces custom)
 
 ---
 
@@ -35,7 +35,7 @@
 
 > Máximo 3 ítems a la vez. Para agregar uno, sacar uno primero. Obliga a priorizar.
 
-1. [MEJORA] Copa Approval v2 — standings + sorteo + cruces automáticos · `🚧 EN DESARROLLO` · **E1 ✅** (SQL Foundation) **E2 ✅** (Motor matchups JS) **E3 ✅** (Sorteo Service + UI) **E4a ✅** (StatusView read-only + Aprobar copa) **E4b-E7** (Editar cruces + cleanup) · **Spec**: [spec-copa-approval-v2.md](spec-copa-approval-v2.md) · **Plan**: [prompt-implementacion-copa-v2.md](prompt-implementacion-copa-v2.md)
+1. [MEJORA] Copa Approval v2 — standings + sorteo + cruces automáticos · `🚧 EN DESARROLLO` · **E1 ✅** (SQL Foundation) **E2 ✅** (Motor matchups JS) **E3 ✅** (Sorteo Service + UI) **E4a ✅** (StatusView read-only + Aprobar copa) **E4b ✅** (Editar cruces) **E4c-E7** (Parcial + sorteo inter + cleanup) · **Spec**: [spec-copa-approval-v2.md](spec-copa-approval-v2.md) · **Plan**: [prompt-implementacion-copa-v2.md](prompt-implementacion-copa-v2.md)
 2. _(libre)_
 3. _(libre)_
 
