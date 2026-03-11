@@ -86,10 +86,15 @@ const actionConfig = {
 const state = {
   cases: structuredClone(seedCases),
   selectedId: 'P17',
+  activeRole: 'Juan',
   log: [
     {
       title: 'Escenario inicial listo',
       meta: 'Todos los cambios se ven solo en esta interfaz. No hay backend ni sesiones separadas.'
+    },
+    {
+      title: 'Rol activo: Juan',
+      meta: 'El laboratorio arranca marcando a Juan como referencia visual del experimento.'
     }
   ]
 };
@@ -99,6 +104,7 @@ const detailEl = document.getElementById('case-detail');
 const helperEl = document.getElementById('detail-helper');
 const logEl = document.getElementById('activity-log');
 const resetBtn = document.getElementById('reset-lab');
+const roleButtons = Array.from(document.querySelectorAll('[data-role]'));
 
 function getCaseById(id) {
   return state.cases.find((item) => item.id === id);
@@ -113,7 +119,7 @@ function getStatusClass(status) {
 
 function addLog(title, meta) {
   state.log.unshift({ title, meta });
-  state.log = state.log.slice(0, 8);
+  state.log = state.log.slice(0, 9);
 }
 
 function updateCase(id, updater) {
@@ -121,6 +127,13 @@ function updateCase(id, updater) {
     if (item.id !== id) return item;
     return { ...item, ...updater(item) };
   });
+}
+
+function setActiveRole(role) {
+  if (state.activeRole === role) return;
+  state.activeRole = role;
+  addLog(`Rol activo: ${role}`, 'Solo cambia el contexto del experimento. No modifica partidos ni estados.');
+  render();
 }
 
 function handleAction(caseId, actionId) {
@@ -134,7 +147,7 @@ function handleAction(caseId, actionId) {
       nota: 'Resultado cargado. Ahora la otra pareja debe confirmar o corregir.',
       contexto: 'La interfaz muestra un estado intermedio para que otro actor decida.'
     }));
-    addLog(`${caseId} -> resultado cargado`, 'El partido paso a "Por confirmar" y ahora expone un score visible.');
+    addLog(`${caseId} -> resultado cargado`, `Accion realizada con rol ${state.activeRole}. El partido paso a "Por confirmar".`);
   }
 
   if (actionId === 'marcar') {
@@ -143,7 +156,7 @@ function handleAction(caseId, actionId) {
       nota: 'El partido fue marcado en juego. Todavia no hay resultado definitivo.',
       contexto: 'La cancha aparece ocupada y el caso sigue esperando una carga.'
     }));
-    addLog(`${caseId} -> marcado en juego`, 'El estado cambio visualmente pero no hay score cargado.');
+    addLog(`${caseId} -> marcado en juego`, `Accion realizada con rol ${state.activeRole}. El estado cambio visualmente pero no hay score.`);
   }
 
   if (actionId === 'confirmar') {
@@ -153,7 +166,7 @@ function handleAction(caseId, actionId) {
       nota: 'Las dos partes coinciden. El resultado quedo confirmado.',
       contexto: 'Este caso ya no ofrece acciones de disputa desde la vista principal.'
     }));
-    addLog(`${caseId} -> resultado confirmado`, 'La vista ahora muestra un cierre verde y quita la tension del caso.');
+    addLog(`${caseId} -> resultado confirmado`, `Accion realizada con rol ${state.activeRole}. La vista ahora muestra un cierre verde.`);
   }
 
   if (actionId === 'disputar') {
@@ -163,7 +176,7 @@ function handleAction(caseId, actionId) {
       nota: 'Se cargo una version distinta del resultado. Hace falta resolverla.',
       contexto: 'La interfaz destaca que hay dos lecturas distintas del mismo partido.'
     }));
-    addLog(`${caseId} -> disputa abierta`, 'El partido paso a "En revision" y quedo con mayor urgencia visual.');
+    addLog(`${caseId} -> disputa abierta`, `Accion realizada con rol ${state.activeRole}. El partido paso a "En revision".`);
   }
 
   if (actionId === 'aceptar') {
@@ -173,7 +186,7 @@ function handleAction(caseId, actionId) {
       nota: 'Se acepto una de las versiones y el caso quedo resuelto.',
       contexto: 'La disputa desaparecio y el resultado final queda estable.'
     }));
-    addLog(`${caseId} -> disputa resuelta`, 'La interfaz ya no muestra conflicto activo.');
+    addLog(`${caseId} -> disputa resuelta`, `Accion realizada con rol ${state.activeRole}. La interfaz ya no muestra conflicto.`);
   }
 
   if (actionId === 'recargar') {
@@ -183,14 +196,14 @@ function handleAction(caseId, actionId) {
       nota: 'Se cargo una nueva version del marcador. El conflicto sigue abierto.',
       contexto: 'El caso mantiene el estado conflictivo pero cambia un dato fino del score.'
     }));
-    addLog(`${caseId} -> score actualizado en revision`, 'El estado no cambio, pero si cambio el marcador visible.');
+    addLog(`${caseId} -> score actualizado en revision`, `Accion realizada con rol ${state.activeRole}. El estado no cambio, pero si el marcador.`);
   }
 
   if (actionId === 'resetear') {
     const original = seedCases.find((seed) => seed.id === caseId);
     if (original) {
       updateCase(caseId, () => ({ ...original }));
-      addLog(`${caseId} -> restaurado`, 'El caso volvio a su estado inicial para repetir la prueba.');
+      addLog(`${caseId} -> restaurado`, `Accion realizada con rol ${state.activeRole}. El caso volvio a su estado inicial.`);
     }
   }
 
@@ -245,6 +258,14 @@ function renderDetail() {
       : 'is-warning';
 
   detailEl.innerHTML = `
+    <div class="role-banner">
+      <div>
+        <p class="role-banner-title">Estas actuando como ${state.activeRole}</p>
+        <p class="role-banner-copy">Usa esta referencia visual para cambiar de actor sin reiniciar la pagina.</p>
+      </div>
+      <div class="role-pill">Rol ${state.activeRole}</div>
+    </div>
+
     <article class="detail-card">
       <div class="detail-headline">
         <div>
@@ -313,19 +334,37 @@ function renderLog() {
   `).join('');
 }
 
+function renderRoleButtons() {
+  roleButtons.forEach((button) => {
+    const isActive = button.dataset.role === state.activeRole;
+    button.classList.toggle('is-active', isActive);
+    button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+  });
+}
+
 function render() {
+  renderRoleButtons();
   renderList();
   renderDetail();
   renderLog();
 }
 
+roleButtons.forEach((button) => {
+  button.addEventListener('click', () => setActiveRole(button.dataset.role));
+});
+
 resetBtn.addEventListener('click', () => {
   state.cases = structuredClone(seedCases);
   state.selectedId = 'P17';
+  state.activeRole = 'Juan';
   state.log = [
     {
       title: 'Escenario reiniciado',
       meta: 'Todos los casos volvieron a su estado original para repetir la prueba.'
+    },
+    {
+      title: 'Rol activo: Juan',
+      meta: 'El laboratorio vuelve a marcar a Juan como referencia visual inicial.'
     }
   ];
   render();
