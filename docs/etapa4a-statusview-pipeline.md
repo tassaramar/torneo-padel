@@ -1,3 +1,248 @@
+# Etapa 4a — StatusView: nueva pipeline de datos + UI read-only
+
+## Objetivo
+
+Reemplazar la pipeline basada en `propuestas_copa` por una pipeline client-side donde los cruces se derivan de standings. El resultado es una vista read-only correcta (bracket con nombres, tabla general con DG, warnings de empates). El botón "Aprobar copa" (full copa en un click) también se incluye en esta etapa.
+
+**Lo que NO incluye esta etapa** (diferido):
+- Editar cruces con selectores → E4b
+- Aprobación parcial (cruce por cruce) → E4c
+- Sorteo inter-grupo inline → E4c
+
+## Módulos de referencia a reutilizar
+
+| Módulo | Función | Uso en esta etapa |
+|---|---|---|
+| `src/utils/copaMatchups.js` | `armarPoolParaCopa`, `seedingMejorPeor`, `optimizarEndogenos`, `detectarEmpates` | Pipeline principal |
+| `src/utils/copaRondas.js` | `labelRonda` | Labels de ronda en render |
+| `src/utils/formatoResultado.js` | `formatearResultado` | Render partidos en curso |
+
+---
+
+## 1. `src/viewer/cargarResultado.js` — eliminar fire-and-forget
+
+**Eliminar exactamente 2 bloques** (buscar el comentario `// Fire-and-forget: disparar motor de propuestas de copas`):
+
+**Bloque 1** (alrededor de línea 127): eliminar las líneas 127-132
+```js
+// ELIMINAR ESTO:
+// Fire-and-forget: disparar motor de propuestas de copas
+if (partido.torneo_id) {
+  supabase.rpc('verificar_y_proponer_copas', { p_torneo_id: partido.torneo_id })
+    .then(({ error }) => { if (error) console.warn('Motor copas:', error.message); })
+    .catch(err => console.warn('Motor copas:', err));
+}
+```
+
+**Bloque 2** (alrededor de línea 322): eliminar las líneas 322-327
+```js
+// ELIMINAR ESTO:
+// Fire-and-forget: disparar motor de propuestas de copas
+if (partido.torneo_id) {
+  supabase.rpc('verificar_y_proponer_copas', { p_torneo_id: partido.torneo_id })
+    .then(({ error }) => { if (error) console.warn('Motor copas:', error.message); })
+    .catch(err => console.warn('Motor copas:', err));
+}
+```
+
+No tocar nada más en este archivo. El fire-and-forget de `avanzar_ronda_copa` (la línea de abajo) se mantiene.
+
+---
+
+## 2. `src/admin/copas/planService.js` — agregar + eliminar
+
+### 2a. Agregar función `crearPartidosCopa` al final del archivo
+
+```js
+/**
+ * Crea una copa y sus partidos iniciales usando los cruces calculados client-side.
+ * Llama al RPC crear_partidos_copa de E1.
+ *
+ * @param {Object} supabase    - Cliente de Supabase
+ * @param {string} esquemaId   - ID del esquema_copa
+ * @param {Array}  cruces      - Array de { ronda, orden, parejaA, parejaB }
+ *                               donde parejaA/B son objetos con { pareja_id }
+ * @returns {{ ok: boolean, copa_id?: string, partidos_creados?: number, msg?: string }}
+ */
+export async function crearPartidosCopa(supabase, esquemaId, cruces) {
+  const payload = (cruces || []).map(c => ({
+    ronda:        c.ronda,
+    orden:        c.orden,
+    pareja_a_id:  c.parejaA?.pareja_id ?? null,
+    pareja_b_id:  c.parejaB?.pareja_id ?? null
+  }));
+
+  const { data, error } = await supabase.rpc('crear_partidos_copa', {
+    p_esquema_copa_id: esquemaId,
+    p_cruces:          payload
+  });
+
+  if (error) {
+    console.error('Error creando partidos copa:', error);
+    return { ok: false, msg: error.message };
+  }
+
+  return {
+    ok:               true,
+    copa_id:          data?.copa_id,
+    partidos_creados: data?.partidos_creados ?? 0
+  };
+}
+```
+
+### 2b. Actualizar `esPlanBloqueado`
+
+En v2 el plan se bloquea cuando ya hay partidos de copa creados (no cuando hay propuestas aprobadas). Reemplazar la función completa:
+
+```js
+export async function esPlanBloqueado(supabase, torneoId) {
+  const { data: copas } = await supabase
+    .from('copas')
+    .select('id')
+    .eq('torneo_id', torneoId)
+    .limit(1);
+
+  if (!copas?.length) return false;
+
+  const copaIds = copas.map(c => c.id);
+  const { data: partidos } = await supabase
+    .from('partidos')
+    .select('id')
+    .in('copa_id', copaIds)
+    .limit(1);
+
+  return (partidos?.length || 0) > 0;
+}
+```
+
+### 2c. Eliminar funciones deprecadas
+
+Buscar y eliminar (o comentar con `// DEPRECADO v2`) las siguientes funciones exportadas. No romperán el build si se eliminan porque sus importadores (statusView.js, index.js) se reescriben en esta etapa:
+
+- `cargarPropuestas` — leía `propuestas_copa`
+- `invocarMotorPropuestas` — llamaba a `verificar_y_proponer_copas`
+- `aprobarPropuestas` — llamaba a `aprobar_propuestas_copa`
+- `aprobarPropuestaIndividual` — creaba partidos desde propuestas
+- `modificarPropuesta` — modificaba `propuestas_copa`
+- `calcularClasificadosConWarnings` — lógica v1
+- `calcularCrucesConWarnings` — lógica v1
+
+**Mantener sin cambios**: `cargarEsquemas`, `guardarEsquemas`, `cargarStandingsParaCopas`, `resetCopas`, `cargarPresets`, `guardarPreset`, `eliminarPreset`, `detectarYSugerirPreset`.
+
+---
+
+## 3. `src/admin/copas/index.js` — actualizar orquestador
+
+Reemplazar el contenido completo con:
+
+```js
+/**
+ * Orquestador del módulo de copas admin.
+ * v2: los cruces se derivan de standings client-side, sin propuestas_copa.
+ */
+
+import { supabase, TORNEO_ID } from '../context.js';
+import { cargarEsquemas, cargarStandingsParaCopas } from './planService.js';
+import { renderPlanEditor } from './planEditor.js';
+import { renderStatusView } from './statusView.js';
+
+export function initCopas() {
+  cargarCopasAdmin();
+}
+
+function determinarPaso(esquemas, copas, standingsData) {
+  if (!esquemas?.length) return 1;
+
+  const hayCopas = (copas || []).length > 0;
+  if (hayCopas) return 4;
+
+  const gruposCompletos = (standingsData.grupos || []).filter(g =>
+    (standingsData.standings || []).some(s => s.grupo_id === g.id && s.grupo_completo)
+  );
+  if (gruposCompletos.length > 0) return 3;
+
+  return 2;
+}
+
+function renderIndicadorPaso(paso, info = '') {
+  const pasos = [
+    { n: 1, label: 'Definir plan' },
+    { n: 2, label: 'Esperar grupos' },
+    { n: 3, label: 'Aprobar' },
+    { n: 4, label: 'En curso' }
+  ];
+
+  const items = pasos.map(p => {
+    const activo    = p.n === paso;
+    const completado = p.n < paso;
+    const cls   = activo ? 'paso-activo' : completado ? 'paso-completado' : 'paso-futuro';
+    const label = completado ? `✓ ${p.label}` : `${p.n}. ${p.label}`;
+    return `<span class="paso-item ${cls}">${label}</span>`;
+  }).join('<span class="paso-sep">→</span>');
+
+  const mensajes = {
+    1: 'Definí el plan de copas para arrancar',
+    2: info || 'Esperando que terminen los grupos',
+    3: info || 'Todos los grupos terminaron — revisá los cruces y aprobá',
+    4: info || 'Copas en curso'
+  };
+
+  return `
+    <div class="indicador-pasos">${items}</div>
+    <p class="paso-info">${mensajes[paso]}</p>
+  `;
+}
+
+async function cargarCopasAdmin() {
+  const container = document.getElementById('copas-admin');
+  if (!container) return;
+
+  container.innerHTML = '<p style="color:var(--muted);">⏳ Cargando…</p>';
+
+  const [esquemas, { data: copas }, standingsData] = await Promise.all([
+    cargarEsquemas(supabase, TORNEO_ID),
+    supabase.from('copas').select('id, nombre, esquema_copa_id').eq('torneo_id', TORNEO_ID),
+    cargarStandingsParaCopas(supabase, TORNEO_ID)
+  ]);
+
+  const paso = determinarPaso(esquemas, copas, standingsData);
+
+  let infoPaso = '';
+  if (paso === 2) {
+    const grupos = standingsData.grupos || [];
+    const completos = grupos.filter(g =>
+      (standingsData.standings || []).some(s => s.grupo_id === g.id && s.grupo_completo)
+    );
+    if (grupos.length > 0) {
+      infoPaso = `Esperando que finalicen los grupos (${completos.length} de ${grupos.length} completados)`;
+    }
+  }
+
+  container.innerHTML = renderIndicadorPaso(paso, infoPaso);
+  const subContainer = document.createElement('div');
+  container.appendChild(subContainer);
+
+  if (!esquemas?.length) {
+    renderPlanEditor(subContainer, () => cargarCopasAdmin());
+  } else {
+    renderStatusView(subContainer, esquemas, copas || [], standingsData, () => cargarCopasAdmin());
+  }
+}
+```
+
+**Cambios respecto a la versión anterior**:
+- Ya no importa `renderPlanActivo`, `cargarPropuestas`
+- `determinarPaso` recibe `(esquemas, copas, standingsData)` — sin propuestas
+- `cargarCopasAdmin` no carga propuestas
+- Si hay esquemas → siempre `renderStatusView` (maneja todos los sub-estados)
+
+---
+
+## 4. `src/admin/copas/statusView.js` — reescritura completa
+
+Reemplazar el archivo completo con el siguiente código:
+
+```js
 /**
  * Vista de estado de copas — v2
  * Pipeline: standings → pool → matchups → render
@@ -581,3 +826,65 @@ function _esc(str) {
 }
 
 function _signo(n) { return (n >= 0) ? '+' : ''; }
+```
+
+---
+
+## 5. Verificación de `cargarStandingsParaCopas`
+
+En `planService.js`, verificar que `cargarStandingsParaCopas` retorna standings con los campos `dg`, `gc`, `sorteo_orden` (agregados al RPC en Etapa 1). Si el RPC los retorna pero la función JS no los incluye, no hace falta cambiar nada — Supabase los incluye automáticamente.
+
+**Verificar que el objeto standings tiene**: `pareja_id`, `grupo_id`, `grupo_completo`, `posicion_en_grupo`, `puntos`, `ds`, `dg`, `gf`, `sorteo_orden`, `nombre`, `grupoNombre`.
+
+Si `grupoNombre` no está en los standings (viene del join con grupos en la función), verificar que `cargarStandingsParaCopas` lo agrega al enriquecer. Si no lo hace, agregar el join.
+
+---
+
+## 6. Tests
+
+### 6a. Build
+```bash
+npm run build
+```
+No debe haber errores. Puede haber warnings de "not exported" pre-existentes.
+
+### 6b. Tests manuales en browser (pasos para el owner)
+
+**Precondición A — Sin grupos completos:**
+1. Abrir admin.html → Tab Copas
+2. Verificar que el breadcrumb muestra "2. Esperar grupos"
+3. Cada copa muestra "⏳ Esperando grupos…" con contador "X de N completados"
+
+**Precondición B — Todos los grupos completos, sin copa aprobada:**
+1. Cargar todos los resultados
+2. Abrir admin.html → Tab Copas
+3. Verificar breadcrumb "3. Aprobar"
+4. Cada copa muestra los cruces: `Nombre (Grupo Pos°) vs Nombre (Grupo Pos°)`
+5. Los cruces no tienen equipos del mismo grupo (salvo warning ⚠️ si no se pudo evitar)
+6. El acordeón "Ver clasificados" muestra la tabla ordenada: primero todos los 1°, luego todos los 2°, etc.
+7. La tabla tiene columnas: # | ✅ | Pareja | Pts | DS | **DG** | GF | Grupo
+8. Si hay empate intra-grupo: aparece warning "⚠️ Empate en Grupo X — Tab Grupos"
+9. El botón "✅ Aprobar copa" existe
+
+**Precondición C — Aprobar copa:**
+1. Click en "✅ Aprobar copa"
+2. Verificar log "✅ Copa aprobada — N partidos creados"
+3. La vista pasa a mostrar los partidos en curso (nombres de equipos, estado pendiente)
+4. Breadcrumb pasa a "4. En curso"
+
+**Precondición D — Reset copas:**
+1. Click en "🗑 Reset copas" → "Todo (partidos + plan)"
+2. Vuelve al estado inicial (Tab Copas en paso 1 o 2)
+
+**Regresión:**
+- Wizard de copas (planEditor) sigue funcionando: crear preset, aplicar plan
+- fixture.html y index.html no se ven afectados
+- carga.html funciona normalmente
+
+---
+
+## Al finalizar
+
+- Actualizar `docs/brainstorming-proximas-mejoras.md` (mover ítems completados al historial)
+- Ejecutar `npm version patch` y push a git
+- Reportar los pasos de testing manual al owner para que los ejecute

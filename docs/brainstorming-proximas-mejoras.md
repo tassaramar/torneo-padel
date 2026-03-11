@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-11 (procesado Bugs-Mejoras-raw.md testing Copa v1)
+**Última actualización**: 2026-03-11 (E4a StatusView pipeline — nueva vista de copas sin propuestas_copa)
 
 ---
 
@@ -35,7 +35,7 @@
 
 > Máximo 3 ítems a la vez. Para agregar uno, sacar uno primero. Obliga a priorizar.
 
-1. [MEJORA] Copa Approval v2 — standings + sorteo + cruces automáticos · `🚧 EN DESARROLLO` · **E1 ✅** (SQL Foundation) **E2 ✅** (Motor matchups JS) **E3 ✅** (Sorteo Service + UI) **E4-E7** (StatusView + edición + cleanup) · **Spec**: [spec-copa-approval-v2.md](spec-copa-approval-v2.md) · **Plan**: [prompt-implementacion-copa-v2.md](prompt-implementacion-copa-v2.md)
+1. [MEJORA] Copa Approval v2 — standings + sorteo + cruces automáticos · `🚧 EN DESARROLLO` · **E1 ✅** (SQL Foundation) **E2 ✅** (Motor matchups JS) **E3 ✅** (Sorteo Service + UI) **E4a ✅** (StatusView read-only + Aprobar copa) **E4b-E7** (Editar cruces + cleanup) · **Spec**: [spec-copa-approval-v2.md](spec-copa-approval-v2.md) · **Plan**: [prompt-implementacion-copa-v2.md](prompt-implementacion-copa-v2.md)
 2. _(libre)_
 3. _(libre)_
 
@@ -302,6 +302,18 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ---
 
 ## Historial — Implementado / Validado
+
+### Copa Approval v2 — Etapa 4a: StatusView nueva pipeline + Aprobar copa `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-11 · **Spec técnica**: [etapa4a-statusview-pipeline.md](etapa4a-statusview-pipeline.md)
+
+Reemplaza la pipeline basada en `propuestas_copa` por una pipeline client-side donde los cruces se derivan de standings:
+- **`src/viewer/cargarResultado.js`**: eliminados 2 bloques fire-and-forget `verificar_y_proponer_copas`
+- **`src/admin/copas/planService.js`**: `esPlanBloqueado` ahora chequea partidos creados (no propuestas); eliminadas 7 funciones deprecadas (`cargarPropuestas`, `invocarMotorPropuestas`, `aprobarPropuestas`, `aprobarPropuestaIndividual`, `modificarPropuesta`, `calcularClasificadosConWarnings`, `calcularCrucesConWarnings`); agregada `crearPartidosCopa` (llama al RPC `crear_partidos_copa` de E1)
+- **`src/admin/copas/index.js`**: orquestador v2 sin propuestas; `determinarPaso` recibe `(esquemas, copas, standingsData)`; si hay esquemas → siempre `renderStatusView`
+- **`src/admin/copas/statusView.js`**: reescritura completa — pipeline standings→pool→matchups→render; 4 estados (en curso / esperando / por aprobar / warnings); botón "✅ Aprobar copa" crea partidos en un click; reset mejorado con 2 opciones (solo resultados / todo)
+
+---
 
 ### Copa Approval v2 — Etapa 3: Sorteo Service + UI `✅ IMPLEMENTADA`
 

@@ -124,13 +124,6 @@ export async function cargarResultadoConSets(supabase, partidoId, sets, numSets,
           trackCargaResultado(supabase, identidad, partidoId, null, null)
             .catch(err => console.warn('Error tracking carga:', err));
 
-          // Fire-and-forget: disparar motor de propuestas de copas
-          if (partido.torneo_id) {
-            supabase.rpc('verificar_y_proponer_copas', { p_torneo_id: partido.torneo_id })
-              .then(({ error }) => { if (error) console.warn('Motor copas:', error.message); })
-              .catch(err => console.warn('Motor copas:', err));
-          }
-
           // Fire-and-forget: avanzar bracket si es partido de copa
           if (partido.copa_id) {
             supabase.rpc('avanzar_ronda_copa', { p_copa_id: partido.copa_id })
@@ -317,13 +310,6 @@ export async function aceptarOtroResultado(supabase, partidoId, identidad) {
         .eq('id', partidoId);
 
       if (updateError) throw updateError;
-    }
-
-    // Fire-and-forget: disparar motor de propuestas de copas
-    if (partido.torneo_id) {
-      supabase.rpc('verificar_y_proponer_copas', { p_torneo_id: partido.torneo_id })
-        .then(({ error }) => { if (error) console.warn('Motor copas:', error.message); })
-        .catch(err => console.warn('Motor copas:', err));
     }
 
     // Fire-and-forget: avanzar bracket si es partido de copa

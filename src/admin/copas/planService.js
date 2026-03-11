@@ -83,145 +83,30 @@ export async function guardarEsquemas(supabase, torneoId, esquemas) {
 }
 
 /**
- * Verifica si el plan está bloqueado (hay propuestas aprobadas).
- * El plan no es editable una vez que el admin aprobó alguna propuesta.
+ * Verifica si el plan está bloqueado (hay partidos de copa creados).
+ * El plan no es editable una vez que se crearon partidos de copa.
  *
  * @param {Object} supabase  - Cliente de Supabase
  * @param {string} torneoId  - ID del torneo
  * @returns {boolean}
  */
 export async function esPlanBloqueado(supabase, torneoId) {
-  const { data, error } = await supabase
-    .from('propuestas_copa')
+  const { data: copas } = await supabase
+    .from('copas')
     .select('id')
-    .eq('estado', 'aprobado')
-    .limit(1)
-    .maybeSingle();
-
-  // Si hay join necesario con esquemas_copa para filtrar por torneo
-  // (propuestas_copa no tiene torneo_id directo)
-  if (error) {
-    console.error('Error verificando bloqueo de plan:', error);
-    return false;
-  }
-
-  // Verificar con join
-  const { data: aprobadas } = await supabase
-    .from('propuestas_copa')
-    .select('id, esquemas_copa!inner(torneo_id)')
-    .eq('estado', 'aprobado')
-    .eq('esquemas_copa.torneo_id', torneoId)
+    .eq('torneo_id', torneoId)
     .limit(1);
 
-  return (aprobadas?.length || 0) > 0;
-}
+  if (!copas?.length) return false;
 
-/**
- * Carga propuestas de copa del torneo, enriquecidas con nombres de esquema y parejas.
- *
- * @param {Object} supabase  - Cliente de Supabase
- * @param {string} torneoId  - ID del torneo
- * @returns {Array} - Propuestas agrupadas por esquema_copa_id
- */
-export async function cargarPropuestas(supabase, torneoId) {
-  const { data, error } = await supabase
-    .from('propuestas_copa')
-    .select(`
-      id,
-      ronda,
-      orden,
-      estado,
-      pareja_a:parejas!propuestas_copa_pareja_a_id_fkey ( id, nombre ),
-      pareja_b:parejas!propuestas_copa_pareja_b_id_fkey ( id, nombre ),
-      esquema:esquemas_copa!inner ( id, nombre, orden, formato, torneo_id )
-    `)
-    .eq('esquemas_copa.torneo_id', torneoId)
-    .order('orden', { ascending: true });
+  const copaIds = copas.map(c => c.id);
+  const { data: partidos } = await supabase
+    .from('partidos')
+    .select('id')
+    .in('copa_id', copaIds)
+    .limit(1);
 
-  if (error) {
-    console.error('Error cargando propuestas:', error);
-    return [];
-  }
-  return data || [];
-}
-
-/**
- * Invoca el motor de propuestas en Supabase (función RPC).
- * Se llama cuando un resultado pasa a 'confirmado' o cuando el admin fuerza.
- *
- * @param {Object} supabase  - Cliente de Supabase
- * @param {string} torneoId  - ID del torneo
- * @returns {{ ok: boolean, propuestas_creadas: number, msg?: string }}
- */
-export async function invocarMotorPropuestas(supabase, torneoId) {
-  const { data, error } = await supabase
-    .rpc('verificar_y_proponer_copas', { p_torneo_id: torneoId });
-
-  if (error) {
-    console.error('Error invocando motor de propuestas:', error);
-    return { ok: false, msg: error.message };
-  }
-
-  return { ok: true, propuestas_creadas: data?.propuestas_creadas ?? 0 };
-}
-
-/**
- * Aprueba las propuestas pendientes de un esquema (crea copa + partidos).
- *
- * @param {Object} supabase       - Cliente de Supabase
- * @param {string} esquemaCopaid  - ID del esquema_copa
- * @returns {{ ok: boolean, copa_id?: string, partidos_creados?: number, msg?: string }}
- */
-export async function aprobarPropuestas(supabase, esquemaCopaid) {
-  const { data, error } = await supabase
-    .rpc('aprobar_propuestas_copa', { p_esquema_copa_id: esquemaCopaid });
-
-  if (error) {
-    console.error('Error aprobando propuestas:', error);
-    return { ok: false, msg: error.message };
-  }
-
-  if (data?.error) {
-    return { ok: false, msg: data.error };
-  }
-
-  return {
-    ok: true,
-    copa_id: data?.copa_id,
-    partidos_creados: data?.partidos_creados ?? 0
-  };
-}
-
-/**
- * Aprueba una sola propuesta pendiente de un esquema (partido individual).
- * Crea la copa si aún no existe, luego crea el partido para esa propuesta.
- *
- * @param {Object} supabase      - Cliente de Supabase
- * @param {string} esquemaCopaid - ID del esquema_copa
- * @param {string} propuestaId   - ID de la propuesta a aprobar
- * @returns {{ ok: boolean, copa_id?: string, partidos_creados?: number, msg?: string }}
- */
-export async function aprobarPropuestaIndividual(supabase, esquemaCopaid, propuestaId) {
-  const { data, error } = await supabase
-    .rpc('aprobar_propuestas_copa', {
-      p_esquema_copa_id: esquemaCopaid,
-      p_propuesta_ids:   [propuestaId]
-    });
-
-  if (error) {
-    console.error('Error aprobando propuesta individual:', error);
-    return { ok: false, msg: error.message };
-  }
-
-  if (data?.error) {
-    return { ok: false, msg: data.error };
-  }
-
-  return {
-    ok: true,
-    copa_id:          data?.copa_id,
-    partidos_creados: data?.partidos_creados ?? 0
-  };
+  return (partidos?.length || 0) > 0;
 }
 
 /**
@@ -359,13 +244,8 @@ export async function detectarYSugerirPreset(supabase, torneoId) {
   return { numGrupos, numParejas, parejasPorGrupo, minParejasPorGrupo };
 }
 
-// ============================================================
-// Funciones de cálculo puro (sin IO) — para Decisión 1 y Decisión 2
-// ============================================================
-
 /**
  * Carga standings del torneo enriquecidos con nombres de parejas y grupos.
- * Fuente de datos para calcularClasificadosConWarnings y calcularCrucesConWarnings.
  *
  * @returns {{ standings, grupos, todosCompletos }}
  */
@@ -393,217 +273,36 @@ export async function cargarStandingsParaCopas(supabase, torneoId) {
 }
 
 /**
- * Función pura. Recibe standings enriquecidos y las reglas del esquema;
- * retorna quiénes clasifican, zona gris (empates en frontera) y warnings.
- *
- * @param {{ standings, grupos }} standingsData
- * @param {Object} esquema - Con campo `reglas`
- * @param {Array}  propuestasAprobadas - Propuestas ya aprobadas de este esquema
- * @returns {{ clasificados, zonaGris, pendientes, warnings }}
- */
-export function calcularClasificadosConWarnings(standingsData, esquema, propuestasAprobadas) {
-  const { standings, grupos } = standingsData;
-  const reglas = esquema.reglas || [];
-
-  const aprobadosIds = new Set(
-    (propuestasAprobadas || [])
-      .flatMap(p => [p.pareja_a?.id, p.pareja_b?.id])
-      .filter(Boolean)
-  );
-
-  const clasificados = [];
-  let zonaGris = [];
-  const pendientes = [];
-  const warnings = [];
-
-  const gruposCompletosIds = new Set(standings.filter(s => s.grupo_completo).map(s => s.grupo_id));
-  const gruposIncompletos  = grupos.filter(g => !gruposCompletosIds.has(g.id));
-  const hasGlobal          = reglas.some(r => r.modo === 'global');
-
-  if (hasGlobal) {
-    const globalRule = reglas.find(r => r.modo === 'global') || {};
-    const desde = globalRule.desde || 1;
-    const hasta = globalRule.hasta || 4;
-
-    const allSorted = standings.filter(s => s.grupo_completo).sort(_cmpDesc);
-    const inScope   = allSorted.slice(desde - 1, hasta);
-    const nextTeam  = allSorted[hasta] || null;
-
-    inScope.forEach((t, i) => clasificados.push({
-      ...t, seed: desde + i, aprobado: aprobadosIds.has(t.pareja_id)
-    }));
-
-    // Zona gris: empate entre último clasificado y el primero excluido
-    if (nextTeam && inScope.length > 0) {
-      const ultimo = inScope[inScope.length - 1];
-      if (_empate(nextTeam, ultimo)) {
-        zonaGris = allSorted.slice(hasta).filter(t => _empate(t, ultimo));
-        warnings.push({
-          tipo: 'empate_frontera',
-          equipos: [ultimo.nombre, ...zonaGris.map(z => z.nombre)],
-          detalle: `${ultimo.puntos} pts, DS ${_signo(ultimo.ds)}${Math.abs(ultimo.ds)}`
-        });
-      }
-    }
-
-    for (const g of gruposIncompletos) {
-      pendientes.push({ grupoId: g.id, grupoNombre: g.nombre });
-    }
-
-  } else {
-    // Seeding por posición de grupo
-    for (const regla of reglas) {
-      const posicion = regla.posicion;
-      const cantidad = regla.cantidad;
-      const criterio = regla.criterio;
-
-      let candidates = standings
-        .filter(s => s.posicion_en_grupo === posicion && s.grupo_completo)
-        .sort(_cmpDesc);
-
-      if (!criterio) {
-        // Sin criterio: uno por grupo (todos los grupos aportan esta posición)
-        candidates.forEach(t => clasificados.push({
-          ...t, seed: clasificados.length + 1, aprobado: aprobadosIds.has(t.pareja_id)
-        }));
-        for (const g of gruposIncompletos) {
-          if (!pendientes.some(p => p.grupoId === g.id)) {
-            pendientes.push({ grupoId: g.id, grupoNombre: g.nombre });
-          }
-        }
-      } else {
-        if (criterio === 'peor') candidates = [...candidates].reverse();
-        const limit = cantidad || candidates.length;
-        const taken = candidates.slice(0, limit);
-        const next  = candidates[limit];
-
-        taken.forEach(t => clasificados.push({
-          ...t, seed: clasificados.length + 1, aprobado: aprobadosIds.has(t.pareja_id)
-        }));
-
-        if (next && taken.length > 0) {
-          const ultimo = taken[taken.length - 1];
-          if (_empate(next, ultimo)) {
-            const newZona = candidates.slice(limit).filter(t => _empate(t, ultimo));
-            zonaGris = [...zonaGris, ...newZona];
-            warnings.push({
-              tipo: 'empate_frontera',
-              equipos: [ultimo.nombre, ...newZona.map(z => z.nombre)],
-              detalle: `${ultimo.puntos} pts, DS ${_signo(ultimo.ds)}${Math.abs(ultimo.ds)}`
-            });
-          }
-        }
-      }
-    }
-
-    // Detectar empates a 3+ dentro de un grupo (afectan posición → copa destino)
-    for (const grupoId of gruposCompletosIds) {
-      const grupoTeams = standings.filter(s => s.grupo_id === grupoId && s.grupo_completo);
-      const statsGroups = {};
-      for (const t of grupoTeams) {
-        const key = `${t.puntos}_${t.ds}_${t.dg || 0}_${t.gf}`;
-        if (!statsGroups[key]) statsGroups[key] = [];
-        statsGroups[key].push(t);
-      }
-      for (const tied of Object.values(statsGroups)) {
-        if (tied.length >= 3) {
-          const grupoNombre = grupos.find(g => g.id === grupoId)?.nombre || grupoId;
-          const positions   = tied.map(t => `${t.posicion_en_grupo}°`).join('-');
-          warnings.push({ tipo: 'empate_grupo', grupoNombre, posiciones: positions, grupoId });
-        }
-      }
-    }
-  }
-
-  return { clasificados, zonaGris, pendientes, warnings };
-}
-
-/**
- * Función pura. Recibe propuestas de un esquema y standings enriquecidos;
- * retorna cruces con info de grupo de origen y warnings de "mismo grupo".
- *
- * @param {Array}  propuestasEsquema - Todas las propuestas del esquema (pendientes + aprobadas)
- * @param {{ standings, grupos }} standingsData
- * @returns {{ cruces, warnings }}
- */
-export function calcularCrucesConWarnings(propuestasEsquema, standingsData) {
-  const { standings, grupos } = standingsData;
-
-  // Mapa parejaId → { grupoId, grupoNombre }
-  const parejaGrupoMap = {};
-  for (const s of standings) {
-    parejaGrupoMap[s.pareja_id] = { grupoId: s.grupo_id, grupoNombre: s.grupoNombre };
-  }
-
-  const cruces = (propuestasEsquema || []).map(p => {
-    const gA = p.pareja_a ? parejaGrupoMap[p.pareja_a.id] : null;
-    const gB = p.pareja_b ? parejaGrupoMap[p.pareja_b.id] : null;
-
-    const mismoGrupo = !!(gA && gB && gA.grupoId && gA.grupoId === gB.grupoId);
-
-    return {
-      id:       p.id,
-      ronda:    p.ronda,
-      orden:    p.orden,
-      aprobado: p.estado === 'aprobado',
-      parejaA:  p.pareja_a
-        ? { id: p.pareja_a.id, nombre: p.pareja_a.nombre, grupoId: gA?.grupoId, grupoNombre: gA?.grupoNombre }
-        : null,
-      parejaB:  p.pareja_b
-        ? { id: p.pareja_b.id, nombre: p.pareja_b.nombre, grupoId: gB?.grupoId, grupoNombre: gB?.grupoNombre }
-        : null,
-      mismoGrupo
-    };
-  });
-
-  const warnings = cruces
-    .filter(c => c.mismoGrupo && !c.aprobado)
-    .map(c => ({
-      tipo:    'mismo_grupo',
-      orden:   c.orden,
-      equipos: [c.parejaA?.nombre, c.parejaB?.nombre].filter(Boolean),
-      grupo:   c.parejaA?.grupoNombre
-    }));
-
-  return { cruces, warnings };
-}
-
-// Helpers internos para calcularClasificadosConWarnings
-function _cmpDesc(a, b) {
-  if (b.puntos !== a.puntos) return b.puntos - a.puntos;
-  if (b.ds     !== a.ds)     return b.ds     - a.ds;
-  if ((b.dg || 0) !== (a.dg || 0)) return (b.dg || 0) - (a.dg || 0);
-  if (b.gf     !== a.gf)     return b.gf     - a.gf;
-  return String(a.nombre).localeCompare(String(b.nombre));
-}
-function _empate(a, b) {
-  return a.puntos === b.puntos && a.ds === b.ds && (a.dg || 0) === (b.dg || 0) && a.gf === b.gf;
-}
-function _signo(n) { return n >= 0 ? '+' : ''; }
-
-// ============================================================
-
-/**
- * Modifica el seeding de una propuesta pendiente (swap de parejas entre cruces).
- * Permite que el admin ajuste quién juega contra quién antes de aprobar.
+ * Crea una copa y sus partidos iniciales usando los cruces calculados client-side.
+ * Llama al RPC crear_partidos_copa de E1.
  *
  * @param {Object} supabase    - Cliente de Supabase
- * @param {string} propuestaId - ID de la propuesta a modificar
- * @param {string} parejaAId   - Nuevo pareja_a_id
- * @param {string} parejaBId   - Nuevo pareja_b_id
- * @returns {{ ok: boolean, msg?: string }}
+ * @param {string} esquemaId   - ID del esquema_copa
+ * @param {Array}  cruces      - Array de { ronda, orden, parejaA, parejaB }
+ *                               donde parejaA/B son objetos con { pareja_id }
+ * @returns {{ ok: boolean, copa_id?: string, partidos_creados?: number, msg?: string }}
  */
-export async function modificarPropuesta(supabase, propuestaId, parejaAId, parejaBId) {
-  const { error } = await supabase
-    .from('propuestas_copa')
-    .update({ pareja_a_id: parejaAId, pareja_b_id: parejaBId })
-    .eq('id', propuestaId)
-    .eq('estado', 'pendiente');  // Solo si está pendiente
+export async function crearPartidosCopa(supabase, esquemaId, cruces) {
+  const payload = (cruces || []).map(c => ({
+    ronda:        c.ronda,
+    orden:        c.orden,
+    pareja_a_id:  c.parejaA?.pareja_id ?? null,
+    pareja_b_id:  c.parejaB?.pareja_id ?? null
+  }));
+
+  const { data, error } = await supabase.rpc('crear_partidos_copa', {
+    p_esquema_copa_id: esquemaId,
+    p_cruces:          payload
+  });
 
   if (error) {
-    console.error('Error modificando propuesta:', error);
+    console.error('Error creando partidos copa:', error);
     return { ok: false, msg: error.message };
   }
 
-  return { ok: true };
+  return {
+    ok:               true,
+    copa_id:          data?.copa_id,
+    partidos_creados: data?.partidos_creados ?? 0
+  };
 }
