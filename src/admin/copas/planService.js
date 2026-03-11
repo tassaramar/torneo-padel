@@ -501,7 +501,7 @@ export function calcularClasificadosConWarnings(standingsData, esquema, propuest
       const grupoTeams = standings.filter(s => s.grupo_id === grupoId && s.grupo_completo);
       const statsGroups = {};
       for (const t of grupoTeams) {
-        const key = `${t.puntos}_${t.ds}_${t.gf}`;
+        const key = `${t.puntos}_${t.ds}_${t.dg || 0}_${t.gf}`;
         if (!statsGroups[key]) statsGroups[key] = [];
         statsGroups[key].push(t);
       }
@@ -572,11 +572,12 @@ export function calcularCrucesConWarnings(propuestasEsquema, standingsData) {
 function _cmpDesc(a, b) {
   if (b.puntos !== a.puntos) return b.puntos - a.puntos;
   if (b.ds     !== a.ds)     return b.ds     - a.ds;
+  if ((b.dg || 0) !== (a.dg || 0)) return (b.dg || 0) - (a.dg || 0);
   if (b.gf     !== a.gf)     return b.gf     - a.gf;
   return String(a.nombre).localeCompare(String(b.nombre));
 }
 function _empate(a, b) {
-  return a.puntos === b.puntos && a.ds === b.ds && a.gf === b.gf;
+  return a.puntos === b.puntos && a.ds === b.ds && (a.dg || 0) === (b.dg || 0) && a.gf === b.gf;
 }
 function _signo(n) { return n >= 0 ? '+' : ''; }
 

@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-10 (E1 SQL Foundation de Copa Approval v2 implementada)
+**Última actualización**: 2026-03-10 (E2 Motor matchups de Copa Approval v2 implementado)
 
 ---
 
@@ -35,7 +35,7 @@
 
 > Máximo 3 ítems a la vez. Para agregar uno, sacar uno primero. Obliga a priorizar.
 
-1. [MEJORA] Copa Approval v2 — standings + sorteo + cruces automáticos · `🚧 EN DESARROLLO` · **E1 ✅** (SQL Foundation) **E2-E7** (RPC + JS) · **Spec**: [spec-copa-approval-v2.md](spec-copa-approval-v2.md) · **Plan**: [prompt-implementacion-copa-v2.md](prompt-implementacion-copa-v2.md)
+1. [MEJORA] Copa Approval v2 — standings + sorteo + cruces automáticos · `🚧 EN DESARROLLO` · **E1 ✅** (SQL Foundation) **E2 ✅** (Motor matchups JS) **E3-E7** (RPC sorteo + UI) · **Spec**: [spec-copa-approval-v2.md](spec-copa-approval-v2.md) · **Plan**: [prompt-implementacion-copa-v2.md](prompt-implementacion-copa-v2.md)
 2. _(libre)_
 3. _(libre)_
 
@@ -252,6 +252,21 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ---
 
 ## Historial — Implementado / Validado
+
+### Copa Approval v2 — Etapa 2: Motor matchups JS `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-10 · **Spec técnica**: [etapa2-motor-matchups.md](etapa2-motor-matchups.md)
+
+Módulo puro `src/utils/copaMatchups.js` con 5 funciones exportadas:
+- **`cmpStandings`**: comparador cross-grupo (puntos → ds → dg → gf → sorteo_orden → nombre)
+- **`armarPoolParaCopa`**: construye pool de clasificados respetando reglas (global o por posición), excluye equipos ya usados
+- **`seedingMejorPeor`**: seeding Mejor-Peor para 2/3/4/8 equipos con detección de endógenos
+- **`optimizarEndogenos`**: swap secuencial para evitar cruces intra-grupo (con inmutabilidad y protección de equipos ya swappeados)
+- **`detectarEmpates`**: detecta empates frontera, inter-grupo e intra-grupo como warnings informativos
+
+3 cambios en `planService.js`: `_cmpDesc` y `_empate` incluyen `dg`; key de empates 3+ incluye `dg`.
+
+---
 
 ### Copa Approval v2 — Etapa 1: SQL Foundation `✅ IMPLEMENTADA`
 
