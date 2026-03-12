@@ -165,7 +165,7 @@ function _renderCrucesReadOnly(esq, pool, cruces, warnings, standingsData) {
 
   return `
     <div style="font-size:12px; font-weight:600; color:var(--muted); margin-bottom:6px;">CRUCES</div>
-    ${_renderCruces(cruces)}
+    ${_renderBracket(_normalizarCrucesParaBracket(cruces))}
     ${endogenoHint}
     ${tablaHtml}
     <div class="copa-actions admin-actions" style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
@@ -211,7 +211,7 @@ function _renderFormEdicion(esquemaId, crucesBase, pool, allStandings) {
     ).join('');
     const opOtros = otros.map(s =>
       `<option value="${_esc(s.pareja_id)}"${s.pareja_id === selectedId ? ' selected' : ''}>` +
-      `${_esc(s.nombre)} (${_esc(s.grupoNombre || '?')})</option>`
+      `${_esc(s.nombre)} (${_esc(s.grupoNombre || '?')} ${s.posicion_en_grupo || '?'}°)</option>`
     ).join('');
 
     return `
@@ -614,38 +614,6 @@ function _renderWarnings(warnings, esquemaId) {
 }
 
 // ============================================================
-// Render: lista de cruces
-// ============================================================
-
-function _renderCruces(cruces) {
-  if (!cruces?.length) return '<p style="font-size:13px; color:var(--muted);">Sin cruces calculados.</p>';
-
-  return cruces.map(c => {
-    const rondaLabel  = labelRonda(c.ronda, true) + (c.orden ? ` ${c.orden}` : '');
-    const nombreA     = c.parejaA
-      ? `<strong>${_esc(c.parejaA.nombre)}</strong> <span style="font-size:11px; color:var(--muted);">(${_esc(c.parejaA.grupoNombre || '?')} ${c.parejaA.posicion_en_grupo || '?'}°)</span>`
-      : `<span style="color:var(--muted);">⏳ pendiente</span>`;
-    const nombreB     = c.parejaB
-      ? `<strong>${_esc(c.parejaB.nombre)}</strong> <span style="font-size:11px; color:var(--muted);">(${_esc(c.parejaB.grupoNombre || '?')} ${c.parejaB.posicion_en_grupo || '?'}°)</span>`
-      : `<span style="color:var(--muted);">⏳ pendiente</span>`;
-    const endogenoBadge = c.endogeno
-      ? `<span style="font-size:11px; color:#d97706; margin-left:6px;">⚠️ mismo grupo</span>`
-      : '';
-
-    return `
-      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;
-                  padding:6px 0; border-bottom:1px solid var(--border);">
-        <span style="font-size:12px; color:var(--muted); min-width:60px;">${_esc(rondaLabel)}</span>
-        <span style="font-size:14px;">${nombreA}</span>
-        <span style="color:var(--muted); font-size:12px;">vs</span>
-        <span style="font-size:14px;">${nombreB}</span>
-        ${endogenoBadge}
-      </div>
-    `;
-  }).join('');
-}
-
-// ============================================================
 // Render: tabla general de clasificados (acordeón)
 // ============================================================
 
@@ -778,36 +746,9 @@ function _renderEsquemaEsperando(esq, standingsData) {
 // ============================================================
 
 function _renderEsquemaEnCurso(esq, copa, partidos) {
-  const semis   = partidos.filter(p => p.ronda_copa === 'SF').sort((a, b) => (a.orden_copa || 0) - (b.orden_copa || 0));
-  const cuartos = partidos.filter(p => p.ronda_copa === 'QF').sort((a, b) => (a.orden_copa || 0) - (b.orden_copa || 0));
+  const semis   = partidos.filter(p => p.ronda_copa === 'SF');
   const final   = partidos.find(p => p.ronda_copa === 'F');
-  const tercer  = partidos.find(p => p.ronda_copa === '3P');
   const directo = partidos.find(p => p.ronda_copa === 'direct');
-
-  const renderPartido = (p, label) => {
-    if (!p) return '';
-    const resultado = p.sets_a !== null
-      ? `<span style="font-size:13px; color:var(--muted);">${formatearResultado(p, { incluirSTB: true })}</span>`
-      : `<span style="font-size:12px; color:var(--muted);">pendiente</span>`;
-    return `
-      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;
-                  padding:5px 0; border-bottom:1px solid var(--border,#e5e7eb);">
-        <span style="font-size:12px; color:var(--muted); min-width:60px;">${_esc(label)}</span>
-        <span style="font-size:14px;">${_esc(p.pareja_a?.nombre || '?')}</span>
-        <span style="color:var(--muted); font-size:12px;">vs</span>
-        <span style="font-size:14px;">${_esc(p.pareja_b?.nombre || '?')}</span>
-        ${resultado}
-      </div>
-    `;
-  };
-
-  const partidosHtml = [
-    ...cuartos.map((q, i) => renderPartido(q, `Cuartos ${i + 1}`)),
-    ...semis.map((s, i) => renderPartido(s, `${labelRonda('SF', true)} ${i + 1}`)),
-    renderPartido(directo, labelRonda('direct')),
-    renderPartido(final, labelRonda('F')),
-    renderPartido(tercer, labelRonda('3P'))
-  ].filter(Boolean).join('');
 
   const semisConfirmadas = semis.filter(s => s.estado === 'confirmado').length;
   const pendFinal = semis.length >= 2 && semisConfirmadas === semis.length && !final && !directo;
@@ -825,10 +766,189 @@ function _renderEsquemaEnCurso(esq, copa, partidos) {
         <strong>${_esc(esq.nombre)}</strong>
         <span style="font-size:12px; color:#16a34a;">✅ En curso</span>
       </div>
-      ${partidosHtml}
+      ${_renderBracket(_normalizarPartidosParaBracket(partidos))}
       ${autoFinalHint}
     </div>
   `;
+}
+
+// ============================================================
+// Bracket helpers
+// ============================================================
+
+function _normalizarCrucesParaBracket(cruces) {
+  return (cruces || []).map(c => ({
+    ronda:    c.ronda,
+    orden:    c.orden || 0,
+    teamA:    c.parejaA ? {
+      nombre:  c.parejaA.nombre,
+      detalle: c.parejaA.grupoNombre
+        ? `${c.parejaA.grupoNombre} ${c.parejaA.posicion_en_grupo || '?'}°`
+        : null,
+      winner: false
+    } : null,
+    teamB:    c.parejaB ? {
+      nombre:  c.parejaB.nombre,
+      detalle: c.parejaB.grupoNombre
+        ? `${c.parejaB.grupoNombre} ${c.parejaB.posicion_en_grupo || '?'}°`
+        : null,
+      winner: false
+    } : null,
+    resultado: null,
+    endogeno:  c.endogeno || false
+  }));
+}
+
+function _normalizarPartidosParaBracket(partidos) {
+  return (partidos || []).map(p => {
+    const hayResultado = p.sets_a !== null && p.sets_b !== null;
+    return {
+      ronda:    p.ronda_copa,
+      orden:    p.orden_copa || 0,
+      teamA:    p.pareja_a ? {
+        nombre:  p.pareja_a.nombre,
+        detalle: null,
+        winner:  hayResultado && p.sets_a > p.sets_b
+      } : null,
+      teamB:    p.pareja_b ? {
+        nombre:  p.pareja_b.nombre,
+        detalle: null,
+        winner:  hayResultado && p.sets_b > p.sets_a
+      } : null,
+      resultado: hayResultado ? formatearResultado(p, { incluirSTB: true }) : null,
+      endogeno:  false
+    };
+  });
+}
+
+function _renderBracketMatch(m) {
+  const needsNumber = !['F', 'direct', '3P'].includes(m.ronda);
+  const rondaLabel  = labelRonda(m.ronda, true) + (needsNumber && m.orden ? ` ${m.orden}` : '');
+
+  const renderTeam = (team, isWinner) => {
+    if (!team) {
+      return `<div class="sb-team sb-pending">⏳ pendiente</div>`;
+    }
+    const detalleHtml = team.detalle
+      ? ` <span style="color:#9ca3af; font-size:10px;">(${_esc(team.detalle)})</span>`
+      : '';
+    const cls = ['sb-team'];
+    if (isWinner)   cls.push('sb-winner');
+    if (m.endogeno) cls.push('sb-endogeno');
+    return `<div class="${cls.join(' ')}">${_esc(team.nombre)}${detalleHtml}</div>`;
+  };
+
+  const resultHtml = m.resultado
+    ? `<div class="sb-result">${_esc(m.resultado)}</div>`
+    : '';
+
+  const endogenoWarn = m.endogeno
+    ? `<div style="font-size:10px; color:#d97706; margin-top:2px;">⚠️ mismo grupo</div>`
+    : '';
+
+  return `
+    <div class="sb-match">
+      <div class="sb-label">${_esc(rondaLabel)}</div>
+      <div class="sb-teams">
+        ${renderTeam(m.teamA, m.teamA?.winner)}
+        ${renderTeam(m.teamB, m.teamB?.winner)}
+      </div>
+      ${resultHtml}
+      ${endogenoWarn}
+    </div>
+  `;
+}
+
+function _renderBracketConnector(inputCount) {
+  const N     = inputCount;
+  const pairs = N / 2;
+  const lines = [];
+
+  for (let p = 0; p < pairs; p++) {
+    const topY = `${((4 * p + 1) / (2 * N)) * 100}%`;
+    const botY = `${((4 * p + 3) / (2 * N)) * 100}%`;
+    const midY = `${((4 * p + 2) / (2 * N)) * 100}%`;
+    lines.push(
+      `<line x1="0" y1="${topY}" x2="50%" y2="${topY}" stroke="#d1d5db" stroke-width="1"/>`,
+      `<line x1="0" y1="${botY}" x2="50%" y2="${botY}" stroke="#d1d5db" stroke-width="1"/>`,
+      `<line x1="50%" y1="${topY}" x2="50%" y2="${botY}" stroke="#d1d5db" stroke-width="1"/>`,
+      `<line x1="50%" y1="${midY}" x2="100%" y2="${midY}" stroke="#d1d5db" stroke-width="1"/>`
+    );
+  }
+
+  return `
+    <div class="sbracket-lines">
+      <svg width="100%" height="100%" preserveAspectRatio="none"
+           style="display:block; height:100%;">
+        ${lines.join('\n        ')}
+      </svg>
+    </div>
+  `;
+}
+
+function _renderBracket(matches) {
+  if (!matches?.length) {
+    return '<p style="font-size:13px; color:var(--muted);">Sin cruces calculados.</p>';
+  }
+
+  // Agrupar por ronda y ordenar por orden
+  const byRound = {};
+  for (const m of matches) {
+    if (!byRound[m.ronda]) byRound[m.ronda] = [];
+    byRound[m.ronda].push(m);
+  }
+  for (const arr of Object.values(byRound)) {
+    arr.sort((a, b) => (a.orden || 0) - (b.orden || 0));
+  }
+
+  // Agregar rondas futuras como placeholders (equipos null → "⏳ pendiente")
+  const addPlaceholder = (ronda, count) => {
+    if (!byRound[ronda]) {
+      byRound[ronda] = Array.from({ length: count }, (_, i) => ({
+        ronda, orden: i + 1, teamA: null, teamB: null, resultado: null, endogeno: false
+      }));
+    }
+  };
+  if (byRound['QF'] && !byRound['SF']) addPlaceholder('SF', byRound['QF'].length / 2);
+  if ((byRound['QF'] || byRound['SF']) && !byRound['F']) addPlaceholder('F', 1);
+  // direct: no necesita placeholder
+
+  const has3P = !!byRound['3P'];
+
+  const ROUND_ORDER = ['QF', 'SF', 'direct', 'F'];
+  const rounds = ROUND_ORDER.filter(r => byRound[r]);
+
+  if (!rounds.length) {
+    return '<p style="font-size:13px; color:var(--muted);">Sin cruces calculados.</p>';
+  }
+
+  let html = '<div class="sbracket">';
+  for (let i = 0; i < rounds.length; i++) {
+    const ronda        = rounds[i];
+    const roundMatches = byRound[ronda];
+
+    html += `<div class="sbracket-col">`;
+    html += roundMatches.map(m => _renderBracketMatch(m)).join('');
+    html += `</div>`;
+
+    if (i < rounds.length - 1) {
+      html += _renderBracketConnector(roundMatches.length);
+    }
+  }
+  html += `<div class="sb-trophy">🏆</div>`;
+  html += `</div>`;
+
+  if (has3P) {
+    const m3p = byRound['3P'][0];
+    html += `
+      <div style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border);">
+        <div style="font-size:11px; color:var(--muted); margin-bottom:4px; font-weight:600;">3ER PUESTO</div>
+        ${_renderBracketMatch(m3p)}
+      </div>
+    `;
+  }
+
+  return html;
 }
 
 // ============================================================
