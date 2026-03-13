@@ -9,6 +9,7 @@ import { resetCopas, crearPartidosCopa } from './planService.js';
 import {
   armarPoolParaCopa,
   seedingMejorPeor,
+  seedingParcial,
   optimizarEndogenos,
   detectarEmpates
 } from '../../utils/copaMatchups.js';
@@ -72,32 +73,52 @@ export async function renderStatusView(container, esquemas, copas, standingsData
     const copa     = copaPorEsquema[esq.id];
     const partidos = copa ? (partidosPorCopa[copa.id] || []) : [];
 
-    // Estado: ya hay partidos creados → en curso
-    if (partidos.length > 0) {
+    // Extraer equipos ya usados (de partidos existentes)
+    const equiposYaUsadosIds = new Set();
+    for (const p of partidos) {
+      if (p.pareja_a?.id) equiposYaUsadosIds.add(p.pareja_a.id);
+      if (p.pareja_b?.id) equiposYaUsadosIds.add(p.pareja_b.id);
+    }
+
+    // Calcular tamaño esperado del bracket
+    const tamañoBracket = _calcularTamañoBracket(esq.reglas, standingsData.grupos);
+    const primeraRondaEsperada = tamañoBracket / 2;
+    const primeraRondaLabel = tamañoBracket >= 8 ? 'QF' : tamañoBracket >= 4 ? 'SF' : 'direct';
+    const partidosPrimeraRonda = partidos.filter(p => p.ronda_copa === primeraRondaLabel);
+
+    // Estado 1: bracket completo → en curso (sin cambios)
+    if (partidosPrimeraRonda.length >= primeraRondaEsperada && primeraRondaEsperada > 0) {
       return _renderEsquemaEnCurso(esq, copa, partidos);
     }
 
-    // Estado: no todos los grupos completos → esperar
-    if (!allGroupsComplete) {
-      return _renderEsquemaEsperando(esq, standingsData);
-    }
-
-    // Estado: todos completos → calcular matchups
+    // Calcular pool parcial (excluye equipos ya usados)
     const { pool, pendientes } = armarPoolParaCopa(
-      standingsData.standings,
-      standingsData.grupos,
-      esq.reglas,
-      new Set() // E4a: sin aprobaciones parciales
+      standingsData.standings, standingsData.grupos, esq.reglas, equiposYaUsadosIds
     );
 
-    const crucesSeed = seedingMejorPeor(pool);
-    const cruces     = optimizarEndogenos(crucesSeed, new Set());
-    const { warnings } = detectarEmpates(pool, standingsData.standings, esq.reglas);
+    // Estado 2: hay partidos o pool suficiente → modo parcial
+    if (partidos.length > 0 || pool.length >= 2) {
+      const cruces = seedingParcial(pool, tamañoBracket);
+      const crucesOpt = optimizarEndogenos(cruces, equiposYaUsadosIds);
+      const { warnings } = detectarEmpates(pool, standingsData.standings, esq.reglas);
 
-    // Guardar para usar en event handlers
-    _crucesCalculados[esq.id] = cruces;
+      _crucesCalculados[esq.id] = crucesOpt;
 
-    return _renderEsquemaPorAprobar(esq, pool, cruces, warnings, standingsData);
+      return _renderEsquemaParcial(esq, copa, partidos, crucesOpt, warnings,
+                                    standingsData, pendientes, equiposYaUsadosIds);
+    }
+
+    // Estado 3: todos los grupos completos, sin partidos → aprobar completo
+    if (allGroupsComplete) {
+      const crucesSeed = seedingMejorPeor(pool);
+      const cruces     = optimizarEndogenos(crucesSeed, new Set());
+      const { warnings } = detectarEmpates(pool, standingsData.standings, esq.reglas);
+      _crucesCalculados[esq.id] = cruces;
+      return _renderEsquemaPorAprobar(esq, pool, cruces, warnings, standingsData);
+    }
+
+    // Estado 4: nada todavía → esperar
+    return _renderEsquemaEsperando(esq, standingsData);
   }).join('');
 
   container.innerHTML = `
@@ -288,6 +309,52 @@ function _desactivarModoEdicion(container, esquemaId, esq, pool, allStandings, s
 }
 
 // ============================================================
+// Helpers para aprobación parcial
+// ============================================================
+
+/**
+ * Calcula el tamaño total del bracket (número de equipos clasificados) según las reglas.
+ */
+function _calcularTamañoBracket(reglas, grupos) {
+  const hasGlobal = (reglas || []).some(r => r.modo === 'global');
+  if (hasGlobal) {
+    const rule = reglas.find(r => r.modo === 'global');
+    return (rule.hasta || 4) - (rule.desde || 1) + 1;
+  }
+  // Por posición: sumar cuántos equipos clasifican
+  let total = 0;
+  for (const r of (reglas || [])) {
+    if (r.criterio && r.cantidad) {
+      total += r.cantidad;
+    } else {
+      total += (grupos || []).length; // uno por grupo
+    }
+  }
+  return total;
+}
+
+/**
+ * Combina partidos existentes (de BD) con cruces parciales (calculados client-side)
+ * para alimentar _renderBracket. Si un slot ya tiene partido en BD, se usa ese.
+ */
+function _mergeBracketData(partidosExistentes, crucesParciales) {
+  const normPartidos = _normalizarPartidosParaBracket(partidosExistentes || []);
+  const normCruces   = _normalizarCrucesParaBracket(crucesParciales || []);
+
+  // Mapa de partidos existentes: "ronda:orden" → partido normalizado
+  const partidosMap = new Map();
+  for (const p of normPartidos) {
+    partidosMap.set(`${p.ronda}:${p.orden}`, p);
+  }
+
+  // Para cada slot calculado, usar partido existente si hay
+  return normCruces.map(cruce => {
+    const key = `${cruce.ronda}:${cruce.orden}`;
+    return partidosMap.get(key) || cruce;
+  });
+}
+
+// ============================================================
 // Auto-dedup + warnings inline
 // ============================================================
 
@@ -453,6 +520,80 @@ function _wireStatusEvents(container, esquemas, standingsData, onRefresh) {
       return;
     }
 
+    // Aprobar cruce individual (modo parcial)
+    if (btn.classList.contains('btn-aprobar-cruce')) {
+      const esquemaId = btn.dataset.esquemaId;
+      const ronda     = btn.dataset.ronda;
+      const orden     = Number(btn.dataset.orden);
+
+      const cruces = _crucesCalculados[esquemaId] || [];
+      const cruce  = cruces.find(c => c.ronda === ronda && c.orden === orden);
+
+      if (!cruce?.parejaA?.pareja_id || !cruce?.parejaB?.pareja_id) {
+        logMsg('❌ Cruce incompleto, no se puede aprobar');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = '⏳…';
+
+      const { ok, msg } = await crearPartidosCopa(supabase, esquemaId, [cruce]);
+
+      if (ok) {
+        logMsg(`✅ Cruce aprobado: ${cruce.parejaA.nombre} vs ${cruce.parejaB.nombre}`);
+        onRefresh?.();
+      } else {
+        logMsg(`❌ Error: ${msg}`);
+        btn.disabled = false;
+        btn.textContent = '✅ Aprobar';
+      }
+      return;
+    }
+
+    // Guardar sorteo inter-grupo
+    if (btn.classList.contains('btn-guardar-sorteo-inter')) {
+      const sorteoDiv = btn.closest('.sorteo-inter-grupo');
+      if (!sorteoDiv) return;
+
+      const inputs = sorteoDiv.querySelectorAll('.sorteo-orden-input');
+      const ordenParejas = [];
+
+      for (const inp of inputs) {
+        const val = Number(inp.value);
+        if (!val || val < 1) {
+          alert('Completá todos los órdenes del sorteo');
+          return;
+        }
+        ordenParejas.push({
+          pareja_id: inp.dataset.parejaId,
+          orden_sorteo: val
+        });
+      }
+
+      // Verificar no hay duplicados
+      const ordenes = ordenParejas.map(o => o.orden_sorteo);
+      if (new Set(ordenes).size !== ordenes.length) {
+        alert('Los órdenes no pueden repetirse');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = '⏳…';
+
+      const { guardarSorteoInterGrupo } = await import('./copaDecisionService.js');
+      const result = await guardarSorteoInterGrupo(supabase, TORNEO_ID, ordenParejas);
+
+      if (result.ok) {
+        logMsg('✅ Sorteo inter-grupo guardado');
+        onRefresh?.();
+      } else {
+        logMsg(`❌ Error guardando sorteo: ${result.msg}`);
+        btn.disabled = false;
+        btn.textContent = '💾 Guardar sorteo';
+      }
+      return;
+    }
+
     // Editar plan
     if (btn.id === 'btn-editar-plan') {
       const { renderPlanEditor } = await import('./planEditor.js');
@@ -583,15 +724,34 @@ function _renderWarnings(warnings, esquemaId) {
     }
 
     if (w.tipo === 'empate_inter_grupo') {
-      const equiposStr = (w.equipos || []).map(e =>
-        `${_esc(e.nombre)} (${_esc(e.grupoNombre)} ${w.posicion}°)`
-      ).join(', ');
+      const n = w.equipos?.length || 0;
+      const filasSorteo = (w.equipos || []).map(e => `
+        <div class="sorteo-fila" style="display:flex; align-items:center; gap:6px;">
+          <input type="number" min="1" max="${n}" class="sorteo-orden-input"
+                 data-pareja-id="${_esc(e.pareja_id)}"
+                 style="width:36px; text-align:center; padding:2px; border:1px solid var(--border); border-radius:4px;">
+          <span>${_esc(e.nombre)} (${_esc(e.grupoNombre || '')} ${w.posicion}°)</span>
+        </div>
+      `).join('');
+
       return `
-        <div style="font-size:12px; color:#d97706; margin-bottom:8px; padding:6px 10px;
+        <div class="sorteo-inter-grupo" data-esquema-id="${_esc(esquemaId)}" data-posicion="${w.posicion}"
+             style="font-size:12px; color:#d97706; margin-bottom:8px; padding:8px 10px;
                     background:rgba(251,191,36,0.1); border-radius:6px; border-left:3px solid #d97706;">
-          ⚠️ Empate entre ${w.equipos?.length || 0} equipos (${w.posicion}° de grupo):
-          ${equiposStr}
-          <br><span style="color:var(--muted);">🎲 Sorteo inter-grupo (disponible próximamente)</span>
+          ⚠️ Empate entre ${n} equipos (${w.posicion}° de grupo, mismos Pts/DS/DG/GF):
+          <div style="margin:8px 0; display:flex; flex-direction:column; gap:4px;">
+            ${filasSorteo}
+          </div>
+          <div style="display:flex; gap:6px;">
+            <button class="btn-guardar-sorteo-inter btn-primary btn-sm"
+                    data-esquema-id="${_esc(esquemaId)}">
+              💾 Guardar sorteo
+            </button>
+          </div>
+          <div style="font-size:11px; color:var(--muted); margin-top:4px;">
+            Ingresá el orden del sorteo físico (1 = mejor posición).
+            Los cruces se recalculan al guardar.
+          </div>
         </div>
       `;
     }
@@ -706,6 +866,94 @@ function _renderTablaGeneral(standingsData, clasificadosIds) {
         ${rows}
       </div>
     </details>
+  `;
+}
+
+// ============================================================
+// Render: esquema con aprobación parcial
+// ============================================================
+
+function _renderEsquemaParcial(esq, copa, partidosExistentes, crucesParciales, warnings,
+                                standingsData, pendientes, equiposYaUsadosIds) {
+  const hayWarningsBloqueantes = (warnings || []).some(
+    w => w.tipo === 'empate_frontera' || w.tipo === 'empate_inter_grupo'
+  );
+  const borderColor = hayWarningsBloqueantes ? '#f59e0b' : '#e5e7eb';
+  const bgColor     = hayWarningsBloqueantes ? 'rgba(251,191,36,0.06)' : 'var(--surface,#fff)';
+
+  // Bracket combinando partidos existentes + cruces nuevos + pendientes
+  const bracketData = _mergeBracketData(partidosExistentes, crucesParciales);
+
+  // Warnings con UI interactiva para empate inter-grupo
+  const warningsHtml = _renderWarnings(warnings || [], esq.id);
+
+  // Info de grupos pendientes
+  const gruposPendientesNombres = (pendientes || [])
+    .map(p => p.grupoNombre || p.grupoId).join(', ');
+  const progressHtml = gruposPendientesNombres
+    ? `<div style="font-size:12px; color:var(--muted); margin:8px 0;">
+         ⏳ Esperando ${_esc(gruposPendientesNombres)} para completar el cuadro
+       </div>`
+    : '';
+
+  // Cruces approvables individualmente (ambos equipos definidos, no están en BD)
+  const partidosExistentesKeys = new Set(
+    (partidosExistentes || []).map(p => `${p.ronda_copa}:${p.orden_copa}`)
+  );
+  const crucesApprovables = (crucesParciales || []).filter(c => {
+    if (!c.parejaA?.pareja_id || !c.parejaB?.pareja_id) return false;
+    return !partidosExistentesKeys.has(`${c.ronda}:${c.orden}`);
+  });
+
+  const crucesApprovablesHtml = crucesApprovables.length > 0 ? `
+    <div class="cruces-approvables" data-esquema-id="${_esc(esq.id)}" style="margin-top:8px;">
+      <div style="font-size:12px; font-weight:600; margin-bottom:6px; color:var(--muted);">CRUCES LISTOS</div>
+      ${crucesApprovables.map(c => {
+        const rondaLabel = labelRonda(c.ronda, true);
+        const nombreA = _esc(c.parejaA.nombre || c.parejaA.pareja_id);
+        const nombreB = _esc(c.parejaB.nombre || c.parejaB.pareja_id);
+        return `
+          <div class="cruce-approvable" data-ronda="${_esc(c.ronda)}" data-orden="${c.orden}"
+               style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid var(--border);">
+            <span style="font-size:12px; color:var(--muted); min-width:40px;">${_esc(rondaLabel)} ${c.orden}</span>
+            <span style="flex:1; font-size:13px;">${nombreA} vs ${nombreB}</span>
+            <button class="btn-aprobar-cruce btn-primary btn-sm"
+                    data-esquema-id="${_esc(esq.id)}" data-ronda="${_esc(c.ronda)}" data-orden="${c.orden}">
+              ✅ Aprobar
+            </button>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  ` : '';
+
+  // Tabla de clasificados parcial
+  const poolIds = (crucesParciales || [])
+    .flatMap(c => [c.parejaA?.pareja_id, c.parejaB?.pareja_id])
+    .filter(Boolean);
+  const tablaHtml = _renderTablaGeneral(standingsData, poolIds);
+
+  const gruposCompletos = (standingsData.grupos || []).filter(g =>
+    (standingsData.standings || []).some(s => s.grupo_id === g.id && s.grupo_completo)
+  ).length;
+  const gruposTotal = (standingsData.grupos || []).length;
+
+  return `
+    <div class="copa-seccion" data-esquema-id="${_esc(esq.id)}"
+         style="border:1px solid ${borderColor}; border-radius:12px;
+                padding:12px 14px; margin-bottom:10px; background:${bgColor};">
+      <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+        <strong>${_esc(esq.nombre)}</strong>
+        <span style="font-size:12px; color:#f59e0b;">🏗️ Parcial (${gruposCompletos} de ${gruposTotal} grupos)</span>
+      </div>
+      ${warningsHtml}
+      <div class="cruces-container" data-esquema-id="${_esc(esq.id)}">
+        ${_renderBracket(bracketData)}
+        ${progressHtml}
+        ${crucesApprovablesHtml}
+        ${tablaHtml}
+      </div>
+    </div>
   `;
 }
 

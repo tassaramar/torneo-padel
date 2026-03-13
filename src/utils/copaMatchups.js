@@ -171,6 +171,83 @@ export function seedingMejorPeor(pool) {
 }
 
 // ============================================================
+// Función 3b: seedingParcial
+// ============================================================
+
+/**
+ * Genera cruces de primera ronda para un pool parcial (cuando no todos los grupos
+ * terminaron). Produce cruces con equipos disponibles y slots pendientes (null).
+ *
+ * @param {Array}  pool          - Pool parcial (solo equipos disponibles, ya ordenados por seed)
+ * @param {number} tamañoBracket - Tamaño total del bracket (2, 4, 8)
+ * @returns {Array} - Array de cruces de primera ronda con posiciones asignadas
+ */
+export function seedingParcial(pool, tamañoBracket) {
+  const ronda = tamañoBracket >= 8 ? 'QF' : tamañoBracket >= 4 ? 'SF' : 'direct';
+  const totalSlots = Math.floor(tamañoBracket / 2);
+  const mitad = Math.ceil(totalSlots / 2);
+
+  // Caso 1: pool completo — delegar a seedingMejorPeor
+  if (pool.length >= tamañoBracket) {
+    return seedingMejorPeor(pool);
+  }
+
+  // Caso 2: muy pocos equipos — todo pendiente
+  if (pool.length < 2) {
+    return Array.from({ length: totalSlots }, (_, i) => ({
+      ronda, orden: i + 1, parejaA: null, parejaB: null, endogeno: false
+    }));
+  }
+
+  // Paso 3: parear equipos disponibles mejor-peor entre ellos
+  const n = pool.length;
+  const cruces = [];
+  const numPares = Math.floor(n / 2);
+
+  for (let i = 0; i < numPares; i++) {
+    const a = pool[i];
+    const b = pool[n - 1 - i];
+    cruces.push({
+      ronda,
+      orden: 0,
+      parejaA: a,
+      parejaB: b,
+      endogeno: !!(a && b && a.grupoId === b.grupoId)
+    });
+  }
+
+  // Equipo sobrante (impar) → bye
+  if (n % 2 === 1) {
+    cruces.push({
+      ronda, orden: 0,
+      parejaA: pool[Math.floor(n / 2)],
+      parejaB: null,
+      endogeno: false
+    });
+  }
+
+  // Paso 4: optimizar endógenos (swap cruzado entre grupos)
+  const crucesOpt = optimizarEndogenos(cruces, new Set());
+
+  // Paso 6: distribuir en posiciones del bracket alternando mitades
+  // cruce 0 → QF1 (upper), cruce 1 → QF3 (lower), cruce 2 → QF2 (upper), ...
+  const result = Array.from({ length: totalSlots }, (_, i) => ({
+    ronda, orden: i + 1, parejaA: null, parejaB: null, endogeno: false
+  }));
+
+  for (let i = 0; i < crucesOpt.length; i++) {
+    const halfIdx = i % 2;            // 0 = mitad superior, 1 = mitad inferior
+    const posInHalf = Math.floor(i / 2);
+    const orden = halfIdx * mitad + posInHalf + 1;
+    if (orden >= 1 && orden <= totalSlots) {
+      result[orden - 1] = { ...crucesOpt[i], orden };
+    }
+  }
+
+  return result;
+}
+
+// ============================================================
 // Función 4: optimizarEndogenos
 // ============================================================
 

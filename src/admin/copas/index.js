@@ -45,7 +45,7 @@ function renderIndicadorPaso(paso, info = '') {
   const mensajes = {
     1: 'Definí el plan de copas para arrancar',
     2: info || 'Esperando que terminen los grupos',
-    3: info || 'Todos los grupos terminaron — revisá los cruces y aprobá',
+    3: info || 'Hay cruces para aprobar — revisá y aprobá',
     4: info || 'Copas en curso'
   };
 
