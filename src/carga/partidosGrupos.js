@@ -360,7 +360,10 @@ function crearCardParaPartido(p, supabase, onAfterSave) {
         return false;
       }
 
-      dispararMotorCopas(supabase);
+      if (p.copa_id) {
+        supabase.rpc('avanzar_ronda_copa', { p_copa_id: p.copa_id })
+          .then(({ error: e }) => { if (e) console.warn('Avanzar ronda copa:', e.message); });
+      }
       if (onAfterSave) await onAfterSave();
       return true;
     }

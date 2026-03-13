@@ -106,6 +106,26 @@ La tabla de posiciones en `index.html` (vista del jugador) no refleja el sorteo 
 
 ---
 
+#### [MEJORA] index.html — bracket gráfico en vista de copas del jugador `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+El modal "Tablas/Grupos/Fixture" → tab Copas en index.html muestra los partidos de copa como lista plana. Usar el mismo componente bracket gráfico (`.sbracket`) que se implementó en admin.html para mostrar el estado de las copas de forma visual.
+
+**Archivos clave**: `src/viewer/modalConsulta.js`
+
+---
+
+#### [MEJORA] Unificar visualización de resultados y copas entre admin.html e index.html `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+Hoy la sección "Tablas/Grupos" de index.html y la vista de copas de admin.html tienen lógicas de render separadas. Unificar usando los mismos componentes (`_renderBracket`, `_renderTablaGeneral`) como funciones compartidas en `src/utils/` reutilizables desde ambas vistas.
+
+**Archivos clave**: `src/viewer/modalConsulta.js`, `src/admin/copas/statusView.js`, posible nuevo `src/utils/bracketRender.js`
+
+---
+
 #### [MEJORA] index.html — sección "Partidos por confirmar" desplegada por defecto `💡 CRUDA`
 
 **Score owner**: pendiente · **Spec**: ❌ falta
