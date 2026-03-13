@@ -96,8 +96,8 @@ export async function renderStatusView(container, esquemas, copas, standingsData
       standingsData.standings, standingsData.grupos, esq.reglas, equiposYaUsadosIds
     );
 
-    // Estado 2: hay partidos o pool suficiente → modo parcial
-    if (partidos.length > 0 || pool.length >= 2) {
+    // Estado 2: bracket incompleto con partidos ya aprobados, o algunos grupos completos (no todos)
+    if (partidos.length > 0 || (!allGroupsComplete && pool.length >= 2)) {
       const cruces = seedingParcial(pool, tamañoBracket);
       const crucesOpt = optimizarEndogenos(cruces, equiposYaUsadosIds);
       const { warnings } = detectarEmpates(pool, standingsData.standings, esq.reglas);
