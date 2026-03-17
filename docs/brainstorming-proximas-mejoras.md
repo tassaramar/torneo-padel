@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-11 (E4b Editar cruces — modo edición con selectores, auto-dedup, aprobación con cruces custom)
+**Última actualización**: 2026-03-17 (E4c correcciones — filtro quiebre, eliminar sorteo inter-grupo UI, reset limpia sorteos)
 
 ---
 
@@ -35,7 +35,7 @@
 
 > Máximo 3 ítems a la vez. Para agregar uno, sacar uno primero. Obliga a priorizar.
 
-1. [MEJORA] Copa Approval v2 — standings + sorteo + cruces automáticos · `🚧 EN DESARROLLO` · **E1 ✅** (SQL Foundation) **E2 ✅** (Motor matchups JS) **E3 ✅** (Sorteo Service + UI) **E4a ✅** (StatusView read-only + Aprobar copa) **E4b ✅** (Editar cruces) **E4-bracket ✅** (Bracket gráfico) **E4c-E7** (Parcial + sorteo inter + cleanup) · **Spec**: [spec-copa-approval-v2.md](spec-copa-approval-v2.md) · **Plan**: [prompt-implementacion-copa-v2.md](prompt-implementacion-copa-v2.md)
+1. [MEJORA] Copa Approval v2 — standings + sorteo + cruces automáticos · `🚧 EN DESARROLLO` · **E1 ✅** (SQL Foundation) **E2 ✅** (Motor matchups JS) **E3 ✅** (Sorteo Service + UI) **E4a ✅** (StatusView read-only + Aprobar copa) **E4b ✅** (Editar cruces) **E4-bracket ✅** (Bracket gráfico) **E4c ✅** (Parcial + correcciones quiebre) **E5** (Cleanup) · **Spec**: [spec-copa-approval-v2.md](spec-copa-approval-v2.md) · **Plan**: [prompt-implementacion-copa-v2.md](prompt-implementacion-copa-v2.md)
 2. _(libre)_
 3. _(libre)_
 
@@ -73,6 +73,102 @@ Cuando no quedan partidos de grupo pendientes ni en juego, ocultar las secciones
 ---
 
 ### Bloque C — Necesitan spec, luego implementar
+
+---
+
+#### [BUG] Sorteo — UI permite reubicar equipos que no estuvieron en empate `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+La UI de sorteo muestra todos los equipos del grupo como arrastrables, incluso los que ganaron sin empate. Ejemplo: Tincho-Max ganó todos sus partidos (1° indiscutible) pero la UI permite colocarlos en posición 4. Al guardar, el optimistic UI muestra el superíndice según la posición elegida en pantalla. Al refrescar, vuelven a posición 1 correctamente (la BD ignora el dato inválido), pero genera confusión. El sorteo debería restringirse solo a los equipos involucrados en el empate.
+
+**Archivos clave**: `src/admin/groups/ui.js` (renderizado del sorteo), `src/admin/groups/service.js` (cálculo del tie group)
+
+---
+
+#### [BUG] Copas — admin no puede forzar avanzar ronda si resultado está en estado "pendiente" `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+`avanzar_ronda_copa` solo se llama cuando un partido pasa a `confirmado`. Si el admin cargó los resultados de las semis desde `carga.html` y quedaron en `a_confirmar` (sin la segunda pareja confirmando), la Final nunca se genera. El admin necesita un botón en la vista de copa "Forzar avanzar ronda" con advertencia de que el resultado no está confirmado. Alternativa más simple: en `carga.html`, llamar `avanzar_ronda_copa` también cuando el partido pasa a `a_confirmar` (no solo `confirmado`).
+
+**Archivos clave**: `src/admin/copas/statusView.js`, `src/carga/partidosGrupos.js`
+
+---
+
+#### [MEJORA] Copas — warning de empate desaparece si el sorteo ya fue realizado `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+En admin → Tab Copas, si hay grupos con empates pero ya se realizó el sorteo para resolverlos, el warning de empate no debería aparecer. Actualmente `detectarEmpates` no considera si `sorteo_orden` está seteado para los equipos empatados. La lógica debería chequear: si todos los equipos del grupo de empate tienen `sorteo_orden`, el empate está resuelto y no hay warning.
+
+**Archivos clave**: `src/utils/copaMatchups.js` (función `detectarEmpates`), `src/admin/copas/statusView.js`
+
+---
+
+#### [MEJORA] Grupos — superíndice de sorteo solo para equipos del grupo de empate `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+Actualmente se muestra el superíndice de posición (1°, 2°, 3°) para TODOS los equipos cuando hay sorteo guardado, incluso los que no estuvieron en el empate. Debería mostrarse solo para los equipos que formaron el grupo de empate. Requiere que el sistema identifique y persista cuáles fueron los equipos del tie group al guardar el sorteo.
+
+**Propuesta de diseño**: superíndice de posición solo para equipos del empate (los demás sin superíndice).
+
+**Archivos clave**: `src/admin/groups/ui.js`, `src/admin/groups/service.js`, `src/utils/copaDecisionService.js`
+
+---
+
+#### [MEJORA] Grupos — badge H2H cuando el desempate es por enfrentamiento directo `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+Cuando dos equipos empatados en stats se desempatan por H2H (head-to-head), no hay indicación visual de por qué uno quedó por encima del otro. Propuesta: badge inline `H2H` al lado del nombre del equipo que se benefició del H2H en la tabla de posiciones.
+
+**Propuesta de diseño**: pequeño badge `H2H↑` o superíndice `H2H` junto al nombre — mismo estilo que los superíndices de sorteo. Mobile-friendly (no hover).
+
+**Restricción**: Solo mostrar el badge cuando son exactamente **dos equipos** empatados en stats y uno ganó el H2H. En triple empate H2H puede ser circular (A>B, B>C, C>A) — no tiene sentido indicar quién "ganó" el H2H.
+
+**Archivos clave**: `src/admin/groups/ui.js`, `src/utils/tablaPosiciones.js`
+
+---
+
+#### [BUG] index.html — tab General a veces no renderiza la tabla `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+Al entrar a Tablas/Grupos → sección "General" en index.html, a veces el browser no carga la tabla de posiciones cross-grupo. El problema es intermitente y difícil de reproducir. Posiblemente una race condition con el auto-refresh de 30s que reconstruye el DOM.
+
+**Archivos clave**: `src/viewer/modalConsulta.js`, `src/personal.js` (auto-refresh)
+
+---
+
+#### [MEJORA] Wizard copas — restringir a tabla general si cantidad de grupos es impar `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+Si el torneo tiene cantidad impar de grupos (1, 3, 5), el formato "por posición de grupo" genera cruces asimétricos. El wizard debería restringir la opción a solo "tabla general" cuando hay grupos impares.
+
+**Archivo clave**: `src/admin/copas/planEditor.js`
+
+---
+
+#### [MEJORA] Configuración de formato de sets por torneo (1 set vs 3 sets) `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta · **Prioridad**: alta (confusión recurrente en usuarios)
+
+El esquema actual permite cargar 1 o 3 sets indistintamente, lo que genera confusión. El torneo debería configurarse como "siempre 1 set" o "siempre 3 sets", y los formularios de carga (jugador + admin), confirmación de resultado y disputas deben adaptarse: solo mostrar 1 input de set, o forzar los 3 sets.
+
+**Archivos clave**: `src/viewer/cargarResultado.js`, `src/carga/partidosGrupos.js`, tabla `torneos` (nuevo campo)
+
+---
+
+#### [MEJORA] Feedback explícito al confirmar resultado rival `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+Cuando un jugador confirma el resultado cargado por la pareja rival (desde index.html), no hay feedback visual claro de que se confirmó. Agregar toast o mensaje visible "Resultado confirmado ✅".
+
+**Archivo clave**: `src/viewer/cargarResultado.js`
 
 ---
 

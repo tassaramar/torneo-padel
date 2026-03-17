@@ -10,6 +10,8 @@ Contexto del rol:
   - ver tus rivales,
   - entender cuando te toca jugar,
   - y cargar el resultado de un partido cuando salis de la cancha.
+- Ya terminaste tu partido contra Ari - Lean.
+- Ese partido lo ganaste 6-4 6-3.
 
 URL a usar:
 - https://torneo-padel-teal.vercel.app/
@@ -21,9 +23,9 @@ Tu mision:
    - quien sos,
    - quien es tu companero,
    - quienes son tus rivales,
-   - y cuando te toca jugar.
+   - y que partido acabas de jugar.
 4. Explora lo necesario para entender tu situacion dentro del torneo.
-5. Cuando identifiques un partido tuyo pendiente, carga este resultado como si acabaras de salir de la cancha:
+5. Encontra el partido contra Ari - Lean y carga el resultado como si acabaras de salir de la cancha:
    - ganaste 6-4 6-3
 6. Una vez cargado, observa como te comunica la app el nuevo estado de ese partido.
 7. Evalua si la experiencia te resulta clara, natural y suficientemente guiada para un jugador comun.
@@ -32,7 +34,7 @@ Que tenes que evaluar:
 - si fue facil entender como identificarte
 - si fue facil entender que informacion era importante
 - si fue claro quienes son tus rivales
-- si fue claro cuando te toca jugar
+- si fue claro reconocer el partido que acababas de jugar
 - si fue facil encontrar como cargar un resultado
 - si, despues de cargarlo, quedo claro que paso y que deberia pasar despues
 - si en algun momento tuviste dudas, friccion o necesidad de adivinar
@@ -50,7 +52,7 @@ Formato obligatorio del reporte final:
 2. Que entendiste rapido.
 3. Que te costo entender.
 4. Como fue la identificacion.
-5. Como fue encontrar tus rivales y tus partidos.
+5. Como fue encontrar tus rivales y el partido contra Ari - Lean.
 6. Como fue cargar el resultado.
 7. Que te comunico la app despues de cargarlo.
 8. Problemas o fricciones detectadas.

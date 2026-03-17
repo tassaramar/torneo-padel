@@ -68,7 +68,14 @@ export async function renderStatusView(container, esquemas, copas, standingsData
       (standingsData.standings || []).some(s => s.grupo_id === g.id && s.grupo_completo)
     );
 
-  // 4. Render por esquema
+  // 4. Posiciones de quiebre (para filtrar warnings inter-grupo irrelevantes)
+  const quiebrePos = _posicionesQuiebre(esquemas);
+  const _filtrarWarnings = (warnings) => warnings.filter(w => {
+    if (w.tipo === 'empate_inter_grupo') return quiebrePos.has(w.posicion);
+    return true;
+  });
+
+  // 5. Render por esquema
   const seccionesHtml = esquemas.map(esq => {
     const copa     = copaPorEsquema[esq.id];
     const partidos = copa ? (partidosPorCopa[copa.id] || []) : [];
@@ -100,7 +107,8 @@ export async function renderStatusView(container, esquemas, copas, standingsData
     if (partidos.length > 0 || (!allGroupsComplete && pool.length >= 2)) {
       const cruces = seedingParcial(pool, tamañoBracket);
       const crucesOpt = optimizarEndogenos(cruces, equiposYaUsadosIds);
-      const { warnings } = detectarEmpates(pool, standingsData.standings, esq.reglas);
+      const { warnings: rawWarnings } = detectarEmpates(pool, standingsData.standings, esq.reglas);
+      const warnings = _filtrarWarnings(rawWarnings);
 
       _crucesCalculados[esq.id] = crucesOpt;
 
@@ -112,7 +120,8 @@ export async function renderStatusView(container, esquemas, copas, standingsData
     if (allGroupsComplete) {
       const crucesSeed = seedingMejorPeor(pool);
       const cruces     = optimizarEndogenos(crucesSeed, new Set());
-      const { warnings } = detectarEmpates(pool, standingsData.standings, esq.reglas);
+      const { warnings: rawWarnings } = detectarEmpates(pool, standingsData.standings, esq.reglas);
+      const warnings = _filtrarWarnings(rawWarnings);
       _crucesCalculados[esq.id] = cruces;
       return _renderEsquemaPorAprobar(esq, pool, cruces, warnings, standingsData);
     }
@@ -334,6 +343,24 @@ function _calcularTamañoBracket(reglas, grupos) {
 }
 
 /**
+ * Calcula posiciones de grupo que son "quiebre" entre copas.
+ * Un quiebre existe cuando un esquema usa regla con criterio+cantidad
+ * (ej: "el mejor 2°"), lo que significa que no todos los equipos de esa
+ * posición van a la misma copa → el orden entre ellos importa.
+ */
+function _posicionesQuiebre(esquemas) {
+  const quiebre = new Set();
+  for (const esq of (esquemas || [])) {
+    for (const r of (esq.reglas || [])) {
+      if (r.criterio && r.cantidad != null) {
+        quiebre.add(r.posicion);
+      }
+    }
+  }
+  return quiebre;
+}
+
+/**
  * Combina partidos existentes (de BD) con cruces parciales (calculados client-side)
  * para alimentar _renderBracket. Si un slot ya tiene partido en BD, se usa ese.
  */
@@ -550,50 +577,6 @@ function _wireStatusEvents(container, esquemas, standingsData, onRefresh) {
       return;
     }
 
-    // Guardar sorteo inter-grupo
-    if (btn.classList.contains('btn-guardar-sorteo-inter')) {
-      const sorteoDiv = btn.closest('.sorteo-inter-grupo');
-      if (!sorteoDiv) return;
-
-      const inputs = sorteoDiv.querySelectorAll('.sorteo-orden-input');
-      const ordenParejas = [];
-
-      for (const inp of inputs) {
-        const val = Number(inp.value);
-        if (!val || val < 1) {
-          alert('Completá todos los órdenes del sorteo');
-          return;
-        }
-        ordenParejas.push({
-          pareja_id: inp.dataset.parejaId,
-          orden_sorteo: val
-        });
-      }
-
-      // Verificar no hay duplicados
-      const ordenes = ordenParejas.map(o => o.orden_sorteo);
-      if (new Set(ordenes).size !== ordenes.length) {
-        alert('Los órdenes no pueden repetirse');
-        return;
-      }
-
-      btn.disabled = true;
-      btn.textContent = '⏳…';
-
-      const { guardarSorteoInterGrupo } = await import('./copaDecisionService.js');
-      const result = await guardarSorteoInterGrupo(supabase, TORNEO_ID, ordenParejas);
-
-      if (result.ok) {
-        logMsg('✅ Sorteo inter-grupo guardado');
-        onRefresh?.();
-      } else {
-        logMsg(`❌ Error guardando sorteo: ${result.msg}`);
-        btn.disabled = false;
-        btn.textContent = '💾 Guardar sorteo';
-      }
-      return;
-    }
-
     // Editar plan
     if (btn.id === 'btn-editar-plan') {
       const { renderPlanEditor } = await import('./planEditor.js');
@@ -693,9 +676,13 @@ function _handleResetClick(container, btn, onRefresh) {
 
     const result = await resetCopas(supabase, TORNEO_ID);
     if (result.ok) {
+      // Limpiar sorteos asociados al torneo
+      const { resetSorteo } = await import('./copaDecisionService.js');
+      await resetSorteo(supabase, TORNEO_ID);
+
       Object.keys(_crucesCalculados).forEach(k => delete _crucesCalculados[k]);
       Object.keys(_crucesEditados).forEach(k => delete _crucesEditados[k]);
-      logMsg(`✅ Reset listo — ${result.partidos_borrados} partidos y ${result.copas_borradas} copas borradas`);
+      logMsg(`✅ Reset listo — ${result.partidos_borrados} partidos y ${result.copas_borradas} copas borradas (sorteos limpiados)`);
       onRefresh?.();
     } else {
       logMsg(`❌ Error en reset: ${result.msg}`);
@@ -724,34 +711,14 @@ function _renderWarnings(warnings, esquemaId) {
     }
 
     if (w.tipo === 'empate_inter_grupo') {
-      const n = w.equipos?.length || 0;
-      const filasSorteo = (w.equipos || []).map(e => `
-        <div class="sorteo-fila" style="display:flex; align-items:center; gap:6px;">
-          <input type="number" min="1" max="${n}" class="sorteo-orden-input"
-                 data-pareja-id="${_esc(e.pareja_id)}"
-                 style="width:36px; text-align:center; padding:2px; border:1px solid var(--border); border-radius:4px;">
-          <span>${_esc(e.nombre)} (${_esc(e.grupoNombre || '')} ${w.posicion}°)</span>
-        </div>
-      `).join('');
-
+      const equiposStr = (w.equipos || []).map(e =>
+        `${_esc(e.nombre)} (${_esc(e.grupoNombre || '')} ${w.posicion}°)`
+      ).join(', ');
       return `
-        <div class="sorteo-inter-grupo" data-esquema-id="${_esc(esquemaId)}" data-posicion="${w.posicion}"
-             style="font-size:12px; color:#d97706; margin-bottom:8px; padding:8px 10px;
+        <div style="font-size:12px; color:#d97706; margin-bottom:8px; padding:6px 10px;
                     background:rgba(251,191,36,0.1); border-radius:6px; border-left:3px solid #d97706;">
-          ⚠️ Empate entre ${n} equipos (${w.posicion}° de grupo, mismos Pts/DS/DG/GF):
-          <div style="margin:8px 0; display:flex; flex-direction:column; gap:4px;">
-            ${filasSorteo}
-          </div>
-          <div style="display:flex; gap:6px;">
-            <button class="btn-guardar-sorteo-inter btn-primary btn-sm"
-                    data-esquema-id="${_esc(esquemaId)}">
-              💾 Guardar sorteo
-            </button>
-          </div>
-          <div style="font-size:11px; color:var(--muted); margin-top:4px;">
-            Ingresá el orden del sorteo físico (1 = mejor posición).
-            Los cruces se recalculan al guardar.
-          </div>
+          ⚠️ Empate entre equipos del mismo tier (${w.posicion}° de grupo): ${equiposStr}
+          — Resolvelo haciendo el sorteo desde el <strong>Tab Grupos</strong>.
         </div>
       `;
     }

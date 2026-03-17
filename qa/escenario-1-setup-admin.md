@@ -26,9 +26,9 @@ Reglas:
 - Si una pantalla tarda, espera razonablemente y reintenta.
 - Si ves mensajes de exito o logs, usalos para verificar.
 - Si algo no coincide, detenete y reporta el bloqueo.
-- No cargues resultados.
+- No cargues resultados manualmente.
 - No configures copas.
-- No hagas acciones extra.
+- No hagas acciones extra fuera de las necesarias para dejar el torneo en estado limpio.
 
 Pasos exactos:
 
@@ -64,7 +64,7 @@ Mateo - Bruno	B
 14. Durante el proceso pueden aparecer mensajes en el log y luego la pagina hace un reload automatico. No interrumpas ese reload.
 15. Una vez que recargue, volve a verificar que seguis dentro del admin.
 
-Parte 3: verificar grupos y partidos generados
+Parte 3: verificar grupos y normalizar resultados
 16. En la barra de tabs superior, hace clic en `Grupos`.
 17. Espera a que carguen las cards o tablas de grupos.
 18. Verifica que existan los grupos A y B.
@@ -78,31 +78,36 @@ Parte 3: verificar grupos y partidos generados
    - Diego - Javi
    - Ale - Gonza
    - Mateo - Bruno
-21. Verifica que todas las parejas esten en cero, es decir sin partidos jugados ni puntos cargados.
-22. Toma esto como confirmacion indirecta de que los partidos de grupos fueron generados y todavia no tienen resultados.
+21. Revisa si todas las parejas estan en cero, es decir sin partidos jugados ni puntos cargados.
+22. Si TODO esta en cero, continua al paso 27.
+23. Si aparece cualquier partido jugado, marcador cargado o estadistica distinta de cero, busca el boton `Limpiar resultados de grupos`.
+24. Hace clic una sola vez en `Limpiar resultados de grupos`.
+25. Va a aparecer un `confirm()` del navegador advirtiendo que se borran los resultados de grupos. Confirmalo.
+26. Espera a que termine el proceso y volve a revisar la seccion `Grupos` hasta confirmar que todas las parejas quedaron en cero.
+27. Toma esto como confirmacion de que los partidos de grupos existen pero no tienen resultados cargados.
 
 Parte 4: verificar copas en estado inicial
-23. En la barra de tabs superior, hace clic en `Copas`.
-24. Espera a que cargue el contenido de copas.
-25. Verifica que el sistema este en el estado inicial de copas, equivalente a `1. Definir Plan`.
-26. No crees copas, no cargues presets y no apruebes nada.
+28. En la barra de tabs superior, hace clic en `Copas`.
+29. Espera a que cargue el contenido de copas.
+30. Verifica que el sistema este en el estado inicial de copas, equivalente a `1. Definir Plan`.
+31. No crees copas, no cargues presets y no apruebes nada.
 
 Parte 5: desactivar presentismo
-27. Abri la URL de presentismo:
+32. Abri la URL de presentismo:
    https://torneo-padel-teal.vercel.app/presente.html?qa_token=Mgn9Ces1XMajjVmOt0FfSqZ1XlJi6Rjad6
-28. Espera a que cargue completamente.
-29. En la seccion `Sistema de Presentismo (toggle global)`, ubica el control global.
-30. Observa el texto de estado.
-31. Si el sistema esta activo, apagalo usando el toggle.
-32. Si ya esta apagado, dejalo asi.
-33. Confirma visualmente que el estado final mostrado sea:
+33. Espera a que cargue completamente.
+34. En la seccion `Sistema de Presentismo (toggle global)`, ubica el control global.
+35. Observa el texto de estado.
+36. Si el sistema esta activo, apagalo usando el toggle.
+37. Si ya esta apagado, dejalo asi.
+38. Confirma visualmente que el estado final mostrado sea:
    `Todos presentes ✅`
-34. No marques presentes ni ausentes manualmente.
-35. No uses acciones masivas.
-36. No hagas ninguna otra accion en esa pantalla.
+39. No marques presentes ni ausentes manualmente.
+40. No uses acciones masivas.
+41. No hagas ninguna otra accion en esa pantalla.
 
 Parte 6: verificacion final
-37. Confirma que el sistema quedo listo para un test de jugador con estas condiciones:
+42. Confirma que el sistema quedo listo para un test de jugador con estas condiciones:
    - torneo recien creado
    - parejas importadas
    - grupos correctos
@@ -117,10 +122,11 @@ Formato obligatorio del reporte final:
 2. Parejas importadas: si / no.
 3. Grupos correctos: si / no.
 4. Partidos generados: si / no / no verificable directamente.
-5. Copas en estado inicial: si / no.
-6. Presentismo desactivado: si / no.
-7. Bloqueos o inconsistencias encontradas.
-8. Confirmacion final de si el sistema quedo listo para pasar al test de jugador.
+5. Resultados en cero despues de la normalizacion: si / no.
+6. Copas en estado inicial: si / no.
+7. Presentismo desactivado: si / no.
+8. Bloqueos o inconsistencias encontradas.
+9. Confirmacion final de si el sistema quedo listo para pasar al test de jugador.
 
 Importante:
 No empieces el test de jugador. Termina tu trabajo apenas dejes listas las precondiciones y entregues el reporte.
