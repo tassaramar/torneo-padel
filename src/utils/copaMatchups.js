@@ -27,20 +27,33 @@ function _signo(n) { return n >= 0 ? '+' : ''; }
 // ============================================================
 
 /**
- * Comparador para standings cross-grupo. Orden descendente por stats, ascendente por sorteo.
+ * Comparador para standings cross-grupo.
+ * Criterio principal: posición en grupo (un 2° siempre rankea arriba de un 3°).
+ * Dentro del mismo tier: stats → sorteo_orden (solo mismo grupo) → nombre.
  *
  * @param {Object} a
  * @param {Object} b
  * @returns {number}
  */
 export function cmpStandings(a, b) {
+  // 1. Posición en grupo es el criterio principal
+  const posA = a.posicion_en_grupo ?? 999;
+  const posB = b.posicion_en_grupo ?? 999;
+  if (posA !== posB) return posA - posB;
+
+  // 2. Dentro del mismo tier: stats
   if (b.puntos !== a.puntos) return b.puntos - a.puntos;
   if (b.ds !== a.ds) return b.ds - a.ds;
   if ((b.dg || 0) !== (a.dg || 0)) return (b.dg || 0) - (a.dg || 0);
   if (b.gf !== a.gf) return b.gf - a.gf;
-  const sA = a.sorteo_orden ?? 999999;
-  const sB = b.sorteo_orden ?? 999999;
-  if (sA !== sB) return sA - sB;
+
+  // 3. sorteo_orden solo para equipos del mismo grupo
+  if (a.grupo_id && a.grupo_id === b.grupo_id) {
+    const sA = a.sorteo_orden ?? 999999;
+    const sB = b.sorteo_orden ?? 999999;
+    if (sA !== sB) return sA - sB;
+  }
+
   return String(a.nombre).localeCompare(String(b.nombre));
 }
 
