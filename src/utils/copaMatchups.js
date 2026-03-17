@@ -486,6 +486,10 @@ export function detectarEmpates(pool, allStandings, reglas) {
     }
     for (const tied of Object.values(statsGroups)) {
       if (tied.length >= 3) {
+        // Si todos los empatados ya tienen sorteo_orden, el empate está resuelto
+        const resueltoPorSorteo = tied.every(t => t.sorteo_orden != null);
+        if (resueltoPorSorteo) continue;
+
         const grupoNombre = tied[0].grupoNombre || grupoId;
         const positions = tied.map(t => `${t.posicion_en_grupo}°`).join('-');
         warnings.push({
