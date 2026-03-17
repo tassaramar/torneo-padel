@@ -13,6 +13,7 @@
 
 function esEmpateStats(a, b) {
   return (
+    (a.posicion_en_grupo ?? 0) === (b.posicion_en_grupo ?? 0) &&
     a.puntos === b.puntos &&
     a.ds === b.ds &&
     (a.dg || 0) === (b.dg || 0) &&
