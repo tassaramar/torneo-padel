@@ -45,53 +45,59 @@ function aplicarZebraVisible(listCont) {
 export async function cargarPartidosGrupos({ supabase, torneoId, msgCont, listCont, onAfterSave }) {
   msgCont.textContent = 'Cargando partidos…';
 
-  let q = supabase
-    .from('partidos')
-      .select(`
-      id,
-      estado,
-      cargado_por_pareja_id,
-      pareja_a_id,
-      pareja_b_id,
-      copa_id,
-      ronda_copa,
-      notas_revision,
-      ronda,
-      set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
-      set1_temp_a, set1_temp_b, set2_temp_a, set2_temp_b, set3_temp_a, set3_temp_b,
-      sets_a, sets_b,
-      games_totales_a, games_totales_b,
-      stb_puntos_a, stb_puntos_b,
-      grupos ( nombre ),
-      copas ( id, nombre ),
-      pareja_a:parejas!partidos_pareja_a_id_fkey ( nombre ),
-      pareja_b:parejas!partidos_pareja_b_id_fkey ( nombre )
-    `)
-    .eq('torneo_id', torneoId);
+  // Fetch formato_sets del torneo en paralelo con partidos
+  const [torneoRes, partidosRes] = await Promise.all([
+    supabase.from('torneos').select('formato_sets').eq('id', torneoId).single(),
+    (() => {
+      let q = supabase
+        .from('partidos')
+          .select(`
+          id,
+          estado,
+          cargado_por_pareja_id,
+          pareja_a_id,
+          pareja_b_id,
+          copa_id,
+          ronda_copa,
+          notas_revision,
+          ronda,
+          set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
+          set1_temp_a, set1_temp_b, set2_temp_a, set2_temp_b, set3_temp_a, set3_temp_b,
+          sets_a, sets_b,
+          games_totales_a, games_totales_b,
+          stb_puntos_a, stb_puntos_b,
+          grupos ( nombre ),
+          copas ( id, nombre ),
+          pareja_a:parejas!partidos_pareja_a_id_fkey ( nombre ),
+          pareja_b:parejas!partidos_pareja_b_id_fkey ( nombre )
+        `)
+        .eq('torneo_id', torneoId);
 
-  // Sin filtro por copa_id: todos los modos muestran grupos y copas juntos
+      if (state.modo === 'pendientes') {
+        q = q.is('sets_a', null);
+      } else if (state.modo === 'confirmar') {
+        q = q.eq('estado', 'a_confirmar');
+      } else if (state.modo === 'jugados') {
+        q = q.not('sets_a', 'is', null);
+      } else if (state.modo === 'disputas') {
+        q = q.eq('estado', 'en_revision');
+      }
 
-  if (state.modo === 'pendientes') {
-    q = q.is('sets_a', null);
-  } else if (state.modo === 'confirmar') {
-    q = q.eq('estado', 'a_confirmar');
-  } else if (state.modo === 'jugados') {
-    q = q.not('sets_a', 'is', null);
-  } else if (state.modo === 'disputas') {
-    q = q.eq('estado', 'en_revision');
-  }
+      return q;
+    })()
+  ]);
 
-  const { data, error } = await q;
+  const formatoSets = torneoRes.data?.formato_sets ?? 1;
 
-  if (error) {
-    console.error(error);
+  if (partidosRes.error) {
+    console.error(partidosRes.error);
     msgCont.textContent = '❌ Error cargando partidos';
     listCont.innerHTML = '';
     return;
   }
 
   msgCont.textContent = '';
-  renderPartidosGrupos({ partidos: data || [], supabase, onAfterSave, listCont });
+  renderPartidosGrupos({ partidos: partidosRes.data || [], supabase, onAfterSave, listCont, formatoSets });
 }
 
 /**
@@ -151,7 +157,7 @@ export function agruparEnRondas(partidos) {
   return rondas;
 }
 
-function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
+function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont, formatoSets = 1 }) {
   listCont.innerHTML = '';
 
   // Modo confirmar: render dedicado
@@ -168,7 +174,8 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
         : `Grupo <strong>${p.grupos?.nombre ?? '-'}</strong>`;
       const card = crearCardConfirmacion(p, supabase, onAfterSave, {
         headerLeft,
-        copasId: p.copas?.id ?? null
+        copasId: p.copas?.id ?? null,
+        formatoSets
       });
       listCont.appendChild(card);
     });
@@ -201,7 +208,7 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
     seccionRevision.appendChild(descripcion);
 
     enRevision.forEach(p => {
-      const card = crearCardRevision(p, supabase, onAfterSave);
+      const card = crearCardRevision(p, supabase, onAfterSave, formatoSets);
       seccionRevision.appendChild(card);
     });
 
@@ -224,7 +231,7 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
   // Si estamos en modo disputas, todos los partidos son de revisión
   if (state.modo === 'disputas') {
     partidos.forEach(p => {
-      const card = crearCardRevision(p, supabase, onAfterSave);
+      const card = crearCardRevision(p, supabase, onAfterSave, formatoSets);
       listCont.appendChild(card);
     });
     aplicarZebraVisible(listCont);
@@ -261,7 +268,7 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
       listCont.appendChild(separator);
 
       rondaData.partidos.forEach((p) => {
-        const card = crearCardParaPartido(p, supabase, onAfterSave);
+        const card = crearCardParaPartido(p, supabase, onAfterSave, formatoSets);
         listCont.appendChild(card);
       });
 
@@ -288,13 +295,13 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
       sep.textContent = 'Copas';
       listCont.appendChild(sep);
       copasPartidos.forEach(p => {
-        listCont.appendChild(crearCardParaPartido(p, supabase, onAfterSave));
+        listCont.appendChild(crearCardParaPartido(p, supabase, onAfterSave, formatoSets));
       });
     }
   } else {
     // Modo jugados: orden normal
     partidosNormales.forEach((p) => {
-      const card = crearCardParaPartido(p, supabase, onAfterSave);
+      const card = crearCardParaPartido(p, supabase, onAfterSave, formatoSets);
       listCont.appendChild(card);
     });
   }
@@ -302,7 +309,7 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont }) {
   aplicarZebraVisible(listCont);
 }
 
-function crearCardParaPartido(p, supabase, onAfterSave) {
+function crearCardParaPartido(p, supabase, onAfterSave, formatoSets = 1) {
   const a = p.pareja_a?.nombre ?? 'Pareja A';
   const b = p.pareja_b?.nombre ?? 'Pareja B';
 
@@ -316,51 +323,84 @@ function crearCardParaPartido(p, supabase, onAfterSave) {
   if (estado === 'confirmado') estadoDisplay = '✅ Confirmado';
   if (tieneResultado(p) && estado === 'pendiente') estadoDisplay = 'Jugado';
 
-  const gamesA = p.set1_a;
-  const gamesB = p.set1_b;
+  const afterSaveCommon = async () => {
+    if (p.copa_id) {
+      supabase.rpc('avanzar_ronda_copa', { p_copa_id: p.copa_id })
+        .then(({ error: e }) => { if (e) console.warn('Avanzar ronda copa:', e.message); });
+    }
+    if (onAfterSave) await onAfterSave();
+  };
 
   const card = crearCardEditable({
     headerLeft,
     headerRight: estadoDisplay,
     nombreA: a,
     nombreB: b,
-    gamesA: gamesA,
-    gamesB: gamesB,
-    onSave: async (ga, gb) => {
-      const { error } = await supabase
-        .from('partidos')
-        .update({
-          set1_a: ga,
-          set1_b: gb,
-          num_sets: 1,
-          set2_a: null,
-          set2_b: null,
-          set3_a: null,
-          set3_b: null,
-          estado: 'confirmado',
-          set1_temp_a: null,
-          set1_temp_b: null,
-          set2_temp_a: null,
-          set2_temp_b: null,
-          set3_temp_a: null,
-          set3_temp_b: null,
-          cargado_por_pareja_id: null
-        })
-        .eq('id', p.id);
+    gamesA: p.set1_a,
+    gamesB: p.set1_b,
+    formatoSets,
+    setsData: formatoSets === 3 ? { set1_a: p.set1_a, set1_b: p.set1_b, set2_a: p.set2_a, set2_b: p.set2_b, set3_a: p.set3_a, set3_b: p.set3_b } : null,
+    onSave: formatoSets === 3
+      ? async (data) => {
+          const { error } = await supabase
+            .from('partidos')
+            .update({
+              set1_a: data.set1_a,
+              set1_b: data.set1_b,
+              set2_a: data.set2_a,
+              set2_b: data.set2_b,
+              set3_a: data.set3_a,
+              set3_b: data.set3_b,
+              num_sets: 3,
+              estado: 'confirmado',
+              set1_temp_a: null,
+              set1_temp_b: null,
+              set2_temp_a: null,
+              set2_temp_b: null,
+              set3_temp_a: null,
+              set3_temp_b: null,
+              cargado_por_pareja_id: null
+            })
+            .eq('id', p.id);
 
-      if (error) {
-        console.error(error);
-        alert('Error guardando el resultado');
-        return false;
-      }
+          if (error) {
+            console.error(error);
+            alert('Error guardando el resultado');
+            return false;
+          }
+          await afterSaveCommon();
+          return true;
+        }
+      : async (ga, gb) => {
+          const { error } = await supabase
+            .from('partidos')
+            .update({
+              set1_a: ga,
+              set1_b: gb,
+              num_sets: 1,
+              set2_a: null,
+              set2_b: null,
+              set3_a: null,
+              set3_b: null,
+              estado: 'confirmado',
+              set1_temp_a: null,
+              set1_temp_b: null,
+              set2_temp_a: null,
+              set2_temp_b: null,
+              set3_temp_a: null,
+              set3_temp_b: null,
+              cargado_por_pareja_id: null
+            })
+            .eq('id', p.id);
 
-      if (p.copa_id) {
-        supabase.rpc('avanzar_ronda_copa', { p_copa_id: p.copa_id })
-          .then(({ error: e }) => { if (e) console.warn('Avanzar ronda copa:', e.message); });
-      }
-      if (onAfterSave) await onAfterSave();
-      return true;
-    }
+          if (error) {
+            console.error(error);
+            alert('Error guardando el resultado');
+            return false;
+          }
+          await afterSaveCommon();
+          return true;
+        }
   });
 
   card.dataset.search = `${p.grupos?.nombre ?? p.copas?.nombre ?? ''} ${a} ${b}`;
@@ -373,7 +413,7 @@ function crearCardParaPartido(p, supabase, onAfterSave) {
  * Reutiliza crearCardEditable para el flujo de edición.
  * Exportada para reutilizarla en copas.js.
  */
-export function crearCardConfirmacion(partido, supabase, onUpdate, { headerLeft, copasId = null } = {}) {
+export function crearCardConfirmacion(partido, supabase, onUpdate, { headerLeft, copasId = null, formatoSets = 1 } = {}) {
   const p = partido;
   const nombreA = p.pareja_a?.nombre ?? 'Pareja A';
   const nombreB = p.pareja_b?.nombre ?? 'Pareja B';
@@ -385,12 +425,13 @@ export function crearCardConfirmacion(partido, supabase, onUpdate, { headerLeft,
       ? nombreB
       : '?';
 
+  // Mostrar resultado completo usando formatearResultado
+  const resultadoTexto = formatearResultado(p);
+
   // Ganador siempre arriba
   const aWins = (p.sets_a ?? 0) > (p.sets_b ?? 0);
   const topNombre = aWins ? nombreA : nombreB;
-  const topScore  = aWins ? (p.set1_a ?? '-') : (p.set1_b ?? '-');
   const botNombre = aWins ? nombreB : nombreA;
-  const botScore  = aWins ? (p.set1_b ?? '-') : (p.set1_a ?? '-');
 
   const card = document.createElement('div');
   card.className = 'partido card-confirmar';
@@ -404,12 +445,11 @@ export function crearCardConfirmacion(partido, supabase, onUpdate, { headerLeft,
 
     <div class="row row-top is-winner">
       <strong class="team-name is-winner">${topNombre}</strong>
-      <span class="score-display">${topScore}</span>
     </div>
     <div class="row row-bot">
       <strong class="team-name">${botNombre}</strong>
-      <span class="score-display score-loser">${botScore}</span>
     </div>
+    <div style="text-align:center; font-size:18px; font-weight:800; margin: 4px 0 8px;">${resultadoTexto}</div>
 
     <div class="cargado-por">Cargado por: ${cargadoPor}</div>
 
@@ -449,6 +489,14 @@ export function crearCardConfirmacion(partido, supabase, onUpdate, { headerLeft,
 
   // --- Acción: Editar (reemplazar card por crearCardEditable) ---
   card.querySelector('.btn-editar-card').addEventListener('click', () => {
+    const afterSaveEdit = async () => {
+      if (copasId) {
+        supabase.rpc('avanzar_ronda_copa', { p_copa_id: copasId })
+          .then(({ error: e }) => { if (e) console.warn('Avanzar ronda copa:', e.message); });
+      }
+      if (onUpdate) await onUpdate();
+    };
+
     const cardEdit = crearCardEditable({
       headerLeft,
       headerRight: '✏️ Editando',
@@ -456,66 +504,49 @@ export function crearCardConfirmacion(partido, supabase, onUpdate, { headerLeft,
       nombreB,
       gamesA: p.set1_a,
       gamesB: p.set1_b,
-      onSave: async (ga, gb) => {
-        const { error } = await supabase
-          .from('partidos')
-          .update({
-            set1_a: ga,
-            set1_b: gb,
-            num_sets: 1,
-            set2_a: null,
-            set2_b: null,
-            set3_a: null,
-            set3_b: null,
-            estado: 'confirmado',
-            set1_temp_a: null,
-            set1_temp_b: null,
-            set2_temp_a: null,
-            set2_temp_b: null,
-            set3_temp_a: null,
-            set3_temp_b: null,
-            cargado_por_pareja_id: null
-          })
-          .eq('id', p.id);
+      formatoSets,
+      setsData: formatoSets === 3 ? { set1_a: p.set1_a, set1_b: p.set1_b, set2_a: p.set2_a, set2_b: p.set2_b, set3_a: p.set3_a, set3_b: p.set3_b } : null,
+      onSave: formatoSets === 3
+        ? async (data) => {
+            const { error } = await supabase
+              .from('partidos')
+              .update({
+                set1_a: data.set1_a, set1_b: data.set1_b,
+                set2_a: data.set2_a, set2_b: data.set2_b,
+                set3_a: data.set3_a, set3_b: data.set3_b,
+                num_sets: 3,
+                estado: 'confirmado',
+                set1_temp_a: null, set1_temp_b: null,
+                set2_temp_a: null, set2_temp_b: null,
+                set3_temp_a: null, set3_temp_b: null,
+                cargado_por_pareja_id: null
+              })
+              .eq('id', p.id);
 
-        if (error) {
-          console.error(error);
-          alert('Error guardando el resultado');
-          return false;
-        }
+            if (error) { console.error(error); alert('Error guardando el resultado'); return false; }
+            await afterSaveEdit();
+            return true;
+          }
+        : async (ga, gb) => {
+            const { error } = await supabase
+              .from('partidos')
+              .update({
+                set1_a: ga, set1_b: gb,
+                num_sets: 1,
+                set2_a: null, set2_b: null, set3_a: null, set3_b: null,
+                estado: 'confirmado',
+                set1_temp_a: null, set1_temp_b: null,
+                set2_temp_a: null, set2_temp_b: null,
+                set3_temp_a: null, set3_temp_b: null,
+                cargado_por_pareja_id: null
+              })
+              .eq('id', p.id);
 
-        if (copasId) {
-          supabase.rpc('avanzar_ronda_copa', { p_copa_id: copasId })
-            .then(({ error: e }) => { if (e) console.warn('Avanzar ronda copa:', e.message); });
-        }
-
-        if (onUpdate) await onUpdate();
-        return true;
-      }
+            if (error) { console.error(error); alert('Error guardando el resultado'); return false; }
+            await afterSaveEdit();
+            return true;
+          }
     });
-
-    // Mensaje en vivo de ganador debajo de las filas de inputs
-    const winnerMsg = document.createElement('div');
-    winnerMsg.className = 'live-winner-msg';
-    const actionsRow = cardEdit.querySelector('.actions-row');
-    cardEdit.insertBefore(winnerMsg, actionsRow);
-
-    const inputA = cardEdit.querySelector('.input-a');
-    const inputB = cardEdit.querySelector('.input-b');
-
-    function actualizarWinnerMsg() {
-      const ga = Number(inputA.value);
-      const gb = Number(inputB.value);
-      if (!inputA.value || !inputB.value || isNaN(ga) || isNaN(gb) || ga === gb) {
-        winnerMsg.textContent = '';
-        return;
-      }
-      winnerMsg.textContent = `🏆 Ganó ${ga > gb ? nombreA : nombreB}`;
-    }
-
-    inputA.addEventListener('input', actualizarWinnerMsg);
-    inputB.addEventListener('input', actualizarWinnerMsg);
-    actualizarWinnerMsg();
 
     card.replaceWith(cardEdit);
   });
@@ -526,7 +557,7 @@ export function crearCardConfirmacion(partido, supabase, onUpdate, { headerLeft,
 /**
  * Crea card especial para partidos en revisión (admin)
  */
-function crearCardRevision(p, supabase, onAfterSave) {
+function crearCardRevision(p, supabase, onAfterSave, formatoSets = 1) {
   const grupo = p.grupos?.nombre ?? '-';
   const a = p.pareja_a?.nombre ?? 'Pareja A';
   const b = p.pareja_b?.nombre ?? 'Pareja B';
@@ -652,48 +683,60 @@ function crearCardRevision(p, supabase, onAfterSave) {
   });
 
   card.querySelector('[data-action="manual"]').addEventListener('click', () => {
-    const gA = prompt('Ingresá games de ' + a + ':', p.set1_a);
-    const gB = prompt('Ingresá games de ' + b + ':', p.set1_b);
+    // Reemplazar card con editable
+    const headerLeft = `Grupo <strong>${grupo}</strong>`;
+    const cardEdit = crearCardEditable({
+      headerLeft,
+      headerRight: '✏️ Resultado correcto',
+      nombreA: a,
+      nombreB: b,
+      gamesA: p.set1_a,
+      gamesB: p.set1_b,
+      formatoSets,
+      setsData: formatoSets === 3 ? { set1_a: p.set1_a, set1_b: p.set1_b, set2_a: p.set2_a, set2_b: p.set2_b, set3_a: p.set3_a, set3_b: p.set3_b } : null,
+      onSave: formatoSets === 3
+        ? async (data) => {
+            const { error } = await supabase
+              .from('partidos')
+              .update({
+                set1_a: data.set1_a, set1_b: data.set1_b,
+                set2_a: data.set2_a, set2_b: data.set2_b,
+                set3_a: data.set3_a, set3_b: data.set3_b,
+                num_sets: 3,
+                estado: 'confirmado',
+                set1_temp_a: null, set1_temp_b: null,
+                set2_temp_a: null, set2_temp_b: null,
+                set3_temp_a: null, set3_temp_b: null,
+                notas_revision: null
+              })
+              .eq('id', p.id);
 
-    if (gA === null || gB === null) return;
+            if (error) { console.error(error); alert('Error guardando'); return false; }
+            if (onAfterSave) await onAfterSave();
+            return true;
+          }
+        : async (ga, gb) => {
+            const { error } = await supabase
+              .from('partidos')
+              .update({
+                set1_a: ga, set1_b: gb,
+                num_sets: 1,
+                set2_a: null, set2_b: null, set3_a: null, set3_b: null,
+                estado: 'confirmado',
+                set1_temp_a: null, set1_temp_b: null,
+                set2_temp_a: null, set2_temp_b: null,
+                set3_temp_a: null, set3_temp_b: null,
+                notas_revision: null
+              })
+              .eq('id', p.id);
 
-    const gamesA = parseInt(gA);
-    const gamesB = parseInt(gB);
+            if (error) { console.error(error); alert('Error guardando'); return false; }
+            if (onAfterSave) await onAfterSave();
+            return true;
+          }
+    });
 
-    if (isNaN(gamesA) || isNaN(gamesB)) {
-      alert('Valores inválidos');
-      return;
-    }
-
-    supabase
-      .from('partidos')
-      .update({
-        set1_a: gamesA,
-        set1_b: gamesB,
-        num_sets: 1,
-        set2_a: null,
-        set2_b: null,
-        set3_a: null,
-        set3_b: null,
-        estado: 'confirmado',
-        set1_temp_a: null,
-        set1_temp_b: null,
-        set2_temp_a: null,
-        set2_temp_b: null,
-        set3_temp_a: null,
-        set3_temp_b: null,
-        notas_revision: null
-      })
-      .eq('id', p.id)
-      .then(({ error }) => {
-        if (error) {
-          console.error(error);
-          alert('Error guardando');
-          return;
-        }
-        alert('✅ Resultado guardado');
-        if (onAfterSave) onAfterSave();
-      });
+    card.replaceWith(cardEdit);
   });
 
   card.dataset.search = `${grupo} ${a} ${b}`;

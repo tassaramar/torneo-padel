@@ -795,6 +795,14 @@ window.app = {
 
     if (!partido) return;
 
+    // Obtener formato de sets del torneo
+    const { data: torneoData } = await supabase
+      .from('torneos')
+      .select('formato_sets')
+      .eq('id', TORNEO_ID)
+      .single();
+    const formatoSets = torneoData?.formato_sets ?? 1;
+
     mostrarModalCargarResultado(partido, identidad, async (setsOrGamesA, gamesBOrNumSets) => {
       let resultado;
       // Detectar si es modo sets (objeto) o modo legacy (números)
@@ -806,14 +814,14 @@ window.app = {
         // Modo legacy (games)
         resultado = await cargarResultado(supabase, partidoId, setsOrGamesA, gamesBOrNumSets, identidad);
       }
-      
+
       if (resultado.ok) {
         alert(resultado.mensaje);
         await init('personal'); // Recargar vista personalizada
       } else {
         alert('Error: ' + resultado.mensaje);
       }
-    });
+    }, supabase, formatoSets);
   },
 
   async confirmarResultado(partidoId, gamesA, gamesB) {

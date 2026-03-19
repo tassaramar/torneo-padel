@@ -122,26 +122,6 @@ Si el torneo tiene cantidad impar de grupos (1, 3, 5), el formato "por posición
 
 ---
 
-#### [MEJORA] Configuración de formato de sets por torneo (1 set vs 3 sets) `📋 PRIORIZADA`
-
-**Score owner**: pendiente · **Spec**: ❌ falta · **Prioridad**: alta (confusión recurrente en usuarios)
-
-El esquema actual permite cargar 1 o 3 sets indistintamente, lo que genera confusión. El torneo debería configurarse como "siempre 1 set" o "siempre 2 sets" (al mejor de 3), y los formularios de carga deben adaptarse.
-
-**Alcance completo** — adaptar TODOS los puntos de carga:
-- `index.html` — carga de resultado por jugador
-- `index.html` — disputa de resultado
-- `carga.html` — partidos pendientes
-- `carga.html` — confirmar resultado
-- `carga.html` — partidos jugados (edición)
-- `carga.html` — disputas
-
-Si se juega a 1 set → mostrar solo 1 input de set. Si se juega a 2 sets (al mejor de 3) → mostrar 2-3 inputs.
-
-**Implementación sugerida**: nuevo campo `formato_sets` en tabla `torneos` (valores: `1` o `3`). Configurar desde admin → Setup. Todos los formularios de carga leen este valor y adaptan la UI.
-
-**Archivos clave**: `src/viewer/cargarResultado.js`, `src/carga/partidosGrupos.js`, `src/carga/copas.js`, tabla `torneos` (nuevo campo)
-
 ---
 
 #### [MEJORA] Feedback explícito al confirmar resultado rival `💡 CRUDA`
@@ -283,7 +263,7 @@ Partido con super tiebreak: se carga el STB y el mismo mensaje ("contame qué pa
 
 #### [DEUDA TÉCNICA] Unificar rutinas de reset del torneo `📋 PRIORIZADA`
 
-**Score owner**: 4/5 · **Spec**: ❌ falta
+**Score owner**: 4/5 · **Spec**: ✅ [spec-unificar-rutinas-reset.md](spec-unificar-rutinas-reset.md)
 
 4 implementaciones separadas de limpieza que no comparten código. Ya causó bugs reales (propuestas/esquemas huérfanas). Centralizar en RPCs de BD.
 
@@ -405,6 +385,12 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ---
 
 ## Historial — Implementado / Validado
+
+### [MEJORA] Configuración de formato de sets por torneo (1 set vs 3 sets) `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-19 · Nuevo campo `formato_sets` en `torneos` (1 o 3). Selector en Admin → Setup. Player modal y carga.html adaptan inputs según formato. Eliminado modo indefinido (botón "Agregar Set 2"). · **Spec**: [spec-formato-sets-por-torneo.md](spec-formato-sets-por-torneo.md)
+
+---
 
 ### [BUG] Sorteo — UI permite reubicar equipos que no estuvieron en empate `✅ IMPLEMENTADA`
 

@@ -479,8 +479,9 @@ function determinarVisualizacionSets(partido) {
 
 /**
  * Muestra modal/UI para cargar resultado con sets
+ * @param {number} formatoSets - Formato del torneo: 1 (un set) o 3 (al mejor de 3). Default 1.
  */
-export function mostrarModalCargarResultado(partido, identidad, onSubmit, supabase) {
+export function mostrarModalCargarResultado(partido, identidad, onSubmit, supabase, formatoSets = 1) {
   const oponente = partido.pareja_a?.id === identidad.parejaId 
     ? (partido.pareja_b?.nombre || 'Oponente')
     : (partido.pareja_a?.nombre || 'Oponente');
@@ -488,8 +489,9 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit, supaba
   const miNombre = identidad.parejaNombre || 'Tu pareja';
   const soyA = partido.pareja_a?.id === identidad.parejaId;
   
-  // Determinar visualización usando función extraída
-  const visualizacion = determinarVisualizacionSets(partido);
+  // Determinar visualización usando formato del torneo (override sobre partido.num_sets)
+  const partidoConFormato = { ...partido, num_sets: formatoSets };
+  const visualizacion = determinarVisualizacionSets(partidoConFormato);
   const { mostrarSet1, mostrarSet2, mostrarSet3, mostrarBotonSet2, numSetsParaUI, estaEmpatado1a1 } = visualizacion;
   
   // Valores iniciales para cada set
@@ -515,8 +517,6 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit, supaba
   
   // Declarar funciones auxiliares que se usarán más adelante
   let actualizarPreview;
-  let manejarAgregarSet2;
-  let manejarEliminarSet2;
   let actualizarSet3SegunEmpate;
 
   const modal = document.createElement('div');
@@ -738,53 +738,9 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit, supaba
                                     set1Mis >= 0 && set1Rival >= 0 && 
                                     set1Mis !== set1Rival;
     
-    // Actualizar visibilidad del botón "Agregar Set 2" dinámicamente (solo en modo indefinido)
-    const numSets = partido.num_sets !== null && partido.num_sets !== undefined ? partido.num_sets : null;
-    const tieneSet2 = (partido.set2_a !== null && partido.set2_a !== undefined && partido.set2_a !== '') ||
-                      (partido.set2_b !== null && partido.set2_b !== undefined && partido.set2_b !== '');
+    const numSets = formatoSets;
     const set2GroupVisible = document.getElementById('set2-group')?.style.display !== 'none';
-    
-    if (numSets === null) {
-      // Modo indefinido: mostrar/ocultar botón según si Set 1 es válido y no hay Set 2 visible
-      const btnContainer = document.querySelector('.set-add-button-container');
-      const btnAgregarSet2 = document.getElementById('btn-agregar-set2');
-      const btnEliminarSet2 = document.getElementById('btn-eliminar-set2');
-      
-      const debeMostrarBoton = set1ValidoDesdeInputs && !tieneSet2 && !set2GroupVisible;
-      
-      if (debeMostrarBoton && !btnAgregarSet2 && !btnEliminarSet2) {
-        // Crear el botón si no existe
-        const container = document.createElement('div');
-        container.className = 'set-add-button-container';
-        container.innerHTML = `
-          <button type="button" class="btn-add-set" id="btn-agregar-set2">
-            + Agregar Set 2
-          </button>
-        `;
-        // Insertar después del Set 1
-        const set1Group = document.querySelector('.set-input-group');
-        if (set1Group && set1Group.nextSibling) {
-          set1Group.parentNode.insertBefore(container, set1Group.nextSibling);
-        } else if (set1Group) {
-          set1Group.parentNode.appendChild(container);
-        }
-        // Agregar event listener (la función se definirá después)
-        const nuevoBoton = document.getElementById('btn-agregar-set2');
-        if (nuevoBoton && manejarAgregarSet2) {
-          nuevoBoton.addEventListener('click', manejarAgregarSet2);
-        } else if (nuevoBoton) {
-          // Si la función aún no está definida, agregar el listener después
-          setTimeout(() => {
-            if (manejarAgregarSet2) {
-              nuevoBoton.addEventListener('click', manejarAgregarSet2);
-            }
-          }, 0);
-        }
-      } else if (!debeMostrarBoton && btnAgregarSet2) {
-        // Ocultar el botón si Set 1 deja de ser válido
-        btnAgregarSet2.parentElement.remove();
-      }
-    }
+
     const set2Mis = parseInt(document.getElementById('input-set2-mis')?.value || '');
     const set2Rival = parseInt(document.getElementById('input-set2-rival')?.value || '');
     const set3Mis = mostrarSet3 ? parseInt(document.getElementById('input-set3-mis')?.value || '') : null;
@@ -891,18 +847,6 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit, supaba
       nivel = 'PARTIDO';
       const yoGano = set1Mis > set1Rival;
       categoria = yoGano ? 'GANAR' : 'PERDER';
-      mensaje = determinarMensaje({ nivel, categoria });
-    } else if (numSets === null && set1Valido && !set2GroupVisible) {
-      // Modo Indefinido: Set 1 válido sin Set 2 = Nivel PARTIDO
-      nivel = 'PARTIDO';
-      const yoGano = set1Mis > set1Rival;
-      categoria = yoGano ? 'GANAR' : 'PERDER';
-      mensaje = determinarMensaje({ nivel, categoria });
-    } else if (numSets === null && set1Valido && set2GroupVisible && !set2Valido) {
-      // Modo Indefinido: Set 1 válido, Set 2 visible pero no completo = Nivel SET
-      nivel = 'SET';
-      const yoGanoSet1 = set1Mis > set1Rival;
-      categoria = yoGanoSet1 ? 'GANAR' : 'PERDER';
       mensaje = determinarMensaje({ nivel, categoria });
     } else if (set2Valido && hayEmpate1a1) {
       // Set 2 completo con empate 1-1
@@ -1055,106 +999,7 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit, supaba
     }
   };
   
-  // Función para manejar el botón "Agregar Set 2"
-  manejarAgregarSet2 = () => {
-    const set2Group = document.getElementById('set2-group');
-    const btnSet2 = document.getElementById('btn-agregar-set2');
-    if (set2Group && btnSet2) {
-      // Mostrar Set 2
-      set2Group.style.display = 'block';
-      
-      // Reemplazar botón "Agregar Set 2" por "Eliminar 2do set"
-      const container = btnSet2.parentElement;
-      container.innerHTML = `
-        <button type="button" class="btn-add-set" id="btn-eliminar-set2">
-          - Eliminar 2do set
-        </button>
-      `;
-      
-      // Agregar event listener al nuevo botón
-      document.getElementById('btn-eliminar-set2')?.addEventListener('click', manejarEliminarSet2);
-      
-      // Asegurar que Set 3 esté oculto inicialmente (solo se mostrará cuando Set 2 esté completo y haya empate)
-      const set3Group = document.getElementById('set3-group');
-      if (set3Group) {
-        set3Group.style.display = 'none';
-      }
-      
-      // Agregar event listeners a los inputs de Set 2
-      document.getElementById('input-set2-mis')?.addEventListener('input', () => {
-        actualizarPreview();
-        actualizarSet3SegunEmpate();
-      });
-      document.getElementById('input-set2-rival')?.addEventListener('input', () => {
-        actualizarPreview();
-        actualizarSet3SegunEmpate();
-      });
-      
-      actualizarPreview();
-    }
-  };
-  
-  // Función para manejar el botón "Eliminar 2do set"
-  manejarEliminarSet2 = () => {
-    const set2GroupToHide = document.getElementById('set2-group');
-    const set3GroupToHide = document.getElementById('set3-group');
-    const btnEliminar = document.getElementById('btn-eliminar-set2');
-    
-    if (set2GroupToHide && btnEliminar) {
-      // Ocultar Set 2 y Set 3
-      set2GroupToHide.style.display = 'none';
-      if (set3GroupToHide) {
-        set3GroupToHide.style.display = 'none';
-      }
-      
-      // Limpiar valores de Set 2 y Set 3 en los inputs
-      document.getElementById('input-set2-mis').value = '';
-      document.getElementById('input-set2-rival').value = '';
-      if (set3GroupToHide) {
-        // Guardar valores del Set 3 antes de ocultarlo (para restaurarlos después)
-        const set3Mis = document.getElementById('input-set3-mis')?.value || '';
-        const set3Rival = document.getElementById('input-set3-rival')?.value || '';
-        if (set3Mis || set3Rival) {
-          set3GroupToHide.setAttribute('data-set3-mis', set3Mis);
-          set3GroupToHide.setAttribute('data-set3-rival', set3Rival);
-        }
-        document.getElementById('input-set3-mis').value = '';
-        document.getElementById('input-set3-rival').value = '';
-      }
-      
-      // Reemplazar botón "Eliminar 2do set" por "Agregar Set 2"
-      const container = btnEliminar.parentElement;
-      container.innerHTML = `
-        <button type="button" class="btn-add-set" id="btn-agregar-set2">
-          + Agregar Set 2
-        </button>
-      `;
-      
-      // Agregar event listener al nuevo botón
-      document.getElementById('btn-agregar-set2')?.addEventListener('click', manejarAgregarSet2);
-      
-      actualizarPreview();
-    }
-  };
-  
-  // Botones para agregar/eliminar sets
-  document.getElementById('btn-agregar-set2')?.addEventListener('click', manejarAgregarSet2);
-  
-  // Asegurar que cualquier botón "Agregar Set 2" creado dinámicamente tenga su event listener
-  // (esto es necesario porque el botón puede crearse en actualizarPreview() antes de que manejarAgregarSet2 esté definida)
-  const asegurarListeners = () => {
-    const botonesAgregar = document.querySelectorAll('#btn-agregar-set2');
-    botonesAgregar.forEach(btn => {
-      // Verificar si ya tiene el listener
-      if (!btn.hasAttribute('data-listener-agregado')) {
-        btn.addEventListener('click', manejarAgregarSet2);
-        btn.setAttribute('data-listener-agregado', 'true');
-      }
-    });
-  };
-  
-  // Ejecutar después de un pequeño delay para asegurar que todas las funciones estén definidas
-  setTimeout(asegurarListeners, 100);
+  // (Botones Agregar/Eliminar Set 2 eliminados — el formato se define a nivel torneo)
 
   const mostrarError = (mensaje) => {
     const errorDiv = document.getElementById('error-validation');
@@ -1192,23 +1037,8 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit, supaba
       sets.push({ setA: parseInt(set3Mis), setB: parseInt(set3Rival) });
     }
     
-    // Obtener numSets del partido
-    const numSets = partido.num_sets !== null && partido.num_sets !== undefined 
-      ? partido.num_sets 
-      : null;
-    
-    // Determinar numSets: si está definido en partido (1 o 3), usarlo; si es NULL, inferir de sets cargados
-    let numSetsFinal;
-    if (numSets !== null && (numSets === 1 || numSets === 3)) {
-      numSetsFinal = numSets;
-    } else {
-      // Modo indefinido: inferir del número de sets cargados
-      if (sets.length === 1) {
-        numSetsFinal = 1;
-      } else {
-        numSetsFinal = 3; // Si hay 2 o más sets, es partido a 3 sets
-      }
-    }
+    // Usar formato del torneo como source of truth
+    const numSetsFinal = formatoSets;
     
     // Validar sets
     import('../carga/scores.js').then(({ validarSets }) => {

@@ -337,6 +337,30 @@ textarea:focus{
   box-shadow: 0 0 0 3px var(--ring);
 }
 
+/* Multi-set grid (carga.html — formato 3 sets) */
+.multiset-grid {
+  display: grid;
+  grid-template-columns: 1fr 64px 64px;
+  gap: 6px 8px;
+  align-items: center;
+  padding: 8px 0;
+}
+.multiset-grid.has-set3 {
+  grid-template-columns: 1fr 64px 64px 64px;
+}
+.multiset-grid .input-score {
+  width: 100%;
+  height: 40px;
+  font-size: 16px;
+  padding: 4px;
+}
+.multiset-grid .team-name {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Actions row */
 .actions-row{
   display:flex;

@@ -391,11 +391,12 @@ window.app = {
     // Verificar presentismo antes de abrir el modal
     const { data: torneo } = await supabase
       .from('torneos')
-      .select('presentismo_activo')
+      .select('presentismo_activo, formato_sets')
       .eq('id', TORNEO_ID)
       .single();
 
     const presentismoActivo = torneo?.presentismo_activo ?? true;
+    const formatoSets = torneo?.formato_sets ?? 1;
 
     if (presentismoActivo) {
       const miPareja = partido.pareja_a?.id === identidad.parejaId ? partido.pareja_a : partido.pareja_b;
@@ -443,7 +444,7 @@ window.app = {
         showToast(resultado.mensaje || 'Error al cargar resultado', 'error');
         await init(); // ← Garantizar consistencia
       }
-    });
+    }, supabase, formatoSets);
   },
 
   async confirmarResultado(partidoId, gamesA, gamesB) {

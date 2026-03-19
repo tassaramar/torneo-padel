@@ -42,11 +42,41 @@ function debugClick(id, label) {
   );
 }
 
+async function initFormatoSets() {
+  const sel = document.getElementById('formato-sets-select');
+  if (!sel) return;
+
+  // Cargar valor actual
+  const { data } = await supabase
+    .from('torneos')
+    .select('formato_sets')
+    .eq('id', TORNEO_ID)
+    .single();
+
+  sel.value = String(data?.formato_sets ?? 1);
+
+  sel.addEventListener('change', async () => {
+    const valor = parseInt(sel.value);
+    const { error } = await supabase
+      .from('torneos')
+      .update({ formato_sets: valor })
+      .eq('id', TORNEO_ID);
+
+    if (error) {
+      console.error(error);
+      logMsg('❌ Error guardando formato de sets');
+    } else {
+      logMsg(`✅ Formato actualizado: ${valor === 1 ? '1 Set' : 'Al mejor de 3 sets'}`);
+    }
+  });
+}
+
 function initAdmin() {
   safeInit('ParejasImport', () => (parejasImport.initParejasImport ?? parejasImport.initParejas)?.());
   safeInit('ParejasEdit', initParejasEdit);
   safeInit('Groups', initGroups);
   safeInit('Copas', initCopas);
+  safeInit('FormatoSets', initFormatoSets);
 
   // Conectar botón de reset resultados
   const btnResetResultados = document.getElementById('reset-resultados');
