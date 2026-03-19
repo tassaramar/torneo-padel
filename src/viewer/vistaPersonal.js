@@ -952,9 +952,13 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
   
   // Renderizar disputas
   renderPartidosRevision(partidos.enRevision, identidad);
-  
+
   // Renderizar confirmaciones
   renderPartidosConfirmar(partidos.porConfirmar, identidad);
+
+  // Auto-expandir secciones si hay partidos pendientes de acción
+  if (partidos.enRevision.length > 0) toggleSeccion('disputas', true);
+  if (partidos.porConfirmar.length > 0) toggleSeccion('confirmaciones', true);
   
   // Renderizar partidos pendientes (en el bloque principal)
   const todosPartidos = [...partidos.enRevision, ...partidos.porConfirmar, ...partidos.porCargar, ...partidos.confirmados];
