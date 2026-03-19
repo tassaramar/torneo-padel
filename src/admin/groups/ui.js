@@ -46,6 +46,7 @@ export function renderOrUpdateGrupoCard(groupId) {
         </thead>
         <tbody></tbody>
       </table>
+      <div class="sorteo-legend" style="display:none; margin-top:6px; font-size:12px; color:#666;"></div>
 
       <div class="admin-actions" style="margin-top:10px;">
         <button type="button" data-action="save">💾 Guardar sorteo</button>
@@ -95,6 +96,16 @@ export function renderOrUpdateGrupoCard(groupId) {
 
   updateTablaBody(groupId);
 
+  const legend = card.querySelector('.sorteo-legend');
+  if (legend) {
+    if (g.hasSavedOverride) {
+      legend.style.display = '';
+      legend.textContent = '🎲 = Posición definida por sorteo';
+    } else {
+      legend.style.display = 'none';
+    }
+  }
+
   const btnSave = card.querySelector('button[data-action="save"]');
   const btnReset = card.querySelector('button[data-action="reset"]');
 
@@ -112,6 +123,7 @@ export function renderOrUpdateGrupoCard(groupId) {
       btnSave.textContent = 'Guardando…';
 
       await guardarOrdenGrupo(groupId);
+      await cargarGrupoCierre(state.groups[groupId].grupo);
 
       btnSave.textContent = prev;
       btnSave.disabled = !isEditable(groupId);
@@ -176,7 +188,7 @@ function updateTablaBody(groupId) {
     let sup = '';
     if (g.ovMap && g.ovMap[r.pareja_id] !== undefined) {
       const ordenSorteo = g.ovMap[r.pareja_id];
-      sup = ` <sup style="font-size:11px; color:#0b7285; font-weight:700; margin-left:3px;">${ordenSorteo}°</sup>`;
+      sup = ` <sup style="font-size:11px; color:#0b7285; font-weight:700; margin-left:3px;">🎲${ordenSorteo}</sup>`;
     }
 
     const tr = document.createElement('tr');
@@ -281,10 +293,7 @@ export function renderTablaGeneralCard() {
 
     let sup = '';
     if (interOvMap[s.pareja_id] !== undefined) {
-      sup = ` <sup style="font-size:11px; color:#7c3aed; font-weight:700; margin-left:3px;">${interOvMap[s.pareja_id]}°</sup>`;
-    }
-    if (s.sorteo_orden) {
-      sup += ` <sup style="font-size:11px; color:#0b7285; font-weight:700; margin-left:3px;">${s.sorteo_orden}°</sup>`;
+      sup = ` <sup style="font-size:11px; color:#7c3aed; font-weight:700; margin-left:3px;">🎲${interOvMap[s.pareja_id]}</sup>`;
     }
 
     const grupoNombre = gruposMap[s.grupo_id] || '?';
@@ -334,6 +343,7 @@ export function renderTablaGeneralCard() {
       </thead>
       <tbody>${rowsHtml}</tbody>
     </table>
+    ${hasSavedInterOverride ? '<div style="margin-top:6px; font-size:12px; color:#666;">🎲 = Posición definida por sorteo inter-grupo</div>' : ''}
     <div class="admin-actions" style="margin-top:10px;">
       <button type="button" data-action="save-inter" style="display:${showSave ? '' : 'none'}">💾 Guardar sorteo inter-grupo</button>
       <button type="button" data-action="reset-inter" style="display:${showReset ? '' : 'none'}">🧽 Reset sorteo inter-grupo</button>

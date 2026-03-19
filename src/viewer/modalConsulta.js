@@ -474,11 +474,7 @@ async function renderTablaGeneral(container) {
       <td class="pos-col">${idx + 1}</td>
       <td class="nombre-col">${escapeHtml(row.parejaNombre)}${
         row.sorteo_inter
-          ? `<sup style="font-size:10px; color:#8b5cf6; font-weight:700; margin-left:2px;">${row.sorteo_inter}°</sup>`
-          : ''
-      }${
-        row.sorteo_orden
-          ? `<sup style="font-size:10px; color:#0b7285; font-weight:700; margin-left:2px;">${row.sorteo_orden}°</sup>`
+          ? `<sup style="font-size:10px; color:#8b5cf6; font-weight:700; margin-left:2px;">🎲${row.sorteo_inter}</sup>`
           : ''
       }</td>
       <td class="stat-col">${escapeHtml(row.grupoNombre)}</td>
@@ -491,8 +487,12 @@ async function renderTablaGeneral(container) {
     prevPosicion = row.posicion_en_grupo;
   });
 
-  html += '</tbody></table></div>';
-  html += '</div>';
+  html += '</tbody></table>';
+  const haySorteoInter = enriched.some(r => r.sorteo_inter);
+  if (haySorteoInter) {
+    html += '<div style="margin-top:6px; font-size:11px; color:#666;">🎲 = Posición definida por sorteo</div>';
+  }
+  html += '</div></div>';
   container.innerHTML = html;
 }
 
