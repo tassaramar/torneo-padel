@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-19 (E5 Cleanup + refactor sorteo completo + mejoras UI tablas)
+**Última actualización**: 2026-03-19 (housekeeping: Copa Approval v2 completada → historial, limpiar subsumidos, mover ✅ del backlog)
 
 ---
 
@@ -35,7 +35,7 @@
 
 > Máximo 3 ítems a la vez. Para agregar uno, sacar uno primero. Obliga a priorizar.
 
-1. [MEJORA] Copa Approval v2 — standings + sorteo + cruces automáticos · `🚧 EN DESARROLLO` · **E1 ✅** (SQL Foundation) **E2 ✅** (Motor matchups JS) **E3 ✅** (Sorteo Service + UI) **E4a ✅** (StatusView read-only + Aprobar copa) **E4b ✅** (Editar cruces) **E4-bracket ✅** (Bracket gráfico) **E4c ✅** (Parcial + correcciones quiebre) **E5** (Cleanup) · **Spec**: [spec-copa-approval-v2.md](spec-copa-approval-v2.md) · **Plan**: [prompt-implementacion-copa-v2.md](prompt-implementacion-copa-v2.md)
+1. _(libre)_
 2. _(libre)_
 3. _(libre)_
 
@@ -76,12 +76,6 @@ Cuando no quedan partidos de grupo pendientes ni en juego, ocultar las secciones
 
 ---
 
-#### [BUG] Sorteo — UI permite reubicar equipos que no estuvieron en empate `✅ IMPLEMENTADA`
-
-**Resuelto**: 2026-03-19 en refactor sorteo completo (v1.3.0). Flechas ▲▼ solo aparecen para equipos del cluster de empate. Movimiento restringido al cluster via `isSameCluster()`.
-
----
-
 #### [BUG] Copas — admin no puede forzar avanzar ronda si resultado está en estado "pendiente" `💡 CRUDA`
 
 **Score owner**: pendiente · **Spec**: ❌ falta
@@ -89,18 +83,6 @@ Cuando no quedan partidos de grupo pendientes ni en juego, ocultar las secciones
 `avanzar_ronda_copa` solo se llama cuando un partido pasa a `confirmado`. Si el admin cargó los resultados de las semis desde `carga.html` y quedaron en `a_confirmar` (sin la segunda pareja confirmando), la Final nunca se genera. El admin necesita un botón en la vista de copa "Forzar avanzar ronda" con advertencia de que el resultado no está confirmado. Alternativa más simple: en `carga.html`, llamar `avanzar_ronda_copa` también cuando el partido pasa a `a_confirmar` (no solo `confirmado`).
 
 **Archivos clave**: `src/admin/copas/statusView.js`, `src/carga/partidosGrupos.js`
-
----
-
-#### [MEJORA] Copas — warning de empate desaparece si el sorteo ya fue realizado `✅ IMPLEMENTADA`
-
-**Resuelto**: 2026-03-19. `detectarEmpates` sección B chequea `sorteo_inter` para empates inter-grupo; sección C chequea `sorteo_orden` para empates intra-grupo. Filtro de quiebre (`_posicionesQuiebre`) elimina warnings irrelevantes.
-
----
-
-#### [MEJORA] Grupos — superíndice de sorteo solo para equipos del grupo de empate `✅ IMPLEMENTADA`
-
-**Resuelto**: 2026-03-19 en refactor sorteo completo (v1.3.0). Sorteo solo graba equipos del cluster de empate. Superíndice 🎲 solo aparece en equipos con `orden_sorteo` + leyenda "🎲 = Posición definida por sorteo".
 
 ---
 
@@ -299,12 +281,6 @@ Partido con super tiebreak: se carga el STB y el mismo mensaje ("contame qué pa
 
 ---
 
-#### [MEJORA] Admin copas — gestión sin esperar doble confirmación `🔍 EN ANÁLISIS — SUBSUMIDA`
-
-**Score owner**: 4/5 · **Nota**: subsumida en Copa Approval v2 ([spec-copa-approval-v2.md](spec-copa-approval-v2.md)). El rediseño del flujo de aprobación cubre este caso. Se implementará como parte de la v2.
-
----
-
 #### [DEUDA TÉCNICA] Unificar rutinas de reset del torneo `📋 PRIORIZADA`
 
 **Score owner**: 4/5 · **Spec**: ❌ falta
@@ -322,12 +298,6 @@ Partido con super tiebreak: se carga el STB y el mismo mensaje ("contame qué pa
 Nombre de la pareja ganadora en **negrita** en la vista admin de copas.
 
 **Archivo clave**: `src/admin/copas/statusView.js`
-
----
-
-#### [MEJORA] Tabla de posiciones del grupo — mostrar empates y criterios de desempate `🔍 EN ANÁLISIS — SUBSUMIDA`
-
-**Score owner**: pendiente · **Nota**: subsumida en Copa Approval v2 ([spec-copa-approval-v2.md](spec-copa-approval-v2.md)). El sorteo como mecanismo de desempate + DG en la tabla + alertas de empates sin resolver cubren este requerimiento.
 
 ---
 
@@ -435,6 +405,36 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ---
 
 ## Historial — Implementado / Validado
+
+### [BUG] Sorteo — UI permite reubicar equipos que no estuvieron en empate `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-19 · Resuelto en refactor sorteo completo (v1.3.0). Flechas ▲▼ solo aparecen para equipos del cluster de empate. Movimiento restringido al cluster via `isSameCluster()`.
+
+---
+
+### [MEJORA] Copas — warning de empate desaparece si el sorteo ya fue realizado `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-19 · `detectarEmpates` sección B chequea `sorteo_inter` para empates inter-grupo; sección C chequea `sorteo_orden` para empates intra-grupo. Filtro de quiebre (`_posicionesQuiebre`) elimina warnings irrelevantes.
+
+---
+
+### [MEJORA] Grupos — superíndice de sorteo solo para equipos del grupo de empate `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-19 · Sorteo solo graba equipos del cluster de empate. Superíndice 🎲 solo aparece en equipos con `orden_sorteo` + leyenda "🎲 = Posición definida por sorteo".
+
+---
+
+### [MEJORA] Admin copas — gestión sin esperar doble confirmación `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-19 · Subsumida en Copa Approval v2 ([spec-copa-approval-v2.md](spec-copa-approval-v2.md)). Cubierta por el rediseño completo del flujo de aprobación.
+
+---
+
+### [MEJORA] Tabla de posiciones — empates y criterios de desempate `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-19 · Subsumida en Copa Approval v2. Sorteo como mecanismo de desempate + DG en tabla + alertas de empates sin resolver.
+
+---
 
 ### Copa Approval v2 — E5 Cleanup + Refactor Sorteo + Mejoras UI `✅ IMPLEMENTADA`
 
