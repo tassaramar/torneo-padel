@@ -914,8 +914,14 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit, supaba
   
   // Set 2 (si está visible)
   if (mostrarSet2) {
-    document.getElementById('input-set2-mis')?.addEventListener('input', actualizarPreview);
-    document.getElementById('input-set2-rival')?.addEventListener('input', actualizarPreview);
+    document.getElementById('input-set2-mis')?.addEventListener('input', () => {
+      actualizarPreview();
+      actualizarSet3SegunEmpate();
+    });
+    document.getElementById('input-set2-rival')?.addEventListener('input', () => {
+      actualizarPreview();
+      actualizarSet3SegunEmpate();
+    });
   }
   
   // Set 3 (si está visible)

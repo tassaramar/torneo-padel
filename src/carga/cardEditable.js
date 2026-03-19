@@ -191,14 +191,14 @@ function crearCardMultiSet({ div, headerLeft, headerRight, nombreA, nombreB, esJ
       <div class="multiset-header multiset-set3-header" style="text-align:center; font-size:12px; font-weight:700; color:var(--muted); display:none;">STB</div>
 
       <strong class="team-name name-a">${nombreA ?? 'Pareja A'}</strong>
-      <input class="input-score input-s1a" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" />
-      <input class="input-score input-s2a" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" />
-      <input class="input-score input-s3a multiset-set3" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" style="display:none;" />
+      <input class="input-score input-s1a" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" tabindex="1" />
+      <input class="input-score input-s2a" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" tabindex="3" />
+      <input class="input-score input-s3a multiset-set3" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" style="display:none;" tabindex="5" />
 
       <strong class="team-name name-b">${nombreB ?? 'Pareja B'}</strong>
-      <input class="input-score input-s1b" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" />
-      <input class="input-score input-s2b" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" />
-      <input class="input-score input-s3b multiset-set3" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" style="display:none;" />
+      <input class="input-score input-s1b" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" tabindex="2" />
+      <input class="input-score input-s2b" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" tabindex="4" />
+      <input class="input-score input-s3b multiset-set3" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" style="display:none;" tabindex="6" />
     </div>
 
     <div class="actions-row">
