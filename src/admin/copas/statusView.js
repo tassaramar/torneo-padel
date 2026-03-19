@@ -130,8 +130,22 @@ export async function renderStatusView(container, esquemas, copas, standingsData
     return _renderEsquemaEsperando(esq, standingsData);
   }).join('');
 
+  // Reminder de sorteos si hay alguno guardado
+  const haySorteoIntra = (standingsData.standings || []).some(s => s.sorteo_orden);
+  const haySorteoInter = (standingsData.standings || []).some(s => s.sorteo_inter);
+  let sorteoReminder = '';
+  if (haySorteoIntra || haySorteoInter) {
+    const partes = [];
+    if (haySorteoIntra) partes.push('intra-grupo');
+    if (haySorteoInter) partes.push('inter-grupo');
+    sorteoReminder = `<div style="margin-bottom:12px; padding:8px 12px; border-radius:8px; background:#ede9fe; border:1px solid #c4b5fd; font-size:13px; color:#5b21b6;">
+      🎲 Hay sorteos guardados (${partes.join(' + ')}) que afectan el seeding. Podés revisarlos en <strong>Tab Grupos</strong>.
+    </div>`;
+  }
+
   container.innerHTML = `
     <div class="copa-status-section">
+      ${sorteoReminder}
       ${seccionesHtml}
       <div class="admin-actions" style="margin-top:12px; padding-top:12px; border-top:1px solid var(--border);">
         <button type="button" id="btn-editar-plan" class="btn-sm"

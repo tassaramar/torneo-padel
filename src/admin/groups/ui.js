@@ -37,6 +37,9 @@ export function renderOrUpdateGrupoCard(groupId) {
             <th>PJ</th>
             <th>PG</th>
             <th>PP</th>
+            <th>SF</th>
+            <th>SC</th>
+            <th>DS</th>
             <th>GF</th>
             <th>GC</th>
             <th>DG</th>
@@ -209,6 +212,9 @@ function updateTablaBody(groupId) {
       <td style="text-align:center;">${r.PJ}</td>
       <td style="text-align:center;">${r.PG}</td>
       <td style="text-align:center;">${r.PP}</td>
+      <td style="text-align:center;">${r.SF}</td>
+      <td style="text-align:center;">${r.SC}</td>
+      <td style="text-align:center;">${r.DS}</td>
       <td style="text-align:center;">${r.GF}</td>
       <td style="text-align:center;">${r.GC}</td>
       <td style="text-align:center;">${r.DG}</td>
@@ -256,6 +262,9 @@ function moverInterGrupo(parejaId, delta) {
 
   [gen.standings[idx], gen.standings[nuevo]] = [gen.standings[nuevo], gen.standings[idx]];
   renderTablaGeneralCard();
+
+  const card = dom.contGrupos.querySelector('.admin-grupo[data-grupo-id="general"]');
+  flashRow(card, nuevo);
 }
 
 export function renderTablaGeneralCard() {
@@ -286,7 +295,7 @@ export function renderTablaGeneralCard() {
   let rowsHtml = '';
   standings.forEach((s, idx) => {
     if (prevPos !== null && s.posicion_en_grupo !== prevPos) {
-      rowsHtml += `<tr><td colspan="8" style="border:none; height:4px; background:#e5e7eb;"></td></tr>`;
+      rowsHtml += `<tr><td colspan="10" style="border:none; height:4px; background:#e5e7eb;"></td></tr>`;
     }
 
     const isTied = tieSetInter.has(s.pareja_id) || (interOvMap[s.pareja_id] !== undefined);
@@ -298,6 +307,7 @@ export function renderTablaGeneralCard() {
 
     const grupoNombre = gruposMap[s.grupo_id] || '?';
     const dsStr = s.ds > 0 ? `+${s.ds}` : `${s.ds}`;
+    const dgStr = (s.dg || 0) > 0 ? `+${s.dg || 0}` : `${s.dg || 0}`;
 
     rowsHtml += `<tr>
       <td>${idx + 1}</td>
@@ -307,6 +317,8 @@ export function renderTablaGeneralCard() {
       <td style="text-align:center;"><strong>${s.puntos}</strong></td>
       <td style="text-align:center;">${dsStr}</td>
       <td style="text-align:center;">${s.gf}</td>
+      <td style="text-align:center;">${s.gc || 0}</td>
+      <td style="text-align:center;">${dgStr}</td>
       <td style="white-space:nowrap;">
         ${isTied
           ? `<button type="button" data-move-inter="up" data-pareja="${s.pareja_id}" style="margin-right:4px;">▲</button>
@@ -338,6 +350,8 @@ export function renderTablaGeneralCard() {
           <th>P</th>
           <th>DS</th>
           <th>GF</th>
+          <th>GC</th>
+          <th>DG</th>
           <th></th>
         </tr>
       </thead>
@@ -385,6 +399,14 @@ export function renderTablaGeneralCard() {
   }
 }
 
+function flashRow(card, rowIdx) {
+  const tr = card?.querySelector(`tbody`)?.children[rowIdx];
+  if (!tr) return;
+  tr.style.transition = 'background 0.3s';
+  tr.style.background = '#fef3c7';
+  setTimeout(() => { tr.style.background = ''; }, 600);
+}
+
 function mover(groupId, idx, delta) {
   const g = state.groups[groupId];
   if (!g) return;
@@ -394,4 +416,7 @@ function mover(groupId, idx, delta) {
 
   [g.rows[idx], g.rows[nuevo]] = [g.rows[nuevo], g.rows[idx]];
   updateTablaBody(groupId);
+
+  const card = dom.contGrupos.querySelector(`.admin-grupo[data-grupo-id="${groupId}"]`);
+  flashRow(card, nuevo);
 }

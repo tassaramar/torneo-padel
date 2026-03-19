@@ -457,6 +457,8 @@ async function renderTablaGeneral(container) {
     <th class="pts-col">Pts</th>
     <th class="stat-col">DS</th>
     <th class="stat-col">GF</th>
+    <th class="stat-col">GC</th>
+    <th class="stat-col">DG</th>
   </tr></thead>`;
   html += '<tbody>';
 
@@ -467,7 +469,7 @@ async function renderTablaGeneral(container) {
     const isNewBlock = prevPosicion !== null && row.posicion_en_grupo !== prevPosicion;
 
     if (isNewBlock) {
-      html += `<tr class="tabla-general-separador"><td colspan="7"></td></tr>`;
+      html += `<tr class="tabla-general-separador"><td colspan="9"></td></tr>`;
     }
 
     html += `<tr class="${esMiPareja ? 'mi-pareja' : ''}">
@@ -482,6 +484,8 @@ async function renderTablaGeneral(container) {
       <td class="pts-col"><strong>${row.puntos}</strong></td>
       <td class="stat-col">${dsStr}</td>
       <td class="stat-col">${row.gf}</td>
+      <td class="stat-col">${row.gc || 0}</td>
+      <td class="stat-col">${(row.dg || 0) > 0 ? `+${row.dg || 0}` : `${row.dg || 0}`}</td>
     </tr>`;
 
     prevPosicion = row.posicion_en_grupo;
