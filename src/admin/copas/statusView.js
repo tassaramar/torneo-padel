@@ -591,6 +591,41 @@ function _wireStatusEvents(container, esquemas, standingsData, onRefresh) {
       return;
     }
 
+    // Confirmar partido desde bracket (a_confirmar → confirmado)
+    if (btn.classList.contains('btn-confirmar-partido')) {
+      const partidoId = btn.dataset.partidoId;
+      const copaId    = btn.dataset.copaId;
+      if (!partidoId) return;
+
+      btn.disabled = true;
+      btn.textContent = '⏳…';
+
+      const { error } = await supabase
+        .from('partidos')
+        .update({ estado: 'confirmado' })
+        .eq('id', partidoId);
+
+      if (error) {
+        logMsg(`❌ Error confirmando partido: ${error.message}`);
+        btn.disabled = false;
+        btn.textContent = '✅ Confirmar resultado';
+        return;
+      }
+
+      logMsg('✅ Resultado confirmado');
+
+      // Avanzar ronda si corresponde
+      if (copaId) {
+        supabase.rpc('avanzar_ronda_copa', { p_copa_id: copaId })
+          .then(({ error: e }) => {
+            if (e) console.warn('Avanzar ronda copa:', e.message);
+          });
+      }
+
+      onRefresh?.();
+      return;
+    }
+
     // Editar plan
     if (btn.id === 'btn-editar-plan') {
       const { renderPlanEditor } = await import('./planEditor.js');
@@ -1046,7 +1081,10 @@ function _normalizarPartidosParaBracket(partidos) {
         winner:  hayResultado && p.sets_b > p.sets_a
       } : null,
       resultado: hayResultado ? formatearResultado(p, { incluirSTB: true }) : null,
-      endogeno:  false
+      endogeno:  false,
+      estado:   p.estado,
+      partidoId: p.id,
+      copaId:   p.copa_id
     };
   });
 }
@@ -1076,6 +1114,15 @@ function _renderBracketMatch(m) {
     ? `<div style="font-size:10px; color:#d97706; margin-top:2px;">⚠️ mismo grupo</div>`
     : '';
 
+  // Botón confirmar para partidos a_confirmar
+  const confirmarHtml = m.estado === 'a_confirmar' && m.partidoId
+    ? `<button type="button" class="btn-confirmar-partido btn-sm"
+         data-partido-id="${m.partidoId}" data-copa-id="${m.copaId || ''}"
+         style="margin-top:4px; font-size:11px; padding:3px 8px; background:#16a34a; color:#fff; border:none; border-radius:6px; cursor:pointer;">
+         ✅ Confirmar resultado
+       </button>`
+    : '';
+
   return `
     <div class="sb-match">
       <div class="sb-label">${_esc(rondaLabel)}</div>
@@ -1084,6 +1131,7 @@ function _renderBracketMatch(m) {
         ${renderTeam(m.teamB, m.teamB?.winner)}
       </div>
       ${resultHtml}
+      ${confirmarHtml}
       ${endogenoWarn}
     </div>
   `;
