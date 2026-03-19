@@ -140,13 +140,25 @@ Si el torneo tiene cantidad impar de grupos (1, 3, 5), el formato "por posición
 
 ---
 
-#### [MEJORA] Configuración de formato de sets por torneo (1 set vs 3 sets) `💡 CRUDA`
+#### [MEJORA] Configuración de formato de sets por torneo (1 set vs 3 sets) `📋 PRIORIZADA`
 
 **Score owner**: pendiente · **Spec**: ❌ falta · **Prioridad**: alta (confusión recurrente en usuarios)
 
-El esquema actual permite cargar 1 o 3 sets indistintamente, lo que genera confusión. El torneo debería configurarse como "siempre 1 set" o "siempre 3 sets", y los formularios de carga (jugador + admin), confirmación de resultado y disputas deben adaptarse: solo mostrar 1 input de set, o forzar los 3 sets.
+El esquema actual permite cargar 1 o 3 sets indistintamente, lo que genera confusión. El torneo debería configurarse como "siempre 1 set" o "siempre 2 sets" (al mejor de 3), y los formularios de carga deben adaptarse.
 
-**Archivos clave**: `src/viewer/cargarResultado.js`, `src/carga/partidosGrupos.js`, tabla `torneos` (nuevo campo)
+**Alcance completo** — adaptar TODOS los puntos de carga:
+- `index.html` — carga de resultado por jugador
+- `index.html` — disputa de resultado
+- `carga.html` — partidos pendientes
+- `carga.html` — confirmar resultado
+- `carga.html` — partidos jugados (edición)
+- `carga.html` — disputas
+
+Si se juega a 1 set → mostrar solo 1 input de set. Si se juega a 2 sets (al mejor de 3) → mostrar 2-3 inputs.
+
+**Implementación sugerida**: nuevo campo `formato_sets` en tabla `torneos` (valores: `1` o `3`). Configurar desde admin → Setup. Todos los formularios de carga leen este valor y adaptan la UI.
+
+**Archivos clave**: `src/viewer/cargarResultado.js`, `src/carga/partidosGrupos.js`, `src/carga/copas.js`, tabla `torneos` (nuevo campo)
 
 ---
 
