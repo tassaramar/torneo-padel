@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-17 (E4c correcciones — filtro quiebre, eliminar sorteo inter-grupo UI, reset limpia sorteos)
+**Última actualización**: 2026-03-19 (E5 Cleanup + refactor sorteo completo + mejoras UI tablas)
 
 ---
 
@@ -76,13 +76,9 @@ Cuando no quedan partidos de grupo pendientes ni en juego, ocultar las secciones
 
 ---
 
-#### [BUG] Sorteo — UI permite reubicar equipos que no estuvieron en empate `💡 CRUDA`
+#### [BUG] Sorteo — UI permite reubicar equipos que no estuvieron en empate `✅ IMPLEMENTADA`
 
-**Score owner**: pendiente · **Spec**: ❌ falta
-
-La UI de sorteo muestra todos los equipos del grupo como arrastrables, incluso los que ganaron sin empate. Ejemplo: Tincho-Max ganó todos sus partidos (1° indiscutible) pero la UI permite colocarlos en posición 4. Al guardar, el optimistic UI muestra el superíndice según la posición elegida en pantalla. Al refrescar, vuelven a posición 1 correctamente (la BD ignora el dato inválido), pero genera confusión. El sorteo debería restringirse solo a los equipos involucrados en el empate.
-
-**Archivos clave**: `src/admin/groups/ui.js` (renderizado del sorteo), `src/admin/groups/service.js` (cálculo del tie group)
+**Resuelto**: 2026-03-19 en refactor sorteo completo (v1.3.0). Flechas ▲▼ solo aparecen para equipos del cluster de empate. Movimiento restringido al cluster via `isSameCluster()`.
 
 ---
 
@@ -96,25 +92,15 @@ La UI de sorteo muestra todos los equipos del grupo como arrastrables, incluso l
 
 ---
 
-#### [MEJORA] Copas — warning de empate desaparece si el sorteo ya fue realizado `💡 CRUDA`
+#### [MEJORA] Copas — warning de empate desaparece si el sorteo ya fue realizado `✅ IMPLEMENTADA`
 
-**Score owner**: pendiente · **Spec**: ❌ falta
-
-En admin → Tab Copas, si hay grupos con empates pero ya se realizó el sorteo para resolverlos, el warning de empate no debería aparecer. Actualmente `detectarEmpates` no considera si `sorteo_orden` está seteado para los equipos empatados. La lógica debería chequear: si todos los equipos del grupo de empate tienen `sorteo_orden`, el empate está resuelto y no hay warning.
-
-**Archivos clave**: `src/utils/copaMatchups.js` (función `detectarEmpates`), `src/admin/copas/statusView.js`
+**Resuelto**: 2026-03-19. `detectarEmpates` sección B chequea `sorteo_inter` para empates inter-grupo; sección C chequea `sorteo_orden` para empates intra-grupo. Filtro de quiebre (`_posicionesQuiebre`) elimina warnings irrelevantes.
 
 ---
 
-#### [MEJORA] Grupos — superíndice de sorteo solo para equipos del grupo de empate `💡 CRUDA`
+#### [MEJORA] Grupos — superíndice de sorteo solo para equipos del grupo de empate `✅ IMPLEMENTADA`
 
-**Score owner**: pendiente · **Spec**: ❌ falta
-
-Actualmente se muestra el superíndice de posición (1°, 2°, 3°) para TODOS los equipos cuando hay sorteo guardado, incluso los que no estuvieron en el empate. Debería mostrarse solo para los equipos que formaron el grupo de empate. Requiere que el sistema identifique y persista cuáles fueron los equipos del tie group al guardar el sorteo.
-
-**Propuesta de diseño**: superíndice de posición solo para equipos del empate (los demás sin superíndice).
-
-**Archivos clave**: `src/admin/groups/ui.js`, `src/admin/groups/service.js`, `src/utils/copaDecisionService.js`
+**Resuelto**: 2026-03-19 en refactor sorteo completo (v1.3.0). Sorteo solo graba equipos del cluster de empate. Superíndice 🎲 solo aparece en equipos con `orden_sorteo` + leyenda "🎲 = Posición definida por sorteo".
 
 ---
 
@@ -428,6 +414,33 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ---
 
 ## Historial — Implementado / Validado
+
+### Copa Approval v2 — E5 Cleanup + Refactor Sorteo + Mejoras UI `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-19
+
+**Refactor Sorteo Completo** (v1.3.0):
+- RPC `obtener_standings_torneo` simplificado: ya no calcula `posicion_en_grupo`, devuelve stats crudas
+- `enriquecerConPosiciones`: calcula posiciones client-side con H2H + dominator chain (single source of truth)
+- Sorteo por cluster: solo graba equipos empatados, no todo el grupo
+- Nuevo sorteo inter-grupo en card "Tabla General" del Tab Grupos
+- `cmpStandings` usa `posicion_en_grupo` como criterio principal (no como desempate)
+
+**Mejoras UI** (v1.3.1–v1.3.3):
+- Superíndices con 🎲 emoji + leyenda "Posición definida por sorteo"
+- Tabla general: solo superíndice inter-grupo (eliminado intra-grupo redundante)
+- Superíndices aparecen inmediatamente después de guardar (sin refresh manual)
+- Columnas SF, SC, DS en tablas intra-grupo; GC, DG en tablas generales
+- Flash azul al mover equipos con flechas ▲▼
+- Reminder violeta en Tab Copas cuando hay sorteos guardados
+
+**E5 Cleanup** (v1.3.4):
+- Eliminado `bracketLogic.js` (4 funciones muertas, 0 imports)
+- Eliminado `src/admin/utils.js` (sin imports)
+- Eliminado `dispararMotorCopas` + 3 call sites (v1, escribía a `propuestas_copa` que v2 no lee)
+- Eliminado fire-and-forget `verificar_y_proponer_copas` en `planEditor.js`
+
+---
 
 ### Copa Approval v2 — Etapa 4a: StatusView nueva pipeline + Aprobar copa `✅ IMPLEMENTADA`
 
