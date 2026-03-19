@@ -104,7 +104,7 @@ Cuando no quedan partidos de grupo pendientes ni en juego, ocultar las secciones
 
 ---
 
-#### [MEJORA] Grupos — badge H2H cuando el desempate es por enfrentamiento directo `💡 CRUDA`
+#### [MEJORA] Grupos — badge H2H cuando el desempate es por enfrentamiento directo `📋 PRIORIZADA`
 
 **Score owner**: pendiente · **Spec**: ❌ falta
 
@@ -113,6 +113,8 @@ Cuando dos equipos empatados en stats se desempatan por H2H (head-to-head), no h
 **Propuesta de diseño**: pequeño badge `H2H↑` o superíndice `H2H` junto al nombre — mismo estilo que los superíndices de sorteo. Mobile-friendly (no hover).
 
 **Restricción**: Solo mostrar el badge cuando son exactamente **dos equipos** empatados en stats y uno ganó el H2H. En triple empate H2H puede ser circular (A>B, B>C, C>A) — no tiene sentido indicar quién "ganó" el H2H.
+
+**Alcance**: Debe aplicar tanto en admin (Tab Grupos) como en index.html (vista jugador). Ver mejora relacionada abajo.
 
 **Archivos clave**: `src/admin/groups/ui.js`, `src/utils/tablaPosiciones.js`
 
@@ -198,13 +200,19 @@ El modal "Tablas/Grupos/Fixture" → tab Copas en index.html muestra los partido
 
 ---
 
-#### [MEJORA] Unificar visualización de resultados y copas entre admin.html e index.html `💡 CRUDA`
+#### [MEJORA] Unificar visualización de tablas y copas entre admin.html e index.html `📋 PRIORIZADA`
 
 **Score owner**: pendiente · **Spec**: ❌ falta
 
-Hoy la sección "Tablas/Grupos" de index.html y la vista de copas de admin.html tienen lógicas de render separadas. Unificar usando los mismos componentes (`_renderBracket`, `_renderTablaGeneral`) como funciones compartidas en `src/utils/` reutilizables desde ambas vistas.
+Llevar todos los avisos visuales de la tabla de posiciones del admin a la vista del jugador (index.html):
+- Badge H2H↑ (cuando se implemente)
+- Superíndices 🎲 de sorteo (ya en tabla general, falta en tablas de grupo individual)
+- Colores de empate por cluster
+- Leyendas explicativas
 
-**Archivos clave**: `src/viewer/modalConsulta.js`, `src/admin/copas/statusView.js`, posible nuevo `src/utils/bracketRender.js`
+También unificar componentes de render (bracket, tablas) como funciones compartidas en `src/utils/` reutilizables desde ambas vistas.
+
+**Archivos clave**: `src/viewer/modalConsulta.js`, `src/admin/copas/statusView.js`, `src/admin/groups/ui.js`
 
 ---
 
