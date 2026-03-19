@@ -3,6 +3,8 @@
  * Abstrae todas las operaciones de Supabase sobre esta tabla.
  */
 
+import { enriquecerConPosiciones } from '../../utils/tablaPosiciones.js';
+
 /**
  * Carga todos los esquemas del torneo activo, ordenados.
  *
@@ -246,25 +248,36 @@ export async function detectarYSugerirPreset(supabase, torneoId) {
 
 /**
  * Carga standings del torneo enriquecidos con nombres de parejas y grupos.
+ * Calcula posicion_en_grupo client-side (con H2H + dominator chain + sorteo).
  *
  * @returns {{ standings, grupos, todosCompletos }}
  */
 export async function cargarStandingsParaCopas(supabase, torneoId) {
-  const [standingsRes, gruposRes, parejasRes] = await Promise.all([
+  const [standingsRes, gruposRes, parejasRes, partidosRes] = await Promise.all([
     supabase.rpc('obtener_standings_torneo', { p_torneo_id: torneoId }),
     supabase.from('grupos').select('id, nombre').eq('torneo_id', torneoId),
-    supabase.from('parejas').select('id, nombre').eq('torneo_id', torneoId)
+    supabase.from('parejas').select('id, nombre').eq('torneo_id', torneoId),
+    supabase.from('partidos')
+      .select('id, grupo_id, pareja_a_id, pareja_b_id, sets_a, sets_b, games_totales_a, games_totales_b')
+      .eq('torneo_id', torneoId)
+      .is('copa_id', null)
+      .not('sets_a', 'is', null)
   ]);
 
   const grupos = gruposRes.data || [];
   const parejasMap = Object.fromEntries((parejasRes.data || []).map(p => [p.id, p.nombre]));
   const gruposMap = Object.fromEntries(grupos.map(g => [g.id, g.nombre]));
+  const partidos = partidosRes.data || [];
 
-  const standings = (standingsRes.data || []).map(s => ({
+  // Enriquecer con nombres ANTES de calcular posiciones
+  let standings = (standingsRes.data || []).map(s => ({
     ...s,
     nombre:      parejasMap[s.pareja_id] || '?',
     grupoNombre: gruposMap[s.grupo_id]   || '?'
   }));
+
+  // Calcular posicion_en_grupo client-side (con H2H + dominator chain + sorteo)
+  standings = enriquecerConPosiciones(standings, partidos);
 
   const gruposCompletosIds = new Set(standings.filter(s => s.grupo_completo).map(s => s.grupo_id));
   const todosCompletos = grupos.length > 0 && grupos.every(g => gruposCompletosIds.has(g.id));

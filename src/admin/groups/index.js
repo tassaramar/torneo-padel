@@ -1,6 +1,6 @@
 import { dom, logMsg, supabase, TORNEO_ID } from '../context.js';
-import { fetchGrupos, cargarGrupoCierre, resetPartidosGrupos, generarPartidosGrupos } from './service.js';
-import { renderOrUpdateGrupoCard, renderGrupoError } from './ui.js';
+import { fetchGrupos, cargarGrupoCierre, resetPartidosGrupos, generarPartidosGrupos, cargarTablaGeneral } from './service.js';
+import { renderOrUpdateGrupoCard, renderGrupoError, renderTablaGeneralCard } from './ui.js';
 import { state } from '../state.js';
 
 export function initGroups() {
@@ -62,6 +62,10 @@ export async function cargarCierreGrupos() {
     if (!r.ok) renderGrupoError(grupo, r.msg);
     else renderOrUpdateGrupoCard(r.groupId);
   }
+
+  // Tabla General al final (después de todas las cards de grupos individuales)
+  await cargarTablaGeneral();
+  renderTablaGeneralCard();
 
   logMsg('✅ Grupos cargados');
 }

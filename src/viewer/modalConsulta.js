@@ -13,7 +13,8 @@ import {
   ordenarConOverrides,
   detectarEmpatesReales,
   cargarOverrides,
-  agregarMetadataOverrides
+  agregarMetadataOverrides,
+  enriquecerConPosiciones
 } from '../utils/tablaPosiciones.js';
 import { tieneResultado, formatearResultado, determinarGanadorParaPareja, invertirScoresPartido } from '../utils/formatoResultado.js';
 import { calcularColaSugerida, crearMapaPosiciones } from '../utils/colaFixture.js';
@@ -353,7 +354,11 @@ async function renderGrupoDetalle(container, grupoId) {
               return `
                 <tr class="${esMiPareja ? 'mi-pareja' : ''}" style="${styleEmpate}">
                   <td class="pos-col">${idx + 1}</td>
-                  <td class="nombre-col">${escapeHtml(row.nombre)}</td>
+                  <td class="nombre-col">${escapeHtml(row.nombre)}${
+                    row.tieneOverrideAplicado
+                      ? `<sup style="font-size:10px; color:#0b7285; font-weight:700; margin-left:2px;">${row.ordenManual}°</sup>`
+                      : ''
+                  }</td>
                   <td class="stat-col">${row.PJ}</td>
                   <td class="stat-col">${row.PG}</td>
                   <td class="stat-col">${row.PP}</td>
@@ -390,7 +395,22 @@ async function renderTablaGeneral(container) {
     try {
       const res = await supabase.rpc('obtener_standings_torneo', { p_torneo_id: torneoId });
       if (res.error) throw res.error;
-      cache.standings = res.data || [];
+
+      const parejasMap = Object.fromEntries((cache.parejas || []).map(p => [p.id, p.nombre]));
+      const gruposMap = Object.fromEntries((cache.grupos || []).map(g => [g.id, g.nombre]));
+
+      let standings = (res.data || []).map(s => ({
+        ...s,
+        parejaNombre: parejasMap[s.pareja_id] || '—',
+        nombre: parejasMap[s.pareja_id] || '—',
+        grupoNombre: gruposMap[s.grupo_id] || '—'
+      }));
+
+      // Calcular posicion_en_grupo client-side usando partidos del cache
+      const partidosGrupo = (cache.partidos || []).filter(p => !p.copa_id && p.sets_a != null);
+      standings = enriquecerConPosiciones(standings, partidosGrupo);
+
+      cache.standings = standings;
     } catch (e) {
       console.error('Error cargando standings:', e);
       container.innerHTML = '<p class="modal-empty">Error cargando tabla general</p>';
@@ -398,33 +418,27 @@ async function renderTablaGeneral(container) {
     }
   }
 
-  const standings = cache?.standings || [];
+  const enriched = cache?.standings || [];
 
-  if (standings.length === 0) {
+  if (enriched.length === 0) {
     container.innerHTML = '<p class="modal-empty">No hay datos de tabla general disponibles</p>';
     return;
   }
 
-  const parejasMap = Object.fromEntries((cache.parejas || []).map(p => [p.id, p.nombre]));
-  const gruposMap = Object.fromEntries((cache.grupos || []).map(g => [g.id, g.nombre]));
-
-  const enriched = standings.map(s => ({
-    ...s,
-    parejaNombre: parejasMap[s.pareja_id] || '—',
-    grupoNombre: gruposMap[s.grupo_id] || '—'
-  }));
-
-  // Ordenar: posicion_en_grupo ASC, puntos DESC, ds DESC, gf DESC, nombre ASC
+  // Ordenar: posicion_en_grupo ASC → puntos DESC → ds DESC → dg DESC → gf DESC → sorteo_inter ASC → nombre
   enriched.sort((a, b) =>
-    a.posicion_en_grupo - b.posicion_en_grupo ||
+    (a.posicion_en_grupo ?? 999) - (b.posicion_en_grupo ?? 999) ||
     b.puntos - a.puntos ||
     b.ds - a.ds ||
+    (b.dg || 0) - (a.dg || 0) ||
     b.gf - a.gf ||
+    (a.sorteo_inter || 0) - (b.sorteo_inter || 0) ||
     a.parejaNombre.localeCompare(b.parejaNombre)
   );
 
+  const gruposMap = Object.fromEntries((cache.grupos || []).map(g => [g.id, g.nombre]));
   const gruposIncompletos = [...new Set(
-    standings.filter(s => !s.grupo_completo).map(s => `Grupo ${gruposMap[s.grupo_id] || '?'}`)
+    enriched.filter(s => !s.grupo_completo).map(s => `Grupo ${gruposMap[s.grupo_id] || '?'}`)
   )];
 
   let html = '<div class="modal-section">';
@@ -458,7 +472,15 @@ async function renderTablaGeneral(container) {
 
     html += `<tr class="${esMiPareja ? 'mi-pareja' : ''}">
       <td class="pos-col">${idx + 1}</td>
-      <td class="nombre-col">${escapeHtml(row.parejaNombre)}</td>
+      <td class="nombre-col">${escapeHtml(row.parejaNombre)}${
+        row.sorteo_inter
+          ? `<sup style="font-size:10px; color:#8b5cf6; font-weight:700; margin-left:2px;">${row.sorteo_inter}°</sup>`
+          : ''
+      }${
+        row.sorteo_orden
+          ? `<sup style="font-size:10px; color:#0b7285; font-weight:700; margin-left:2px;">${row.sorteo_orden}°</sup>`
+          : ''
+      }</td>
       <td class="stat-col">${escapeHtml(row.grupoNombre)}</td>
       <td class="stat-col">${row.posicion_en_grupo}°</td>
       <td class="pts-col"><strong>${row.puntos}</strong></td>

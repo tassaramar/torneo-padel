@@ -10,3 +10,9 @@ Convenciones:
 Escenario 1:
 - `escenario-1-setup-admin.md`
 - `escenario-1-jugador-tincho.md`
+
+Escenario 2A:
+- `escenario-2a-multi-actor-confirmacion.md`
+
+Escenario 3:
+- `escenario-3-multi-actor-tabla-copa-disputa.md`

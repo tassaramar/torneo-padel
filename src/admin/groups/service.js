@@ -1,6 +1,7 @@
 import { supabase, TORNEO_ID, logMsg } from '../context.js';
 import { state } from '../state.js';
 import { calcularTablaGrupo, ordenarAutomatico, ordenarConOverrides, detectarEmpatesReales } from './compute.js';
+import { enriquecerConPosiciones } from '../../utils/tablaPosiciones.js';
 
 /**
  * Circle Method (Berger Tables) para generar pairings óptimos de round-robin
@@ -286,21 +287,69 @@ export async function guardarOrdenGrupo(groupId) {
   const g = state.groups[groupId];
   if (!g) return false;
 
-  const payload = g.rows.map((r, i) => ({
-    torneo_id: TORNEO_ID,
-    grupo_id: groupId,
-    pareja_id: r.pareja_id,
-    orden_sorteo: i + 1,
-    tipo: 'intra_grupo'
-  }));
+  // Solo guardar equipos que pertenecen a un cluster de empate.
+  const tiedIds = new Set();
+  if (g.tieGroups) {
+    g.tieGroups.forEach(tg => tg.parejaIds.forEach(id => tiedIds.add(id)));
+  }
 
+  // También incluir equipos que YA tenían sorteo guardado (ovMap),
+  // por si el admin está re-ordenando un cluster ya sorteado.
+  if (g.ovMap) {
+    Object.keys(g.ovMap).forEach(id => tiedIds.add(id));
+  }
+
+  if (tiedIds.size === 0) {
+    logMsg('⚠️ No hay empates que requieran sorteo');
+    return false;
+  }
+
+  // Determinar orden relativo dentro de cada cluster.
+  // Recorrer g.rows en orden de la UI; asignar orden_sorteo 1, 2, 3...
+  // solo a los que están en tiedIds. El orden se reinicia por cluster.
+  const payload = [];
+  let currentClusterOrder = 0;
+  let prevWasTied = false;
+
+  g.rows.forEach(r => {
+    if (tiedIds.has(r.pareja_id)) {
+      if (!prevWasTied) currentClusterOrder = 0; // nuevo cluster
+      currentClusterOrder++;
+      payload.push({
+        torneo_id: TORNEO_ID,
+        grupo_id: groupId,
+        pareja_id: r.pareja_id,
+        orden_sorteo: currentClusterOrder,
+        tipo: 'intra_grupo'
+      });
+      prevWasTied = true;
+    } else {
+      prevWasTied = false;
+    }
+  });
+
+  // Primero borrar sorteos intra_grupo existentes de este grupo
+  const { error: errDel } = await supabase
+    .from('sorteos')
+    .delete()
+    .eq('torneo_id', TORNEO_ID)
+    .eq('grupo_id', groupId)
+    .eq('tipo', 'intra_grupo');
+
+  if (errDel) {
+    console.error(errDel);
+    logMsg('❌ Error limpiando sorteos previos');
+    return false;
+  }
+
+  // Luego insertar los nuevos
   const { error } = await supabase
     .from('sorteos')
-    .upsert(payload, { onConflict: 'torneo_id,pareja_id' });
+    .insert(payload);
 
   if (error) {
     console.error(error);
-    logMsg('❌ Error guardando orden manual');
+    logMsg('❌ Error guardando sorteo');
     return false;
   }
 
@@ -317,7 +366,8 @@ export async function resetOrdenGrupo(groupId) {
     .from('sorteos')
     .delete()
     .eq('torneo_id', TORNEO_ID)
-    .eq('grupo_id', groupId);
+    .eq('grupo_id', groupId)
+    .eq('tipo', 'intra_grupo');
 
   if (error) {
     console.error(error);
@@ -326,5 +376,174 @@ export async function resetOrdenGrupo(groupId) {
   }
 
   logMsg(`🧽 Sorteo reseteado para grupo ${g.grupo.nombre}`);
+  return true;
+}
+
+export async function cargarTablaGeneral() {
+  const { data, error } = await supabase.rpc('obtener_standings_torneo', {
+    p_torneo_id: TORNEO_ID
+  });
+
+  if (error) {
+    console.error(error);
+    return { ok: false, msg: 'Error cargando tabla general' };
+  }
+
+  const standings = data || [];
+  if (standings.length === 0) return { ok: false, msg: 'Sin datos' };
+
+  // Enriquecer con nombres y posicion_en_grupo desde state.groups (ya cargados y ordenados)
+  const gruposMap = {};
+  Object.values(state.groups).forEach(g => {
+    gruposMap[g.grupo.id] = g.grupo.nombre;
+    g.rows.forEach((r, idx) => {
+      const match = standings.find(s => s.pareja_id === r.pareja_id);
+      if (match) {
+        match.nombre = r.nombre;
+        match.posicion_en_grupo = idx + 1;
+      }
+    });
+  });
+
+  // Ordenar: posicion_en_grupo ASC → stats → sorteo_inter ASC → nombre
+  standings.sort((a, b) =>
+    (a.posicion_en_grupo ?? 999) - (b.posicion_en_grupo ?? 999) ||
+    (b.puntos - a.puntos) ||
+    (b.ds - a.ds) ||
+    ((b.dg || 0) - (a.dg || 0)) ||
+    (b.gf - a.gf) ||
+    ((a.sorteo_inter || 0) - (b.sorteo_inter || 0)) ||
+    String(a.nombre || '').localeCompare(String(b.nombre || ''))
+  );
+
+  // Detectar clusters inter-grupo empatados
+  const tiers = new Map();
+  standings.filter(s => s.grupo_completo).forEach(s => {
+    const key = `${s.posicion_en_grupo}|${s.puntos}|${s.ds}|${s.dg || 0}|${s.gf}`;
+    if (!tiers.has(key)) tiers.set(key, []);
+    tiers.get(key).push(s);
+  });
+
+  const tieGroupsInter = [];
+  const tieSetInter = new Set();
+
+  for (const arr of tiers.values()) {
+    const gruposDistintos = new Set(arr.map(s => s.grupo_id));
+    if (gruposDistintos.size < 2) continue;
+    if (arr.length < 2) continue;
+
+    const sinSorteo = arr.filter(s => !s.sorteo_inter);
+    if (sinSorteo.length < 2) continue; // ya resuelto
+
+    tieGroupsInter.push({
+      parejaIds: arr.map(s => s.pareja_id),
+      posicion: arr[0].posicion_en_grupo,
+      stats: `${arr[0].puntos} pts, DS ${arr[0].ds}, DG ${arr[0].dg || 0}`
+    });
+    arr.forEach(s => tieSetInter.add(s.pareja_id));
+  }
+
+  // Cargar overrides inter-grupo existentes
+  const { data: interSorteos } = await supabase
+    .from('sorteos')
+    .select('pareja_id, orden_sorteo')
+    .eq('torneo_id', TORNEO_ID)
+    .eq('tipo', 'inter_grupo');
+
+  const interOvMap = {};
+  (interSorteos || []).forEach(s => {
+    if (s.orden_sorteo !== null) interOvMap[s.pareja_id] = s.orden_sorteo;
+  });
+
+  const hasSavedInterOverride = Object.keys(interOvMap).length > 0;
+
+  state.general = {
+    standings,
+    gruposMap,
+    tieGroupsInter,
+    tieSetInter,
+    interOvMap,
+    hasSavedInterOverride
+  };
+
+  return { ok: true };
+}
+
+export async function guardarSorteoInterGrupo() {
+  const gen = state.general;
+  if (!gen) return false;
+
+  const tiedIds = new Set();
+  gen.tieGroupsInter.forEach(tg => tg.parejaIds.forEach(id => tiedIds.add(id)));
+  if (gen.interOvMap) {
+    Object.keys(gen.interOvMap).forEach(id => tiedIds.add(id));
+  }
+
+  if (tiedIds.size === 0) {
+    logMsg('⚠️ No hay empates inter-grupo que requieran sorteo');
+    return false;
+  }
+
+  const payload = [];
+  let currentClusterOrder = 0;
+  let prevWasTied = false;
+
+  gen.standings.forEach(s => {
+    if (tiedIds.has(s.pareja_id)) {
+      if (!prevWasTied) currentClusterOrder = 0;
+      currentClusterOrder++;
+      payload.push({
+        torneo_id: TORNEO_ID,
+        grupo_id: null,
+        pareja_id: s.pareja_id,
+        orden_sorteo: currentClusterOrder,
+        tipo: 'inter_grupo'
+      });
+      prevWasTied = true;
+    } else {
+      prevWasTied = false;
+    }
+  });
+
+  const { error: errDel } = await supabase
+    .from('sorteos')
+    .delete()
+    .eq('torneo_id', TORNEO_ID)
+    .eq('tipo', 'inter_grupo');
+
+  if (errDel) {
+    console.error(errDel);
+    logMsg('❌ Error limpiando sorteos inter-grupo previos');
+    return false;
+  }
+
+  const { error } = await supabase
+    .from('sorteos')
+    .insert(payload);
+
+  if (error) {
+    console.error(error);
+    logMsg('❌ Error guardando sorteo inter-grupo');
+    return false;
+  }
+
+  logMsg('✅ Sorteo inter-grupo guardado');
+  return true;
+}
+
+export async function resetSorteoInterGrupo() {
+  const { error } = await supabase
+    .from('sorteos')
+    .delete()
+    .eq('torneo_id', TORNEO_ID)
+    .eq('tipo', 'inter_grupo');
+
+  if (error) {
+    console.error(error);
+    logMsg('❌ Error reseteando sorteo inter-grupo');
+    return false;
+  }
+
+  logMsg('🧽 Sorteo inter-grupo reseteado');
   return true;
 }

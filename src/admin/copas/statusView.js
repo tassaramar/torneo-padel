@@ -676,9 +676,10 @@ function _handleResetClick(container, btn, onRefresh) {
 
     const result = await resetCopas(supabase, TORNEO_ID);
     if (result.ok) {
-      // Limpiar sorteos asociados al torneo
-      const { resetSorteo } = await import('./copaDecisionService.js');
-      await resetSorteo(supabase, TORNEO_ID);
+      // Limpiar sorteos inter-grupo (intra-grupo son independientes del sistema de copas)
+      await supabase.from('sorteos').delete()
+        .eq('torneo_id', TORNEO_ID)
+        .eq('tipo', 'inter_grupo');
 
       Object.keys(_crucesCalculados).forEach(k => delete _crucesCalculados[k]);
       Object.keys(_crucesEditados).forEach(k => delete _crucesEditados[k]);

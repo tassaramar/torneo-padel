@@ -48,10 +48,15 @@ export function cmpStandings(a, b) {
   if ((b.dg || 0) !== (a.dg || 0)) return (b.dg || 0) - (a.dg || 0);
   if (b.gf !== a.gf) return b.gf - a.gf;
 
-  // 3. sorteo_orden solo para equipos del mismo grupo
+  // 3. sorteo inter-grupo (aplica a equipos de DISTINTO grupo)
+  const siA = a.sorteo_inter || 0;
+  const siB = b.sorteo_inter || 0;
+  if (siA !== siB) return siA - siB;
+
+  // 4. sorteo intra-grupo (solo para equipos del MISMO grupo)
   if (a.grupo_id && a.grupo_id === b.grupo_id) {
-    const sA = a.sorteo_orden ?? 999999;
-    const sB = b.sorteo_orden ?? 999999;
+    const sA = a.sorteo_orden || 0;
+    const sB = b.sorteo_orden || 0;
     if (sA !== sB) return sA - sB;
   }
 
@@ -467,7 +472,7 @@ export function detectarEmpates(pool, allStandings, reglas) {
       }
       visitados.add(a);
       if (grupo.length >= 2) {
-        const resueltoPorSorteo = grupo.every(t => t.sorteo_orden != null);
+        const resueltoPorSorteo = grupo.every(t => t.sorteo_inter != null);
         if (!resueltoPorSorteo) {
           warnings.push({
             tipo: 'empate_inter_grupo',

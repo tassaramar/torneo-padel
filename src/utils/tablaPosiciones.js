@@ -257,12 +257,21 @@ export function calcularTablaGrupo(partidos, parejas = [], configPuntos = {}) {
 /**
  * Carga overrides manuales desde la base de datos
  */
-export async function cargarOverrides(supabase, torneoId, grupoId) {
-  const { data, error } = await supabase
+export async function cargarOverrides(supabase, torneoId, grupoId, tipo = 'intra_grupo') {
+  const query = supabase
     .from('sorteos')
     .select('pareja_id, orden_sorteo')
     .eq('torneo_id', torneoId)
-    .eq('grupo_id', grupoId);
+    .eq('tipo', tipo);
+
+  // grupo_id puede ser NULL para inter_grupo
+  if (grupoId) {
+    query.eq('grupo_id', grupoId);
+  } else {
+    query.is('grupo_id', null);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     console.error('Error cargando overrides:', error);
@@ -467,4 +476,60 @@ export function agregarMetadataOverrides(tabla, overridesMap) {
     tieneOverrideAplicado: overridesMap?.[pareja.pareja_id] !== undefined,
     ordenManual: overridesMap?.[pareja.pareja_id] || null
   }));
+}
+
+/**
+ * Calcula posicion_en_grupo para standings crudos del RPC.
+ * Agrupa por grupo_id, ordena con ordenarConOverrides (P → DS → DG → GF → H2H → sorteo → nombre),
+ * y asigna posicion_en_grupo = 1, 2, 3... a cada equipo.
+ *
+ * @param {Array} standings  - Array de standings crudos del RPC (sin posicion_en_grupo)
+ * @param {Array} partidos   - Array de TODOS los partidos de grupo del torneo (para H2H)
+ * @param {Object} overridesMap - Map de pareja_id → orden_sorteo (intra-grupo, todos los grupos juntos)
+ * @returns {Array} standings enriquecidos con posicion_en_grupo
+ */
+export function enriquecerConPosiciones(standings, partidos, overridesMap = {}) {
+  // Agrupar por grupo_id
+  const porGrupo = {};
+  for (const s of standings) {
+    if (!porGrupo[s.grupo_id]) porGrupo[s.grupo_id] = [];
+    porGrupo[s.grupo_id].push(s);
+  }
+
+  const resultado = [];
+
+  for (const [grupoId, equipos] of Object.entries(porGrupo)) {
+    const partidosDelGrupo = partidos.filter(p => p.grupo_id === grupoId);
+
+    const tabla = equipos.map(s => ({
+      ...s,
+      pareja_id: s.pareja_id,
+      P: s.puntos,
+      DS: s.ds,
+      DG: s.dg || (s.gf - (s.gc || 0)),
+      GF: s.gf,
+      GC: s.gc || 0,
+      nombre: s.nombre || ''
+    }));
+
+    // Construir overrides para este grupo desde sorteo_orden del RPC + overridesMap externo
+    const ovMapGrupo = {};
+    equipos.forEach(s => {
+      if (s.sorteo_orden != null) ovMapGrupo[s.pareja_id] = s.sorteo_orden;
+      if (overridesMap[s.pareja_id] != null) ovMapGrupo[s.pareja_id] = overridesMap[s.pareja_id];
+    });
+
+    const ordenada = ordenarConOverrides(tabla, ovMapGrupo, partidosDelGrupo);
+
+    // Asignar posicion_en_grupo
+    ordenada.forEach((row, idx) => {
+      const orig = equipos.find(s => s.pareja_id === row.pareja_id);
+      if (orig) {
+        orig.posicion_en_grupo = idx + 1;
+        resultado.push(orig);
+      }
+    });
+  }
+
+  return resultado;
 }
