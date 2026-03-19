@@ -4116,59 +4116,6 @@ a.btn-action-secondary:hover {
 
 /* === Acciones con contador === */
 
-.home-acciones {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.btn-accion {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  border: 2px solid;
-}
-
-.btn-accion-icon {
-  font-size: 18px;
-}
-
-.btn-accion-badge {
-  background: white;
-  color: inherit;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 800;
-}
-
-.btn-disputas {
-  background: rgba(239, 68, 68, 0.1);
-  border-color: var(--danger);
-  color: #991B1B;
-}
-
-.btn-disputas:hover {
-  background: rgba(239, 68, 68, 0.15);
-}
-
-.btn-confirmaciones {
-  background: rgba(245, 158, 11, 0.1);
-  border-color: var(--warning);
-  color: #92400E;
-}
-
-.btn-confirmaciones:hover {
-  background: rgba(245, 158, 11, 0.15);
-}
-
 /* === Botón consulta === */
 
 .home-consulta {
@@ -4201,42 +4148,15 @@ a.btn-action-secondary:hover {
   font-size: 24px;
 }
 
-/* === Secciones expandibles === */
+/* === Secciones inline (disputas / confirmaciones) === */
 
-.home-seccion-expandible {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  margin-bottom: 20px;
-  overflow: hidden;
+.home-seccion-inline {
+  margin-bottom: 16px;
 }
 
-.seccion-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  background: rgba(15, 23, 42, 0.03);
-  border-bottom: 1px solid var(--border);
-}
-
-.seccion-header h2 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.btn-cerrar-seccion {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: transparent;
-  border: 1px solid var(--border);
+.seccion-inline-titulo {
+  margin: 0 0 8px 0;
   font-size: 16px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: none;
 }
 
 /* === Partidos jugados === */
@@ -4674,16 +4594,6 @@ a.btn-action-secondary:hover {
   .btn-cargar-resultado {
     padding: 12px 16px;
     font-size: 15px;
-  }
-  
-  .home-acciones {
-    flex-direction: column;
-    gap: 10px;
-  }
-  
-  .btn-accion {
-    padding: 12px 14px;
-    font-size: 14px;
   }
   
   .btn-consulta {

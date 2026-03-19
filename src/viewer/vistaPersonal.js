@@ -634,23 +634,19 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
       </div>
     </div>
 
-    <!-- 3) ACCIONES CON CONTADOR (disputas/confirmaciones - arriba de partidos) -->
-    <div class="home-acciones">
-      ${countDisputas > 0 ? `
-        <button type="button" class="btn-accion btn-disputas" id="btn-ver-disputas">
-          <span class="btn-accion-icon">🔴</span>
-          <span class="btn-accion-text">Disputas</span>
-          <span class="btn-accion-badge">${countDisputas}</span>
-        </button>
-      ` : ''}
-      ${countConfirmaciones > 0 ? `
-        <button type="button" class="btn-accion btn-confirmaciones" id="btn-ver-confirmaciones">
-          <span class="btn-accion-icon">🔔</span>
-          <span class="btn-accion-text">Por confirmar</span>
-          <span class="btn-accion-badge">${countConfirmaciones}</span>
-        </button>
-      ` : ''}
-    </div>
+    <!-- 3) DISPUTAS Y CONFIRMACIONES (inline, siempre visibles si hay) -->
+    ${countDisputas > 0 ? `
+      <div class="home-seccion-inline">
+        <h2 class="seccion-inline-titulo">🔴 Disputas (${countDisputas})</h2>
+        <div id="partidos-revision"></div>
+      </div>
+    ` : ''}
+    ${countConfirmaciones > 0 ? `
+      <div class="home-seccion-inline">
+        <h2 class="seccion-inline-titulo">🔔 Por confirmar (${countConfirmaciones})</h2>
+        <div id="partidos-confirmar"></div>
+      </div>
+    ` : ''}
 
     <!-- 4) MIS PARTIDOS PENDIENTES -->
     <div class="home-partidos-pendientes">
@@ -679,23 +675,6 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
         <span class="btn-consulta-icon">📊</span>
         <span class="btn-consulta-text">Tablas / Grupos</span>
       </button>
-    </div>
-
-    <!-- Secciones expandibles para disputas y confirmaciones -->
-    <div id="seccion-disputas" class="home-seccion-expandible" style="display:none">
-      <div class="seccion-header">
-        <h2>🔴 Disputas (${countDisputas})</h2>
-        <button type="button" class="btn-cerrar-seccion" data-seccion="disputas">✕</button>
-      </div>
-      <div id="partidos-revision"></div>
-    </div>
-    
-    <div id="seccion-confirmaciones" class="home-seccion-expandible" style="display:none">
-      <div class="seccion-header">
-        <h2>🔔 Por confirmar (${countConfirmaciones})</h2>
-        <button type="button" class="btn-cerrar-seccion" data-seccion="confirmaciones">✕</button>
-      </div>
-      <div id="partidos-confirmar"></div>
     </div>
 
     <!-- Partidos jugados (colapsados) -->
@@ -932,33 +911,11 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
     window.dispatchEvent(new CustomEvent('abrirModalConsulta'));
   });
   
-  // Botones de disputas y confirmaciones
-  document.getElementById('btn-ver-disputas')?.addEventListener('click', () => {
-    toggleSeccion('disputas', true);
-  });
-  
-  document.getElementById('btn-ver-confirmaciones')?.addEventListener('click', () => {
-    toggleSeccion('confirmaciones', true);
-  });
-  
-  // Cerrar secciones
-  document.querySelectorAll('.btn-cerrar-seccion').forEach(btn => {
-    btn.addEventListener('click', () => {
-      toggleSeccion(btn.dataset.seccion, false);
-    });
-  });
-
   // === Renderizar partidos ===
-  
-  // Renderizar disputas
+
+  // Renderizar disputas y confirmaciones (inline, ya visibles en el DOM)
   renderPartidosRevision(partidos.enRevision, identidad);
-
-  // Renderizar confirmaciones
   renderPartidosConfirmar(partidos.porConfirmar, identidad);
-
-  // Auto-expandir secciones si hay partidos pendientes de acción
-  if (partidos.enRevision.length > 0) toggleSeccion('disputas', true);
-  if (partidos.porConfirmar.length > 0) toggleSeccion('confirmaciones', true);
   
   // Renderizar partidos pendientes (en el bloque principal)
   const todosPartidos = [...partidos.enRevision, ...partidos.porConfirmar, ...partidos.porCargar, ...partidos.confirmados];
@@ -1026,20 +983,6 @@ function renderPartidosPendientesHome(partidosPendientes, todosPartidosGrupo, to
 /**
  * Toggle de secciones expandibles (disputas/confirmaciones)
  */
-function toggleSeccion(nombre, mostrar) {
-  const seccion = document.getElementById(`seccion-${nombre}`);
-  if (seccion) {
-    seccion.style.display = mostrar ? '' : 'none';
-    
-    // Scroll a la sección si se abre
-    if (mostrar) {
-      setTimeout(() => {
-        seccion.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 100);
-    }
-  }
-}
-
 /**
  * Renderiza partidos en revisión (con conflicto)
  */
