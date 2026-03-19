@@ -402,9 +402,10 @@ export function renderTablaGeneralCard() {
 function flashRow(card, rowIdx) {
   const tr = card?.querySelector(`tbody`)?.children[rowIdx];
   if (!tr) return;
+  const orig = tr.style.background;
   tr.style.transition = 'background 0.3s';
-  tr.style.background = '#fef3c7';
-  setTimeout(() => { tr.style.background = ''; }, 600);
+  tr.style.background = '#bfdbfe';
+  setTimeout(() => { tr.style.background = orig; }, 600);
 }
 
 function mover(groupId, idx, delta) {
