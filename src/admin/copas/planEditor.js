@@ -847,14 +847,6 @@ async function _applyEsquemas(esquemas, btn) {
   const result = await guardarEsquemas(supabase, TORNEO_ID, esquemas);
   if (result.ok) {
     logMsg('✅ Plan de copas guardado');
-    try {
-      const { data } = await supabase.rpc('verificar_y_proponer_copas', { p_torneo_id: TORNEO_ID });
-      if (data?.propuestas_generadas > 0) {
-        logMsg(`✅ ${data.propuestas_generadas} propuesta(s) generada(s) automáticamente`);
-      }
-    } catch (_) {
-      // fire-and-forget
-    }
     _setLogVisible(true);
     _onSaved?.();
   } else {
