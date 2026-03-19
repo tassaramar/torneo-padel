@@ -209,6 +209,7 @@ Llevar todos los avisos visuales de la tabla de posiciones del admin a la vista 
 - Superíndices 🎲 de sorteo (ya en tabla general, falta en tablas de grupo individual)
 - Colores de empate por cluster
 - Leyendas explicativas
+- **Columnas en tablas intra-grupo**: actualmente index.html muestra `#, Pareja, PJ, G, P, Dif, Pts` — falta SF, SC, DS, GF, GC, DG para igualar la del admin
 
 También unificar componentes de render (bracket, tablas) como funciones compartidas en `src/utils/` reutilizables desde ambas vistas.
 
