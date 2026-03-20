@@ -1,6 +1,6 @@
 import { supabase, TORNEO_ID, logMsg } from '../context.js';
 import { state } from '../state.js';
-import { calcularTablaGrupo, ordenarAutomatico, ordenarConOverrides, detectarEmpatesReales } from './compute.js';
+import { calcularTablaGrupo, ordenarAutomatico, ordenarConOverrides, detectarEmpatesReales, detectarH2H } from './compute.js';
 import { enriquecerConPosiciones } from '../../utils/tablaPosiciones.js';
 
 /**
@@ -265,6 +265,7 @@ export async function cargarGrupoCierre(grupo) {
 
   // Detectar empates considerando enfrentamiento directo y overrides
   const { tieSet, tieLabel, tieGroups } = detectarEmpatesReales(rowsOrdenadas, partidosArray, ovMap);
+  const h2hWinners = detectarH2H(rowsOrdenadas, partidosArray);
 
   state.groups[grupo.id] = {
     grupo,
@@ -277,6 +278,7 @@ export async function cargarGrupoCierre(grupo) {
     tieSet,
     tieLabel,
     tieGroups,
+    h2hWinners,
     hasSavedOverride
   };
 

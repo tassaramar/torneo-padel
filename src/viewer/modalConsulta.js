@@ -12,6 +12,7 @@ import {
   calcularTablaGrupo as calcularTablaGrupoCentral,
   ordenarConOverrides,
   detectarEmpatesReales,
+  detectarH2H,
   cargarOverrides,
   agregarMetadataOverrides,
   enriquecerConPosiciones
@@ -318,6 +319,7 @@ async function renderGrupoDetalle(container, grupoId) {
   const overridesMap = await cargarOverrides(supabase, torneoId, grupoId);
   const tablaOrdenada = ordenarConOverrides(tablaBase, overridesMap, partidosDelGrupo);
   const { tieGroups } = detectarEmpatesReales(tablaOrdenada, partidosDelGrupo, overridesMap);
+  const h2hWinners = detectarH2H(tablaOrdenada, partidosDelGrupo);
   const tablaConMetadata = agregarMetadataOverrides(tablaOrdenada, overridesMap);
 
   const tieColorMap = {};
@@ -370,7 +372,9 @@ async function renderGrupoDetalle(container, grupoId) {
                   <td class="nombre-col">${escapeHtml(row.nombre)}${
                     row.tieneOverrideAplicado
                       ? `<sup style="font-size:10px; color:#0b7285; font-weight:700; margin-left:2px;">🎲${row.ordenManual}</sup>`
-                      : ''
+                      : h2hWinners.has(row.pareja_id)
+                        ? '<sup style="font-size:9px; color:#2563eb; font-weight:700; margin-left:2px;">H2H</sup>'
+                        : ''
                   }</td>
                   <td class="stat-col">${row.PJ}</td>
                   ${mostrarSets ? `
@@ -388,7 +392,12 @@ async function renderGrupoDetalle(container, grupoId) {
           </tbody>
         </table>
       </div>
-      ${tablaConMetadata.some(r => r.tieneOverrideAplicado) ? '<div style="margin-top:6px; font-size:11px; color:#666;">🎲 = Posición definida por sorteo</div>' : ''}
+      ${(() => {
+        const parts = [];
+        if (tablaConMetadata.some(r => r.tieneOverrideAplicado)) parts.push('🎲 = Posición definida por sorteo');
+        if (h2hWinners.size > 0) parts.push('<span style="color:#2563eb;">H2H</span> = Desempate por enfrentamiento directo');
+        return parts.length ? `<div style="margin-top:6px; font-size:11px; color:#666;">${parts.join('&nbsp;&nbsp;·&nbsp;&nbsp;')}</div>` : '';
+      })()}
 
       <details class="modal-details" open>
         <summary>Partidos del grupo</summary>
@@ -429,6 +438,23 @@ async function renderTablaGeneral(container) {
       const partidosGrupo = (cache.partidos || []).filter(p => !p.copa_id && p.sets_a != null);
       standings = enriquecerConPosiciones(standings, partidosGrupo);
 
+      // Enriquecer con stats completas (PJ, SF, SC, GC, DG) desde partidos del cache
+      const statsMap = {};
+      for (const grupo of cache.grupos) {
+        const partidosDelGrupo = cache.partidos.filter(p => p.grupos?.id === grupo.id);
+        const tabla = calcularTablaGrupoCentral(partidosDelGrupo);
+        for (const row of tabla) {
+          statsMap[row.pareja_id] = row;
+        }
+      }
+      for (const s of standings) {
+        const st = statsMap[s.pareja_id];
+        if (st) {
+          s.PJ = st.PJ; s.SF = st.SF; s.SC = st.SC;
+          s.GC = st.GC; s.DG = st.DG;
+        }
+      }
+
       cache.standings = standings;
     } catch (e) {
       console.error('Error cargando standings:', e);
@@ -466,29 +492,35 @@ async function renderTablaGeneral(container) {
     html += `<p class="modal-aviso-provisional">⚠️ Tabla provisional — quedan partidos en ${escapeHtml(gruposIncompletos.join(', '))}</p>`;
   }
 
+  const mostrarSets = (cache.formatoSets ?? 1) > 1;
+  const colCount = mostrarSets ? 10 : 7;
+
   html += '<div class="tabla-general-scroll">';
   html += '<table class="tabla-grupo">';
   html += `<thead><tr>
     <th class="pos-col">#</th>
     <th class="nombre-col">Pareja</th>
-    <th class="stat-col">Grupo</th>
-    <th class="stat-col">Pos.</th>
-    <th class="pts-col">Pts</th>
+    <th class="stat-col">Gr</th>
+    <th class="stat-col">PJ</th>
+    ${mostrarSets ? `
+    <th class="stat-col">SF</th>
+    <th class="stat-col">SC</th>
     <th class="stat-col">DS</th>
+    ` : ''}
     <th class="stat-col">GF</th>
     <th class="stat-col">GC</th>
     <th class="stat-col">DG</th>
+    <th class="pts-col">Pts</th>
   </tr></thead>`;
   html += '<tbody>';
 
   let prevPosicion = null;
   enriched.forEach((row, idx) => {
     const esMiPareja = identidad && row.pareja_id === identidad.parejaId;
-    const dsStr = row.ds > 0 ? `+${row.ds}` : `${row.ds}`;
     const isNewBlock = prevPosicion !== null && row.posicion_en_grupo !== prevPosicion;
 
     if (isNewBlock) {
-      html += `<tr class="tabla-general-separador"><td colspan="9"></td></tr>`;
+      html += `<tr class="tabla-general-separador"><td colspan="${colCount}"></td></tr>`;
     }
 
     html += `<tr class="${esMiPareja ? 'mi-pareja' : ''}">
@@ -499,12 +531,16 @@ async function renderTablaGeneral(container) {
           : ''
       }</td>
       <td class="stat-col">${escapeHtml(row.grupoNombre)}</td>
-      <td class="stat-col">${row.posicion_en_grupo}°</td>
-      <td class="pts-col">${row.puntos}</td>
-      <td class="stat-col">${dsStr}</td>
+      <td class="stat-col">${row.PJ ?? 0}</td>
+      ${mostrarSets ? `
+      <td class="stat-col">${row.SF ?? 0}</td>
+      <td class="stat-col">${row.SC ?? 0}</td>
+      <td class="stat-col">${row.ds}</td>
+      ` : ''}
       <td class="stat-col">${row.gf}</td>
-      <td class="stat-col">${row.gc || 0}</td>
-      <td class="stat-col">${(row.dg || 0) > 0 ? `+${row.dg || 0}` : `${row.dg || 0}`}</td>
+      <td class="stat-col">${row.GC ?? 0}</td>
+      <td class="stat-col">${row.DG ?? 0}</td>
+      <td class="pts-col">${row.puntos}</td>
     </tr>`;
 
     prevPosicion = row.posicion_en_grupo;

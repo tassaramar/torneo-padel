@@ -479,6 +479,39 @@ export function agregarMetadataOverrides(tabla, overridesMap) {
 }
 
 /**
+ * Detecta pares de equipos donde el desempate fue por enfrentamiento directo (H2H).
+ * Solo aplica cuando exactamente 2 equipos comparten P, DS, DG, GF — triple empate
+ * puede ser circular, no se marca.
+ *
+ * @param {Array} tabla - Tabla ya ordenada
+ * @param {Array} partidos - Partidos del grupo
+ * @returns {Set} Set de pareja_ids que se beneficiaron del H2H (quedaron arriba)
+ */
+export function detectarH2H(tabla, partidos) {
+  const h2hWinners = new Set();
+
+  const buckets = new Map();
+  tabla.forEach((r, i) => {
+    const key = `${r.P}|${r.DS}|${r.DG}|${r.GF}`;
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(r);
+  });
+
+  for (const arr of buckets.values()) {
+    if (arr.length !== 2) continue; // solo pares exactos
+    const [a, b] = arr;
+    const result = obtenerEnfrentamientoDirecto(a.pareja_id, b.pareja_id, partidos);
+    if (result === 'ganaA') {
+      h2hWinners.add(a.pareja_id);
+    } else if (result === 'ganaB') {
+      h2hWinners.add(b.pareja_id);
+    }
+  }
+
+  return h2hWinners;
+}
+
+/**
  * Calcula posicion_en_grupo para standings crudos del RPC.
  * Agrupa por grupo_id, ordena con ordenarConOverrides (P → DS → DG → GF → H2H → sorteo → nombre),
  * y asigna posicion_en_grupo = 1, 2, 3... a cada equipo.

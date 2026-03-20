@@ -101,9 +101,12 @@ export function renderOrUpdateGrupoCard(groupId) {
 
   const legend = card.querySelector('.sorteo-legend');
   if (legend) {
-    if (g.hasSavedOverride) {
+    const parts = [];
+    if (g.hasSavedOverride) parts.push('🎲 = Posición definida por sorteo');
+    if (g.h2hWinners && g.h2hWinners.size > 0) parts.push('H2H = Desempate por enfrentamiento directo');
+    if (parts.length) {
       legend.style.display = '';
-      legend.textContent = '🎲 = Posición definida por sorteo';
+      legend.textContent = parts.join('  ·  ');
     } else {
       legend.style.display = 'none';
     }
@@ -187,11 +190,13 @@ function updateTablaBody(groupId) {
   g.rows.forEach((r, idx) => {
     const posActual = idx + 1;
 
-    // Superíndice: solo si el equipo tiene sorteo guardado (ovMap)
+    // Superíndice: sorteo guardado o H2H
     let sup = '';
     if (g.ovMap && g.ovMap[r.pareja_id] !== undefined) {
       const ordenSorteo = g.ovMap[r.pareja_id];
       sup = ` <sup style="font-size:11px; color:#0b7285; font-weight:700; margin-left:3px;">🎲${ordenSorteo}</sup>`;
+    } else if (g.h2hWinners && g.h2hWinners.has(r.pareja_id)) {
+      sup = ` <sup style="font-size:10px; color:#2563eb; font-weight:700; margin-left:3px;">H2H</sup>`;
     }
 
     const tr = document.createElement('tr');
