@@ -6050,6 +6050,10 @@ button.stat-card:disabled {
 .sb-team.sb-endogeno {
   border-left: 2px solid #f59e0b;
 }
+.sb-team.sb-highlight {
+  background: var(--primary-soft, #dbeafe);
+  font-weight: 600;
+}
 
 .sb-result {
   font-size: 10px;

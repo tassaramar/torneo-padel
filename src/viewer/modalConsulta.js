@@ -18,6 +18,7 @@ import {
 } from '../utils/tablaPosiciones.js';
 import { tieneResultado, formatearResultado, determinarGanadorParaPareja, invertirScoresPartido } from '../utils/formatoResultado.js';
 import { calcularColaSugerida, crearMapaPosiciones } from '../utils/colaFixture.js';
+import { normalizarPartidosParaBracket, renderBracket } from '../utils/bracketRenderer.js';
 
 let modalState = {
   isOpen: false,
@@ -524,7 +525,7 @@ const RONDA_COPA_LABEL = { SF: 'Semifinal', F: 'Final', '3P': '3° Puesto', dire
 const RONDA_COPA_SORT_ORDER = { direct: 0, SF: 1, F: 2, '3P': 3 };
 
 /**
- * Renderiza el tab "Copas" — estructura de llaves por copa
+ * Renderiza el tab "Copas" — bracket gráfico por copa
  */
 function renderCopas(container) {
   const { cache, identidad } = modalState;
@@ -546,50 +547,19 @@ function renderCopas(container) {
     if (copasPorId[p.copa_id]) copasPorId[p.copa_id].partidos.push(p);
   });
 
+  const bracketOpts = { highlightParejaId: identidad?.parejaId };
+
   let html = '<div class="modal-section">';
 
   Object.values(copasPorId).forEach(({ copa, partidos }) => {
     if (partidos.length === 0) return;
 
-    // Ordenar por jerarquía de ronda: direct → SF → F → 3P
-    const ordenados = [...partidos].sort((a, b) =>
-      (RONDA_COPA_SORT_ORDER[a.ronda_copa] ?? 99) - (RONDA_COPA_SORT_ORDER[b.ronda_copa] ?? 99)
-    );
+    const matches = normalizarPartidosParaBracket(partidos);
 
     html += '<div class="modal-copa-seccion">';
     html += `<h3 class="modal-copa-titulo">🏆 ${escapeHtml(copa.nombre)}</h3>`;
-    html += '<div class="modal-partidos-list">';
-
-    ordenados.forEach(p => {
-      const { nombreLocal, nombreVisitante, partidoOrientado } = orientarPartido(p, identidad);
-      const jugado = tieneResultado(p);
-      const rondaLabel = RONDA_COPA_LABEL[p.ronda_copa] || p.ronda_copa || '?';
-      const esMiPartido = identidad &&
-        (p.pareja_a?.id === identidad.parejaId || p.pareja_b?.id === identidad.parejaId);
-
-      let claseResultadoCopa = '';
-      if (esMiPartido && jugado) {
-        const resultado = determinarGanadorParaPareja(p, identidad.parejaId);
-        claseResultadoCopa = resultado === 'yo' ? 'mi-victoria' : resultado === 'rival' ? 'mi-derrota' : '';
-      }
-
-      html += `<div class="modal-partido ${jugado ? 'jugado' : 'pendiente'} ${esMiPartido ? 'es-mio' : ''} ${claseResultadoCopa}">`;
-      html += `<span class="modal-partido-ronda">${escapeHtml(rondaLabel)}</span>`;
-
-      if (!p.pareja_a?.nombre || !p.pareja_b?.nombre) {
-        // Equipo aún no determinado
-        html += `<span class="modal-partido-equipos">⏳ Esperando resultado anterior</span>`;
-      } else if (jugado) {
-        html += `<span class="modal-partido-equipos">${escapeHtml(nombreLocal)} <span class="vs">${formatearResultado(partidoOrientado)}</span> ${escapeHtml(nombreVisitante)}</span>`;
-      } else {
-        html += `<span class="modal-partido-equipos">${escapeHtml(nombreLocal)} <span class="vs">vs</span> ${escapeHtml(nombreVisitante)}</span>`;
-        html += `<span class="modal-partido-resultado">⏳ Pendiente</span>`;
-      }
-
-      html += '</div>';
-    });
-
-    html += '</div></div>';
+    html += renderBracket(matches, bracketOpts);
+    html += '</div>';
   });
 
   html += '</div>';
@@ -764,11 +734,16 @@ function escapeHtml(unsafe) {
 }
 
 /**
- * Invalida el cache para forzar recarga
+ * Invalida el cache para forzar recarga.
+ * Si el modal está abierto, recarga datos y re-renderiza sin perder el tab activo.
  */
-export function invalidarCache() {
+export async function invalidarCache() {
   modalState.cache = null;
-  modalState.activeSubTab = null;
+  if (modalState.isOpen) {
+    await cargarDatosModal();
+    renderTabs();
+    renderContenido();
+  }
 }
 
 /**
