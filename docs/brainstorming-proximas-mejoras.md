@@ -121,6 +121,16 @@ También unificar componentes de render (bracket, tablas) como funciones compart
 
 ---
 
+#### [MEJORA] Bracket copas — propagar ganadores a la ronda siguiente `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ✅ [spec-bracket-propagacion-ganadores.md](spec-bracket-propagacion-ganadores.md)
+
+Cuando un partido de QF/SF tiene ganador confirmado, mostrar el nombre del equipo en el slot correspondiente de la ronda siguiente (hoy dice "pendiente" hasta que toda la ronda termina). Cambio puramente visual/client-side, ~30-40 líneas. Conviene implementar después de unificar el renderer de bracket (Sub-ítem C).
+
+**Archivos clave**: `src/admin/copas/statusView.js`, `src/viewer/modalConsulta.js`
+
+---
+
 #### [MEJORA] Modal Tablas/Grupos — renombrar título "Consultar" `💡 CRUDA`
 
 **Score owner**: pendiente · **Spec**: ❌ falta
