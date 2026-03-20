@@ -98,7 +98,7 @@ async function cargarDatosModal() {
   if (!supabase || !torneoId) return;
 
   try {
-    const [gruposRes, partidosRes, parejasRes, copasRes, partidosCopaRes] = await Promise.all([
+    const [gruposRes, partidosRes, parejasRes, copasRes, partidosCopaRes, torneoRes] = await Promise.all([
       supabase
         .from('grupos')
         .select('id, nombre')
@@ -138,12 +138,19 @@ async function cargarDatosModal() {
           pareja_b:parejas!partidos_pareja_b_id_fkey ( id, nombre )
         `)
         .eq('torneo_id', torneoId)
-        .not('copa_id', 'is', null)
+        .not('copa_id', 'is', null),
+      supabase
+        .from('torneos')
+        .select('formato_sets')
+        .eq('id', torneoId)
+        .single()
     ]);
 
     if (gruposRes.error) throw gruposRes.error;
     if (partidosRes.error) throw partidosRes.error;
     if (parejasRes.error) throw parejasRes.error;
+
+    const formatoSets = torneoRes.data?.formato_sets ?? 1;
 
     modalState.cache = {
       grupos: gruposRes.data || [],
@@ -151,7 +158,8 @@ async function cargarDatosModal() {
       parejas: parejasRes.data || [],
       copas: copasRes.data || [],
       partidosCopa: partidosCopaRes.data || [],
-      standings: null  // carga lazy en renderTablaGeneral
+      standings: null,  // carga lazy en renderTablaGeneral
+      formatoSets
     };
 
   } catch (error) {
@@ -325,6 +333,7 @@ async function renderGrupoDetalle(container, grupoId) {
 
   const jugados = partidosDelGrupo.filter(p => tieneResultado(p)).length;
   const total = partidosDelGrupo.length;
+  const mostrarSets = (cache.formatoSets ?? 1) > 1;
 
   let html = `
     <div class="modal-section">
@@ -337,11 +346,11 @@ async function renderGrupoDetalle(container, grupoId) {
               <th class="pos-col">#</th>
               <th class="nombre-col">Pareja</th>
               <th class="stat-col">PJ</th>
-              <th class="stat-col">PG</th>
-              <th class="stat-col">PP</th>
+              ${mostrarSets ? `
               <th class="stat-col">SF</th>
               <th class="stat-col">SC</th>
               <th class="stat-col">DS</th>
+              ` : ''}
               <th class="stat-col">GF</th>
               <th class="stat-col">GC</th>
               <th class="stat-col">DG</th>
@@ -363,11 +372,11 @@ async function renderGrupoDetalle(container, grupoId) {
                       : ''
                   }</td>
                   <td class="stat-col">${row.PJ}</td>
-                  <td class="stat-col">${row.PG}</td>
-                  <td class="stat-col">${row.PP}</td>
+                  ${mostrarSets ? `
                   <td class="stat-col">${row.SF}</td>
                   <td class="stat-col">${row.SC}</td>
                   <td class="stat-col">${row.DS}</td>
+                  ` : ''}
                   <td class="stat-col">${row.GF}</td>
                   <td class="stat-col">${row.GC}</td>
                   <td class="stat-col">${row.DG}</td>
