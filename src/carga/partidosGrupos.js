@@ -1,7 +1,6 @@
 import { state } from './state.js';
 import { TORNEO_ID } from './context.js';
 import { crearCardEditable } from './cardEditable.js';
-import { obtenerFrasesUnicas } from '../utils/frasesFechaLibre.js';
 import { formatearResultado, tieneResultado, calcularSetsGanados, calcularGamesTotales } from '../utils/formatoResultado.js';
 import { labelRonda } from '../utils/copaRondas.js';
 
@@ -257,10 +256,6 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont, forma
 
     const rondas = agruparEnRondas(gruposPartidos);
 
-    const totalParejasLibres = rondas.reduce((sum, r) => sum + r.parejasLibres.length, 0);
-    const frases = obtenerFrasesUnicas(totalParejasLibres);
-    let fraseIndex = 0;
-
     rondas.forEach((rondaData) => {
       const separator = document.createElement('div');
       separator.style.cssText = 'margin: 24px 0 8px; padding: 8px 12px; background: var(--primary-soft); border-left: 4px solid var(--primary); border-radius: 8px; font-weight: 700; font-size: 14px; color: var(--text);';
@@ -272,20 +267,7 @@ function renderPartidosGrupos({ partidos, supabase, onAfterSave, listCont, forma
         listCont.appendChild(card);
       });
 
-      if (rondaData.parejasLibres.length > 0) {
-        rondaData.parejasLibres.forEach(parejaLibre => {
-          const cardLibre = document.createElement('div');
-          cardLibre.className = 'partido fecha-libre';
-          cardLibre.style.cssText = 'padding: 12px; margin: 8px 0; background: var(--bg-soft); border: 1px dashed var(--border); border-radius: 8px; opacity: 0.7;';
-          cardLibre.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div style="font-weight: 600;">${parejaLibre}</div>
-              <div style="color: var(--muted); font-style: italic;">${frases[fraseIndex++]}</div>
-            </div>
-          `;
-          listCont.appendChild(cardLibre);
-        });
-      }
+      // Frases de fecha libre solo se muestran en /index (vista jugador), no en /carga
     });
 
     // Copas al final, sin agrupar en rondas
