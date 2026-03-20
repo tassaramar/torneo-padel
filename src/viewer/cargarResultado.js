@@ -743,13 +743,15 @@ export function mostrarModalCargarResultado(partido, identidad, onSubmit, supaba
 
     const set2Mis = parseInt(document.getElementById('input-set2-mis')?.value || '');
     const set2Rival = parseInt(document.getElementById('input-set2-rival')?.value || '');
-    const set3Mis = mostrarSet3 ? parseInt(document.getElementById('input-set3-mis')?.value || '') : null;
-    const set3Rival = mostrarSet3 ? parseInt(document.getElementById('input-set3-rival')?.value || '') : null;
+    // Usar visibilidad actual del Set 3 (puede cambiar dinámicamente con actualizarSet3SegunEmpate)
+    const set3Visible = document.getElementById('set3-group')?.style.display !== 'none';
+    const set3Mis = set3Visible ? parseInt(document.getElementById('input-set3-mis')?.value || '') : null;
+    const set3Rival = set3Visible ? parseInt(document.getElementById('input-set3-rival')?.value || '') : null;
 
     // Validar y mostrar feedback por cada set
     const set1Completo = !isNaN(set1Mis) && !isNaN(set1Rival) && set1Mis >= 0 && set1Rival >= 0;
     const set2Completo = !isNaN(set2Mis) && !isNaN(set2Rival) && set2Mis >= 0 && set2Rival >= 0;
-    const set3Completo = mostrarSet3 && !isNaN(set3Mis) && !isNaN(set3Rival) && set3Mis >= 0 && set3Rival >= 0;
+    const set3Completo = set3Visible && !isNaN(set3Mis) && !isNaN(set3Rival) && set3Mis >= 0 && set3Rival >= 0;
 
     // Validar cada set individualmente
     let hayErrores = false;

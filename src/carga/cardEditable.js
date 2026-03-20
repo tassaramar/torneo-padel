@@ -185,20 +185,20 @@ function crearCardMultiSet({ div, headerLeft, headerRight, nombreA, nombreB, esJ
     </div>
 
     <div class="multiset-grid">
-      <div class="multiset-header"></div>
-      <div class="multiset-header" style="text-align:center; font-size:12px; font-weight:700; color:var(--muted);">Set 1</div>
-      <div class="multiset-header" style="text-align:center; font-size:12px; font-weight:700; color:var(--muted);">Set 2</div>
-      <div class="multiset-header multiset-set3-header" style="text-align:center; font-size:12px; font-weight:700; color:var(--muted); display:none;">STB</div>
+      <div class="multiset-header" style="grid-row:1; grid-column:1;"></div>
+      <div class="multiset-header" style="grid-row:1; grid-column:2; text-align:center; font-size:12px; font-weight:700; color:var(--muted);">Set 1</div>
+      <div class="multiset-header" style="grid-row:1; grid-column:3; text-align:center; font-size:12px; font-weight:700; color:var(--muted);">Set 2</div>
+      <div class="multiset-header multiset-set3-header" style="grid-row:1; grid-column:4; text-align:center; font-size:12px; font-weight:700; color:var(--muted); display:none;">STB</div>
 
-      <strong class="team-name name-a">${nombreA ?? 'Pareja A'}</strong>
-      <input class="input-score input-s1a" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" tabindex="1" />
-      <input class="input-score input-s2a" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" tabindex="3" />
-      <input class="input-score input-s3a multiset-set3" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" style="display:none;" tabindex="5" />
+      <strong class="team-name name-a" style="grid-row:2; grid-column:1;">${nombreA ?? 'Pareja A'}</strong>
+      <strong class="team-name name-b" style="grid-row:3; grid-column:1;">${nombreB ?? 'Pareja B'}</strong>
 
-      <strong class="team-name name-b">${nombreB ?? 'Pareja B'}</strong>
-      <input class="input-score input-s1b" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" tabindex="2" />
-      <input class="input-score input-s2b" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" tabindex="4" />
-      <input class="input-score input-s3b multiset-set3" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" style="display:none;" tabindex="6" />
+      <input class="input-score input-s1a" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" style="grid-row:2; grid-column:2;" />
+      <input class="input-score input-s1b" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" style="grid-row:3; grid-column:2;" />
+      <input class="input-score input-s2a" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" style="grid-row:2; grid-column:3;" />
+      <input class="input-score input-s2b" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" style="grid-row:3; grid-column:3;" />
+      <input class="input-score input-s3a multiset-set3" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" style="display:none; grid-row:2; grid-column:4;" />
+      <input class="input-score input-s3b multiset-set3" type="number" inputmode="numeric" pattern="[0-9]*" min="0" step="1" style="display:none; grid-row:3; grid-column:4;" />
     </div>
 
     <div class="actions-row">
