@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-19 (feat: formato de sets por torneo implementado → historial)
+**Última actualización**: 2026-03-19 (repriorizar backlog: foco en claridad/comunicación al jugador + 3 ítems nuevos de testing)
 
 ---
 
@@ -43,12 +43,101 @@
 
 ## Backlog
 
-> Ordenado por prioridad (Bloques A → B → C → D). Repriorizado 2026-03-03 con scoring del owner.
+> Ordenado por prioridad (Bloques A → B → C → D). Repriorizado 2026-03-19 con foco en claridad y comunicación al jugador.
 
-### Bloque B — Quick wins con spec lista
+### Bloque A — Bugs que afectan UX del jugador
 
 ---
 
+#### [BUG] index.html — scroll bump al tener partidos a confirmar `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+Si hay un partido a confirmar y el jugador hace scroll hacia abajo para ver los pendientes, al llegar al final de la página se produce un "bump" que lo devuelve automáticamente al partido a confirmar. Rompe la navegación del jugador.
+
+**Archivos clave**: `src/viewer/vistaPersonal.js`, `src/personal.js`
+
+---
+
+#### [MEJORA] Modal index — interceptar botón Back del browser en mobile `📋 PRIORIZADA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+El modal ocupa toda la pantalla en mobile y parece una página nueva. El usuario instintivamente hace tap en "Back" del browser para volver al index, pero como ya estaba en index, el Back lo saca de la app. Solución: usar `history.pushState` al abrir el modal y escuchar `popstate` para cerrarlo — el Back cierra el modal en vez de navegar.
+
+**Archivos clave**: `src/viewer/modalConsulta.js`
+
+---
+
+### Bloque B — Claridad y comunicación al jugador
+
+---
+
+#### [MEJORA] Modal grupos — separar partidos jugados de pendientes `📋 PRIORIZADA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+En el detalle de un grupo dentro del modal, los partidos jugados y pendientes aparecen mezclados. Agruparlos en dos secciones claras: primero los pendientes (con número de partido), luego los jugados. Mejora la lectura y permite al jugador encontrar rápidamente lo que busca.
+
+**Archivos clave**: `src/viewer/modalConsulta.js`
+
+---
+
+#### [MEJORA] Feedback explícito al confirmar resultado rival `📋 PRIORIZADA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+Cuando un jugador confirma el resultado cargado por la pareja rival (desde index.html), no hay feedback visual claro de que se confirmó. Agregar toast o mensaje visible "Resultado confirmado".
+
+**Archivo clave**: `src/viewer/cargarResultado.js`
+
+---
+
+#### [MEJORA] Grupos — badge H2H cuando el desempate es por enfrentamiento directo `📋 PRIORIZADA`
+
+**Score owner**: pendiente · **Spec**: ✅ Sub-ítem D en [spec-unificar-visualizacion-admin-jugador.md](spec-unificar-visualizacion-admin-jugador.md)
+
+Cuando dos equipos empatados en stats se desempatan por H2H (head-to-head), no hay indicación visual de por qué uno quedó por encima del otro. Propuesta: badge inline `H2H` al lado del nombre del equipo que se benefició del H2H en la tabla de posiciones.
+
+**Restricción**: Solo mostrar el badge cuando son exactamente **dos equipos** empatados en stats y uno ganó el H2H. En triple empate H2H puede ser circular — no tiene sentido indicar quién "ganó".
+
+**Alcance**: Ambas vistas (admin + jugador).
+
+**Archivos clave**: `src/admin/groups/ui.js`, `src/utils/tablaPosiciones.js`
+
+---
+
+#### [MEJORA] Unificar visualización de tablas y copas entre admin.html e index.html `📋 PRIORIZADA`
+
+**Score owner**: pendiente · **Spec**: ✅ [spec-unificar-visualizacion-admin-jugador.md](spec-unificar-visualizacion-admin-jugador.md)
+
+**Sub-ítems A+B implementados** (v1.4.4). Falta:
+- Sub-ítem C: Bracket gráfico en tab Copas del jugador (hoy es lista plana)
+- Sub-ítem D: Badge H2H (ítem independiente arriba)
+
+También unificar componentes de render (bracket, tablas) como funciones compartidas en `src/utils/` reutilizables desde ambas vistas.
+
+**Archivos clave**: `src/viewer/modalConsulta.js`, `src/admin/copas/statusView.js`
+
+---
+
+#### [MEJORA] Modal Tablas/Grupos — renombrar título "Consultar" `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+El título del modal muestra "Consultar", que no describe bien su contenido (tablas, copas y fixture). Cambiar por un título más descriptivo.
+
+**Archivos clave**: `src/viewer/modalConsulta.js`
+
+---
+
+#### [MEJORA] Partidos jugados (index.html) — card con colores ganado/perdido `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+La lista "Ver partidos jugados" solo tiene color en el score (verde/rojo en el número). Aplicar estilo de card con fondo verde suave (ganado) o rojo suave (perdido), consistente con el patrón visual del modal.
+
+**Archivos clave**: `src/viewer/vistaPersonal.js`, `style.css`
 
 ---
 
@@ -56,9 +145,33 @@
 
 **Score owner**: 2/5 · **Spec**: ✅ [spec-vista-jugador-mensaje-final.md](spec-vista-jugador-mensaje-final.md)
 
-Hoy dice "No tenés partidos pendientes". Reemplazar por mensaje contextual: si ganó copa → "🏆 ¡Campeón!"; si fue finalista → "🥈 Finalista"; si solo jugó grupos → posición final + mensaje con onda.
+Hoy dice "No tenés partidos pendientes". Reemplazar por mensaje contextual: si ganó copa → "Campeón"; si fue finalista → "Finalista"; si solo jugó grupos → posición final + mensaje con onda.
 
 **Archivo clave**: `src/viewer/vistaPersonal.js`
+
+---
+
+### Bloque C — Admin / Operador + deuda técnica
+
+---
+
+#### [DEUDA TÉCNICA] Unificar rutinas de reset del torneo `📋 PRIORIZADA`
+
+**Score owner**: 4/5 · **Spec**: ✅ [spec-unificar-rutinas-reset.md](spec-unificar-rutinas-reset.md)
+
+4 implementaciones separadas de limpieza que no comparten código. Ya causó bugs reales (datos huérfanos). Centralizar en RPCs de BD con modelo piramidal.
+
+**Archivos clave**: `groups/index.js`, `statusView.js`, `groups/service.js`, `parejasImport.js`
+
+---
+
+#### [MEJORA] Autorefresh background — sin parpadeo al actualizar `💡 CRUDA`
+
+**Score owner**: pendiente · **Spec**: ❌ falta
+
+El autorefresh (cada 30s) reconstruye el DOM completo, lo que genera un parpadeo visible y resetea el scroll. Propuesta: hacer el fetch en background, y solo aplicar los cambios al DOM cuando los datos nuevos ya están listos.
+
+**Archivos clave**: `src/personal.js`, `src/fixture.js`
 
 ---
 
@@ -72,46 +185,6 @@ Cuando no quedan partidos de grupo pendientes ni en juego, ocultar las secciones
 
 ---
 
-### Bloque C — Necesitan spec, luego implementar
-
----
-
-#### [BUG] Copas — admin no puede forzar avanzar ronda si resultado está en estado "pendiente" `💡 CRUDA`
-
-**Score owner**: pendiente · **Spec**: ❌ falta
-
-`avanzar_ronda_copa` solo se llama cuando un partido pasa a `confirmado`. Si el admin cargó los resultados de las semis desde `carga.html` y quedaron en `a_confirmar` (sin la segunda pareja confirmando), la Final nunca se genera. El admin necesita un botón en la vista de copa "Forzar avanzar ronda" con advertencia de que el resultado no está confirmado. Alternativa más simple: en `carga.html`, llamar `avanzar_ronda_copa` también cuando el partido pasa a `a_confirmar` (no solo `confirmado`).
-
-**Archivos clave**: `src/admin/copas/statusView.js`, `src/carga/partidosGrupos.js`
-
----
-
-#### [MEJORA] Grupos — badge H2H cuando el desempate es por enfrentamiento directo `📋 PRIORIZADA`
-
-**Score owner**: pendiente · **Spec**: ✅ Sub-ítem D en [spec-unificar-visualizacion-admin-jugador.md](spec-unificar-visualizacion-admin-jugador.md)
-
-Cuando dos equipos empatados en stats se desempatan por H2H (head-to-head), no hay indicación visual de por qué uno quedó por encima del otro. Propuesta: badge inline `H2H` al lado del nombre del equipo que se benefició del H2H en la tabla de posiciones.
-
-**Propuesta de diseño**: pequeño badge `H2H↑` o superíndice `H2H` junto al nombre — mismo estilo que los superíndices de sorteo. Mobile-friendly (no hover).
-
-**Restricción**: Solo mostrar el badge cuando son exactamente **dos equipos** empatados en stats y uno ganó el H2H. En triple empate H2H puede ser circular (A>B, B>C, C>A) — no tiene sentido indicar quién "ganó" el H2H.
-
-**Alcance**: Debe aplicar tanto en admin (Tab Grupos) como en index.html (vista jugador). Ver mejora relacionada abajo.
-
-**Archivos clave**: `src/admin/groups/ui.js`, `src/utils/tablaPosiciones.js`
-
----
-
-#### [BUG] index.html — tab General a veces no renderiza la tabla `💡 CRUDA`
-
-**Score owner**: pendiente · **Spec**: ❌ falta
-
-Al entrar a Tablas/Grupos → sección "General" en index.html, a veces el browser no carga la tabla de posiciones cross-grupo. El problema es intermitente y difícil de reproducir. Posiblemente una race condition con el auto-refresh de 30s que reconstruye el DOM.
-
-**Archivos clave**: `src/viewer/modalConsulta.js`, `src/personal.js` (auto-refresh)
-
----
-
 #### [MEJORA] Wizard copas — restringir a tabla general si cantidad de grupos es impar `💡 CRUDA`
 
 **Score owner**: pendiente · **Spec**: ❌ falta
@@ -122,90 +195,11 @@ Si el torneo tiene cantidad impar de grupos (1, 3, 5), el formato "por posición
 
 ---
 
----
-
-#### [MEJORA] Feedback explícito al confirmar resultado rival `💡 CRUDA`
-
-**Score owner**: pendiente · **Spec**: ❌ falta
-
-Cuando un jugador confirma el resultado cargado por la pareja rival (desde index.html), no hay feedback visual claro de que se confirmó. Agregar toast o mensaje visible "Resultado confirmado ✅".
-
-**Archivo clave**: `src/viewer/cargarResultado.js`
-
----
-
-#### [BUG] fixture.html — badge ✅ no aparece en pareja nueva tras edición `💡 CRUDA`
-
-**Score owner**: pendiente · **Spec**: ❌ falta
-
-Al cambiar una pareja (editar integrantes), la pareja original conserva el badge ✅ pero la nueva no lo muestra aunque sus jugadores estén presentes. Probable desfase entre el nombre guardado en `presentes[]` y el nombre nuevo.
-
-**Archivo clave**: `src/fixture.js` o `src/utils/colaFixture.js`
-
----
-
-#### [BUG] fixture.html — partidos de copa no muestran estado "En curso" `💡 CRUDA`
-
-**Score owner**: pendiente · **Spec**: ❌ falta
-
-Al marcar un partido de copa como en juego desde fixture.html, la sección "En curso" a nivel copa no refleja el cambio (7.3 y 8.2 del test plan). Los partidos de grupo sí lo muestran correctamente.
-
-**Archivo clave**: `src/fixture.js`
-
----
-
-#### [MEJORA] index.html — tabla de posiciones muestra badge cuando hay sorteo guardado `💡 CRUDA`
-
-**Score owner**: pendiente · **Spec**: ✅ Sub-ítem B en [spec-unificar-visualizacion-admin-jugador.md](spec-unificar-visualizacion-admin-jugador.md)
-
-La tabla de posiciones en `index.html` (vista del jugador) no refleja el sorteo intra-grupo. Si hay sorteo guardado, mostrar el mismo badge de posición absoluta (1°, 2°, 3°) que se muestra en el admin, más una nota aclaratoria debajo de la tabla: "Los empates se resolvieron por sorteo".
-
-**Archivos clave**: `src/viewer/modalConsulta.js`, `src/utils/tablaPosiciones.js`
-
----
-
-#### [MEJORA] index.html — bracket gráfico en vista de copas del jugador `💡 CRUDA`
-
-**Score owner**: pendiente · **Spec**: ✅ Sub-ítem C en [spec-unificar-visualizacion-admin-jugador.md](spec-unificar-visualizacion-admin-jugador.md)
-
-El modal "Tablas/Grupos/Fixture" → tab Copas en index.html muestra los partidos de copa como lista plana. Usar el mismo componente bracket gráfico (`.sbracket`) que se implementó en admin.html para mostrar el estado de las copas de forma visual.
-
-**Archivos clave**: `src/viewer/modalConsulta.js`
-
----
-
-#### [MEJORA] Unificar visualización de tablas y copas entre admin.html e index.html `📋 PRIORIZADA`
-
-**Score owner**: pendiente · **Spec**: ✅ [spec-unificar-visualizacion-admin-jugador.md](spec-unificar-visualizacion-admin-jugador.md)
-
-Llevar todos los avisos visuales de la tabla de posiciones del admin a la vista del jugador (index.html):
-- Badge H2H↑ (cuando se implemente)
-- Superíndices 🎲 de sorteo (ya en tabla general, falta en tablas de grupo individual)
-- Colores de empate por cluster
-- Leyendas explicativas
-- **Columnas en tablas intra-grupo**: actualmente index.html muestra `#, Pareja, PJ, G, P, Dif, Pts` — falta SF, SC, DS, GF, GC, DG para igualar la del admin
-
-También unificar componentes de render (bracket, tablas) como funciones compartidas en `src/utils/` reutilizables desde ambas vistas.
-
-**Archivos clave**: `src/viewer/modalConsulta.js`, `src/admin/copas/statusView.js`, `src/admin/groups/ui.js`
-
----
-
-#### [MEJORA] index.html — sección "Partidos por confirmar" desplegada por defecto `💡 CRUDA`
-
-**Score owner**: pendiente · **Spec**: ❌ falta
-
-Cuando hay partidos en estado `a_confirmar` o `en_revision` para mi pareja, la sección debería aparecer expandida automáticamente al cargar la página. Hoy el jugador puede no notar que tiene partidos pendientes de confirmar.
-
-**Archivo clave**: `src/viewer/vistaPersonal.js`
-
----
-
 #### [BUG] Wizard copas — método de clasificación debe ser consistente entre todas las copas `💡 CRUDA`
 
 **Score owner**: pendiente · **Spec**: ❌ falta
 
-Hoy el admin puede configurar una copa con seeding "por posición de grupo" y otra con seeding "global" dentro del mismo torneo. Esto no tiene sentido — el ranking de clasificados es uno solo. Todas las copas de un torneo deben usar el mismo método. Es más un bug de UX que de lógica (el admin puede hacer algo incorrecto sin saberlo).
+Hoy el admin puede configurar una copa con seeding "por posición de grupo" y otra con seeding "global" dentro del mismo torneo. Esto no tiene sentido — el ranking es uno solo. Todas las copas deben usar el mismo método.
 
 **Archivo clave**: `src/admin/copas/planEditor.js`
 
@@ -215,59 +209,29 @@ Hoy el admin puede configurar una copa con seeding "por posición de grupo" y ot
 
 **Score owner**: pendiente · **Spec**: ❌ falta
 
-El paso 4 (preview) muestra un resumen textual del plan configurado. Sería más útil mostrar el cruce gráfico (el mismo bracket visual que se usa en los presets del panel 1). Facilita confirmar visualmente lo que se configuró antes de aplicar.
+El paso 4 (preview) muestra un resumen textual. Sería más útil mostrar el cruce gráfico (bracket visual).
 
 **Archivo clave**: `src/admin/copas/planEditor.js`
 
 ---
 
-#### [MEJORA] Autorefresh background — sin parpadeo al actualizar `💡 CRUDA`
+#### [BUG] fixture.html — badge presentismo no aparece en pareja nueva tras edición `💡 CRUDA`
 
 **Score owner**: pendiente · **Spec**: ❌ falta
 
-El autorefresh (cada 30s) reconstruye el DOM completo, lo que genera un parpadeo visible y resetea el scroll. Propuesta: hacer el fetch en background, y solo aplicar los cambios al DOM cuando los datos nuevos ya están listos. Aplica a todas las páginas con polling: `index.html` y `fixture.html`.
+Al cambiar una pareja (editar integrantes), la pareja original conserva el badge pero la nueva no lo muestra aunque sus jugadores estén presentes. Probable desfase entre nombre en `presentes[]` y nombre nuevo.
 
-**Archivos clave**: `src/personal.js`, `src/fixture.js`
+**Archivo clave**: `src/fixture.js` o `src/utils/colaFixture.js`
 
 ---
 
-#### [MEJORA] Partidos jugados (index.html) — card con colores ganado/perdido `💡 CRUDA`
+#### [BUG] fixture.html — partidos de copa no muestran estado "En curso" `💡 CRUDA — NO REPRODUCIBLE`
 
 **Score owner**: pendiente · **Spec**: ❌ falta
 
-La lista "Ver partidos jugados" solo tiene color en el score (verde/rojo en el número). Sería bueno aplicar un estilo de card más completo con fondo verde suave (ganado) o rojo suave (perdido), consistente con el patrón visual del modal Tablas/Grupos. No necesita ser idéntico, pero sí mantener el mismo lenguaje visual en todo el sistema.
+Reportado: al marcar un partido de copa como en juego desde fixture, la sección "En curso" no refleja el cambio. Testeado 2026-03-19: no se pudo reproducir con el código actual.
 
-**Archivos clave**: `src/viewer/vistaPersonal.js`, `style.css`
-
----
-
-#### [MEJORA] Modal Tablas/Grupos — renombrar título "Consultar" `💡 CRUDA`
-
-**Score owner**: pendiente · **Spec**: ❌ falta
-
-El título del modal muestra "Consultar", que no describe bien su contenido (tablas, copas y fixture). Cambiar por un título más descriptivo. Alternativas a proponer en la spec.
-
-**Archivos clave**: `src/viewer/modalConsulta.js`
-
----
-
-#### [BUG] Carga — mensaje STB sigue mostrando después de cargar el resultado `🔍 EN ANÁLISIS — DIFERIDO`
-
-**Score owner**: 4/5 · **Spec**: ❌ falta · **Motivo diferimiento**: solo aplica a torneos a 3 sets, sin torneos de ese formato planeados por ahora.
-
-Partido con super tiebreak: se carga el STB y el mismo mensaje ("contame qué pasó") sigue apareciendo en vez de "¡Bien que ganaste!" o "¡Qué lástima!".
-
-**Archivo clave**: `src/viewer/cargarResultado.js`
-
----
-
-#### [DEUDA TÉCNICA] Unificar rutinas de reset del torneo `📋 PRIORIZADA`
-
-**Score owner**: 4/5 · **Spec**: ✅ [spec-unificar-rutinas-reset.md](spec-unificar-rutinas-reset.md)
-
-4 implementaciones separadas de limpieza que no comparten código. Ya causó bugs reales (propuestas/esquemas huérfanas). Centralizar en RPCs de BD.
-
-**Archivos clave**: `groups/index.js`, `statusView.js`, `groups/service.js`, `parejasImport.js`
+**Archivo clave**: `src/fixture.js`
 
 ---
 
@@ -278,6 +242,16 @@ Partido con super tiebreak: se carga el STB y el mismo mensaje ("contame qué pa
 Nombre de la pareja ganadora en **negrita** en la vista admin de copas.
 
 **Archivo clave**: `src/admin/copas/statusView.js`
+
+---
+
+#### [BUG] Carga — mensaje STB sigue mostrando después de cargar el resultado `🔍 EN ANÁLISIS — DIFERIDO`
+
+**Score owner**: 4/5 · **Spec**: ❌ falta · **Motivo diferimiento**: solo aplica a torneos a 3 sets.
+
+Partido con super tiebreak: se carga el STB y el mismo mensaje ("contame qué pasó") sigue apareciendo en vez de feedback contextual.
+
+**Archivo clave**: `src/viewer/cargarResultado.js`
 
 ---
 
@@ -385,6 +359,30 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ---
 
 ## Historial — Implementado / Validado
+
+### [BUG] index.html — tab General / modal muestra "Cargando" tras polling `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-19 · `invalidarCache()` reseteaba `modalState.activeSubTab` y nukeaba `modalState.cache` durante el polling de 30s, causando que tabs del modal mostraran "Cargando..." al cambiar de grupo/pestaña. Fix: preservar `activeSubTab` (es UI state, no cache), y si modal está abierto, recargar datos + re-renderizar automáticamente sin perder el tab activo.
+
+---
+
+### [MEJORA] Admin copas — botón confirmar resultado en bracket `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-19 (v1.3.5) · Cuando un jugador carga resultado de copa desde index.html (estado `a_confirmar`), el admin ahora puede confirmar directamente desde el bracket en admin → Copas, sin necesidad de ir a carga.html. Botón "Confirmar resultado" en `statusView.js` → `_renderBracketMatch` + handler en `_wireStatusEvents`.
+
+---
+
+### [MEJORA] Secciones disputas/confirmaciones inline en home jugador `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-19 (v1.3.6 → v1.3.7) · Disputas y confirmaciones pendientes ahora aparecen inline arriba de los partidos pendientes, siempre visibles (sin toggle ni botón cerrar). Disputas primero, confirmaciones después. Eliminado patrón toggle/expand anterior.
+
+---
+
+### [MEJORA] Columnas completas en tabla de grupo del jugador (Sub-ítems A+B) `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-19 (v1.4.4–v1.4.6) · Tabla de posiciones del jugador unificada con la del admin: columnas PJ, SF, SC, DS, GF, GC, DG, Pts. Badge 🎲 de sorteo con leyenda. Columnas PG/PP quitadas por redundancia. Sets ocultas si formato=1. · **Spec**: Sub-ítems A+B en [spec-unificar-visualizacion-admin-jugador.md](spec-unificar-visualizacion-admin-jugador.md)
+
+---
 
 ### [MEJORA] Configuración de formato de sets por torneo (1 set vs 3 sets) `✅ IMPLEMENTADA`
 
