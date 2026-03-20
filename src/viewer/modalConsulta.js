@@ -337,17 +337,20 @@ async function renderGrupoDetalle(container, grupoId) {
               <th class="pos-col">#</th>
               <th class="nombre-col">Pareja</th>
               <th class="stat-col">PJ</th>
-              <th class="stat-col">G</th>
-              <th class="stat-col">P</th>
-              <th class="stat-col">Dif</th>
+              <th class="stat-col">PG</th>
+              <th class="stat-col">PP</th>
+              <th class="stat-col">SF</th>
+              <th class="stat-col">SC</th>
+              <th class="stat-col">DS</th>
+              <th class="stat-col">GF</th>
+              <th class="stat-col">GC</th>
+              <th class="stat-col">DG</th>
               <th class="pts-col">Pts</th>
             </tr>
           </thead>
           <tbody>
             ${tablaConMetadata.map((row, idx) => {
               const esMiPareja = identidad && row.pareja_id === identidad.parejaId;
-              const diferencia = row.GF - row.GC;
-              const diferenciaStr = diferencia > 0 ? `+${diferencia}` : diferencia;
               const tieColor = tieColorMap[row.pareja_id];
               const styleEmpate = tieColor ? `background: ${tieColor.bg}; border-left: 4px solid ${tieColor.border};` : '';
 
@@ -356,13 +359,18 @@ async function renderGrupoDetalle(container, grupoId) {
                   <td class="pos-col">${idx + 1}</td>
                   <td class="nombre-col">${escapeHtml(row.nombre)}${
                     row.tieneOverrideAplicado
-                      ? `<sup style="font-size:10px; color:#0b7285; font-weight:700; margin-left:2px;">${row.ordenManual}°</sup>`
+                      ? `<sup style="font-size:10px; color:#0b7285; font-weight:700; margin-left:2px;">🎲${row.ordenManual}</sup>`
                       : ''
                   }</td>
                   <td class="stat-col">${row.PJ}</td>
                   <td class="stat-col">${row.PG}</td>
                   <td class="stat-col">${row.PP}</td>
-                  <td class="stat-col">${diferenciaStr}</td>
+                  <td class="stat-col">${row.SF}</td>
+                  <td class="stat-col">${row.SC}</td>
+                  <td class="stat-col">${row.DS}</td>
+                  <td class="stat-col">${row.GF}</td>
+                  <td class="stat-col">${row.GC}</td>
+                  <td class="stat-col">${row.DG}</td>
                   <td class="pts-col"><strong>${row.P}</strong></td>
                 </tr>
               `;
@@ -370,6 +378,7 @@ async function renderGrupoDetalle(container, grupoId) {
           </tbody>
         </table>
       </div>
+      ${tablaConMetadata.some(r => r.tieneOverrideAplicado) ? '<div style="margin-top:6px; font-size:11px; color:#666;">🎲 = Posición definida por sorteo</div>' : ''}
 
       <details class="modal-details" open>
         <summary>Partidos del grupo</summary>
