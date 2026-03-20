@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-19 (housekeeping: Copa Approval v2 completada → historial, limpiar subsumidos, mover ✅ del backlog)
+**Última actualización**: 2026-03-19 (feat: formato de sets por torneo implementado → historial)
 
 ---
 
@@ -88,7 +88,7 @@ Cuando no quedan partidos de grupo pendientes ni en juego, ocultar las secciones
 
 #### [MEJORA] Grupos — badge H2H cuando el desempate es por enfrentamiento directo `📋 PRIORIZADA`
 
-**Score owner**: pendiente · **Spec**: ❌ falta
+**Score owner**: pendiente · **Spec**: ✅ Sub-ítem D en [spec-unificar-visualizacion-admin-jugador.md](spec-unificar-visualizacion-admin-jugador.md)
 
 Cuando dos equipos empatados en stats se desempatan por H2H (head-to-head), no hay indicación visual de por qué uno quedó por encima del otro. Propuesta: badge inline `H2H` al lado del nombre del equipo que se benefició del H2H en la tabla de posiciones.
 
@@ -156,7 +156,7 @@ Al marcar un partido de copa como en juego desde fixture.html, la sección "En c
 
 #### [MEJORA] index.html — tabla de posiciones muestra badge cuando hay sorteo guardado `💡 CRUDA`
 
-**Score owner**: pendiente · **Spec**: ❌ falta
+**Score owner**: pendiente · **Spec**: ✅ Sub-ítem B en [spec-unificar-visualizacion-admin-jugador.md](spec-unificar-visualizacion-admin-jugador.md)
 
 La tabla de posiciones en `index.html` (vista del jugador) no refleja el sorteo intra-grupo. Si hay sorteo guardado, mostrar el mismo badge de posición absoluta (1°, 2°, 3°) que se muestra en el admin, más una nota aclaratoria debajo de la tabla: "Los empates se resolvieron por sorteo".
 
@@ -166,7 +166,7 @@ La tabla de posiciones en `index.html` (vista del jugador) no refleja el sorteo 
 
 #### [MEJORA] index.html — bracket gráfico en vista de copas del jugador `💡 CRUDA`
 
-**Score owner**: pendiente · **Spec**: ❌ falta
+**Score owner**: pendiente · **Spec**: ✅ Sub-ítem C en [spec-unificar-visualizacion-admin-jugador.md](spec-unificar-visualizacion-admin-jugador.md)
 
 El modal "Tablas/Grupos/Fixture" → tab Copas en index.html muestra los partidos de copa como lista plana. Usar el mismo componente bracket gráfico (`.sbracket`) que se implementó en admin.html para mostrar el estado de las copas de forma visual.
 
@@ -176,7 +176,7 @@ El modal "Tablas/Grupos/Fixture" → tab Copas en index.html muestra los partido
 
 #### [MEJORA] Unificar visualización de tablas y copas entre admin.html e index.html `📋 PRIORIZADA`
 
-**Score owner**: pendiente · **Spec**: ❌ falta
+**Score owner**: pendiente · **Spec**: ✅ [spec-unificar-visualizacion-admin-jugador.md](spec-unificar-visualizacion-admin-jugador.md)
 
 Llevar todos los avisos visuales de la tabla de posiciones del admin a la vista del jugador (index.html):
 - Badge H2H↑ (cuando se implemente)
