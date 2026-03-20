@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-19 (repriorizar backlog: foco en claridad/comunicación al jugador + 3 ítems nuevos de testing)
+**Última actualización**: 2026-03-20 (completado epic "Unificar visualización admin↔jugador" — 4 sub-ítems A/B/C/D)
 
 ---
 
@@ -93,41 +93,15 @@ Cuando un jugador confirma el resultado cargado por la pareja rival (desde index
 
 ---
 
-#### [MEJORA] Grupos — badge H2H cuando el desempate es por enfrentamiento directo `📋 PRIORIZADA`
-
-**Score owner**: pendiente · **Spec**: ✅ Sub-ítem D en [spec-unificar-visualizacion-admin-jugador.md](spec-unificar-visualizacion-admin-jugador.md)
-
-Cuando dos equipos empatados en stats se desempatan por H2H (head-to-head), no hay indicación visual de por qué uno quedó por encima del otro. Propuesta: badge inline `H2H` al lado del nombre del equipo que se benefició del H2H en la tabla de posiciones.
-
-**Restricción**: Solo mostrar el badge cuando son exactamente **dos equipos** empatados en stats y uno ganó el H2H. En triple empate H2H puede ser circular — no tiene sentido indicar quién "ganó".
-
-**Alcance**: Ambas vistas (admin + jugador).
-
-**Archivos clave**: `src/admin/groups/ui.js`, `src/utils/tablaPosiciones.js`
-
----
-
-#### [MEJORA] Unificar visualización de tablas y copas entre admin.html e index.html `📋 PRIORIZADA`
-
-**Score owner**: pendiente · **Spec**: ✅ [spec-unificar-visualizacion-admin-jugador.md](spec-unificar-visualizacion-admin-jugador.md)
-
-**Sub-ítems A+B implementados** (v1.4.4). Falta:
-- Sub-ítem C: Bracket gráfico en tab Copas del jugador (hoy es lista plana)
-- Sub-ítem D: Badge H2H (ítem independiente arriba)
-
-También unificar componentes de render (bracket, tablas) como funciones compartidas en `src/utils/` reutilizables desde ambas vistas.
-
-**Archivos clave**: `src/viewer/modalConsulta.js`, `src/admin/copas/statusView.js`
-
 ---
 
 #### [MEJORA] Bracket copas — propagar ganadores a la ronda siguiente `💡 CRUDA`
 
 **Score owner**: pendiente · **Spec**: ✅ [spec-bracket-propagacion-ganadores.md](spec-bracket-propagacion-ganadores.md)
 
-Cuando un partido de QF/SF tiene ganador confirmado, mostrar el nombre del equipo en el slot correspondiente de la ronda siguiente (hoy dice "pendiente" hasta que toda la ronda termina). Cambio puramente visual/client-side, ~30-40 líneas. Conviene implementar después de unificar el renderer de bracket (Sub-ítem C).
+Cuando un partido de QF/SF tiene ganador confirmado, mostrar el nombre del equipo en el slot correspondiente de la ronda siguiente (hoy dice "pendiente" hasta que toda la ronda termina). Cambio puramente visual/client-side, ~30-40 líneas. Prerequisito cumplido: bracket renderer unificado en `src/utils/bracketRenderer.js`.
 
-**Archivos clave**: `src/admin/copas/statusView.js`, `src/viewer/modalConsulta.js`
+**Archivos clave**: `src/utils/bracketRenderer.js`
 
 ---
 
@@ -388,9 +362,13 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 
 ---
 
-### [MEJORA] Columnas completas en tabla de grupo del jugador (Sub-ítems A+B) `✅ IMPLEMENTADA`
+### [MEJORA] Unificar visualización admin↔jugador (Epic completo A/B/C/D) `✅ IMPLEMENTADA`
 
-**Fecha**: 2026-03-19 (v1.4.4–v1.4.6) · Tabla de posiciones del jugador unificada con la del admin: columnas PJ, SF, SC, DS, GF, GC, DG, Pts. Badge 🎲 de sorteo con leyenda. Columnas PG/PP quitadas por redundancia. Sets ocultas si formato=1. · **Spec**: Sub-ítems A+B en [spec-unificar-visualizacion-admin-jugador.md](spec-unificar-visualizacion-admin-jugador.md)
+**Fecha**: 2026-03-19–2026-03-20 (v1.4.4–v1.4.8) · **Spec**: [spec-unificar-visualizacion-admin-jugador.md](spec-unificar-visualizacion-admin-jugador.md)
+
+- **Sub-ítems A+B** (v1.4.4–v1.4.6): Tabla de posiciones del jugador unificada con la del admin: columnas PJ, GF, GC, DG, Pts (+ SF, SC, DS si formato>1). Badge 🎲 de sorteo con leyenda. Tabla General con mismas columnas + columna Gr.
+- **Sub-ítem C** (v1.4.7): Bracket gráfico con llaves SVG en tab Copas del jugador (reemplaza lista plana). Renderer extraído a `src/utils/bracketRenderer.js` como módulo compartido. Admin pasa `showConfirmButton`, jugador pasa `highlightParejaId`.
+- **Sub-ítem D** (v1.4.8): Badge H2H azul cuando exactamente 2 equipos empatan en todas las stats y H2H resuelve. `detectarH2H()` en `tablaPosiciones.js`. Aplica en admin + jugador con leyenda.
 
 ---
 
