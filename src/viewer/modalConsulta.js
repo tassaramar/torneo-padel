@@ -380,7 +380,7 @@ async function renderGrupoDetalle(container, grupoId) {
                   <td class="stat-col">${row.GF}</td>
                   <td class="stat-col">${row.GC}</td>
                   <td class="stat-col">${row.DG}</td>
-                  <td class="pts-col"><strong>${row.P}</strong></td>
+                  <td class="pts-col">${row.P}</td>
                 </tr>
               `;
             }).join('')}
@@ -499,7 +499,7 @@ async function renderTablaGeneral(container) {
       }</td>
       <td class="stat-col">${escapeHtml(row.grupoNombre)}</td>
       <td class="stat-col">${row.posicion_en_grupo}°</td>
-      <td class="pts-col"><strong>${row.puntos}</strong></td>
+      <td class="pts-col">${row.puntos}</td>
       <td class="stat-col">${dsStr}</td>
       <td class="stat-col">${row.gf}</td>
       <td class="stat-col">${row.gc || 0}</td>
