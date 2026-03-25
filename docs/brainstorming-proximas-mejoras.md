@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-25 (4 bugfixes en general.html: icono subrayado, empate PJ=0, color header tabla, parpadeo polling)
+**Última actualización**: 2026-03-25 (fix scroll jump en index.html polling + 4 bugfixes en general.html)
 
 ---
 
@@ -364,6 +364,14 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ---
 
 ## Historial — Implementado / Validado
+
+### [BUG] index.html — scroll salta arriba en polling refresh `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-25
+
+El auto-refresh cada 30s en index.html hacía `innerHTML` completo, reseteando el scroll a 0. Fix: guardar/restaurar `scrollY` en `renderVistaPersonal` cuando el render viene del polling (`preserveScroll=true`).
+
+---
 
 ### [BUG] general.html — 4 fixes post-unificación `✅ IMPLEMENTADA`
 
