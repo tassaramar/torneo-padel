@@ -229,8 +229,10 @@ export async function renderGrupoDetalle(container, state, grupoId) {
   const h2hWinners = detectarH2H(tablaOrdenada, partidosDelGrupo);
   const tablaConMetadata = agregarMetadataOverrides(tablaOrdenada, overridesMap);
 
+  // No pintar empates si no hay partidos jugados en el grupo
+  const hayPartidosJugados = partidosDelGrupo.some(p => tieneResultado(p));
   const tieColorMap = {};
-  if (tieGroups) {
+  if (hayPartidosJugados && tieGroups) {
     tieGroups.forEach(group => {
       group.parejaIds.forEach(parejaId => {
         tieColorMap[parejaId] = group.color;
