@@ -47,7 +47,7 @@ import {
   marcarToastVisto
 } from './presentismo.js';
 
-export async function cargarVistaPersonalizada(supabase, torneoId, identidad, onChangePareja, onVerTodos) {
+export async function cargarVistaPersonalizada(supabase, torneoId, identidad, onChangePareja, onVerTodos, { preserveScroll = false } = {}) {
   try {
     // Validar que la identidad tenga grupo
     if (!identidad.grupo) {
@@ -251,7 +251,7 @@ export async function cargarVistaPersonalizada(supabase, torneoId, identidad, on
     };
 
     // Renderizar vista
-    renderVistaPersonal(identidad, partidos, await estadisticas, tablaGrupo, todosPartidosGrupo || [], onChangePareja, onVerTodos, torneoId, presentismoData, mapaPosiciones);
+    renderVistaPersonal(identidad, partidos, await estadisticas, tablaGrupo, todosPartidosGrupo || [], onChangePareja, onVerTodos, torneoId, presentismoData, mapaPosiciones, preserveScroll);
 
     return { ok: true, partidos };
   } catch (error) {
@@ -510,7 +510,7 @@ async function calcularTablaGrupo(supabase, torneoId, identidad, parejasDelGrupo
  * Renderiza el Home Único completo
  * Layout: Quién soy → Partidos pendientes → Dashboard → Acciones con contador → Botón consulta
  */
-function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todosPartidosGrupo, onChangePareja, onVerTodos, torneoId, presentismoData, mapaPosiciones) {
+function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todosPartidosGrupo, onChangePareja, onVerTodos, torneoId, presentismoData, mapaPosiciones, preserveScroll = false) {
   const contentEl = document.getElementById('home-content');
   if (!contentEl) {
     console.error('[vistaPersonal] No se encontró #home-content en el DOM');
@@ -548,6 +548,8 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
     ...partidos.porCargar
   ].sort((a, b) => (a.ronda || 999) - (b.ronda || 999));
   
+  const savedScrollY = preserveScroll ? window.scrollY : 0;
+
   contentEl.innerHTML = `
     <!-- Toast de presentismo (aparece y se anima hacia el header) -->
     ${mostrarToast && presentismoActivo ? `
@@ -918,6 +920,11 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
   
   // Renderizar partidos jugados
   renderPartidosConfirmados(partidos.confirmados, identidad);
+
+  // Restaurar scroll después del render completo (solo en polling refresh)
+  if (preserveScroll && savedScrollY > 0) {
+    window.scrollTo(0, savedScrollY);
+  }
 }
 
 /**

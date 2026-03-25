@@ -198,7 +198,8 @@ async function init(mostrarSkeleton = true) {
       TORNEO_ID,
       identidad,
       cambiarDePareja,
-      () => {} // onVerTodos ya no navega, ahora abre modal
+      () => {}, // onVerTodos ya no navega, ahora abre modal
+      { preserveScroll: !mostrarSkeleton }
     );
     
     // Si la pareja no existe, limpiar identidad y pedir reidentificación
