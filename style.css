@@ -5964,6 +5964,10 @@ button.stat-card:disabled {
   color: #9ca3af;
   font-style: italic;
 }
+.sb-team.sb-propagated {
+  color: #6B7280;
+  font-style: italic;
+}
 .sb-team.sb-endogeno {
   border-left: 2px solid #f59e0b;
 }

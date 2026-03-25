@@ -76,6 +76,41 @@ export function normalizarPartidosParaBracket(partidos) {
 }
 
 /**
+ * Propaga ganadores confirmados a slots vacíos de la ronda siguiente.
+ * Cambio puramente visual — no modifica BD.
+ */
+function propagarGanadores(matches) {
+  const NEXT_ROUND = { QF: 'SF', SF: 'F' };
+  const byRound = {};
+  for (const m of matches) {
+    if (!byRound[m.ronda]) byRound[m.ronda] = [];
+    byRound[m.ronda].push(m);
+  }
+
+  for (const [ronda, nextRonda] of Object.entries(NEXT_ROUND)) {
+    const src = byRound[ronda];
+    const dst = byRound[nextRonda];
+    if (!src || !dst) continue;
+
+    for (const m of src) {
+      if (m.estado !== 'confirmado') continue;
+      const winner = m.teamA?.winner ? m.teamA : m.teamB?.winner ? m.teamB : null;
+      if (!winner) continue;
+
+      const targetOrden = Math.ceil(m.orden / 2);
+      const isSlotA = m.orden % 2 === 1; // impar → pareja_a, par → pareja_b
+      const target = dst.find(d => d.orden === targetOrden);
+      if (!target) continue;
+
+      const slot = isSlotA ? 'teamA' : 'teamB';
+      if (!target[slot]) {
+        target[slot] = { nombre: winner.nombre, id: winner.id, detalle: null, winner: false, propagado: true };
+      }
+    }
+  }
+}
+
+/**
  * Renderiza un match individual del bracket.
  * @param {Object} m - Match normalizado
  * @param {Object} opts - Opciones: { showConfirmButton, highlightParejaId }
@@ -93,8 +128,9 @@ function renderBracketMatch(m, opts = {}) {
       ? ` <span style="color:#9ca3af; font-size:10px;">(${_esc(team.detalle)})</span>`
       : '';
     const cls = ['sb-team'];
-    if (isWinner)   cls.push('sb-winner');
-    if (m.endogeno) cls.push('sb-endogeno');
+    if (isWinner)       cls.push('sb-winner');
+    if (team.propagado) cls.push('sb-propagated');
+    if (m.endogeno)     cls.push('sb-endogeno');
     if (highlightId && team.id === highlightId) cls.push('sb-highlight');
     return `<div class="${cls.join(' ')}">${_esc(team.nombre)}${detalleHtml}</div>`;
   };
@@ -178,6 +214,9 @@ export function renderBracket(matches, opts = {}) {
   for (const arr of Object.values(byRound)) {
     arr.sort((a, b) => (a.orden || 0) - (b.orden || 0));
   }
+
+  // Propagar ganadores confirmados a slots vacíos de la ronda siguiente
+  propagarGanadores(matches);
 
   const addPlaceholder = (ronda, count) => {
     if (!byRound[ronda]) {

@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-25 (fix scroll jump en index.html polling + 4 bugfixes en general.html)
+**Última actualización**: 2026-03-25 (feedback confirmar resultado + propagar ganadores bracket + scroll fix + 4 bugfixes general.html)
 
 ---
 
@@ -74,26 +74,6 @@ En el detalle de un grupo dentro del modal, los partidos jugados y pendientes ap
 **Archivos clave**: `src/viewer/renderConsulta.js`
 
 ---
-
-#### [MEJORA] Feedback explícito al confirmar resultado rival `📋 PRIORIZADA`
-
-**Score owner**: pendiente · **Spec**: ❌ falta
-
-Cuando un jugador confirma el resultado cargado por la pareja rival (desde index.html), no hay feedback visual claro de que se confirmó. Agregar toast o mensaje visible "Resultado confirmado".
-
-**Archivo clave**: `src/viewer/cargarResultado.js`
-
----
-
----
-
-#### [MEJORA] Bracket copas — propagar ganadores a la ronda siguiente `💡 CRUDA`
-
-**Score owner**: pendiente · **Spec**: ✅ [spec-bracket-propagacion-ganadores.md](spec-bracket-propagacion-ganadores.md)
-
-Cuando un partido de QF/SF tiene ganador confirmado, mostrar el nombre del equipo en el slot correspondiente de la ronda siguiente (hoy dice "pendiente" hasta que toda la ronda termina). Cambio puramente visual/client-side, ~30-40 líneas. Prerequisito cumplido: bracket renderer unificado en `src/utils/bracketRenderer.js`.
-
-**Archivos clave**: `src/utils/bracketRenderer.js`
 
 ---
 
@@ -364,6 +344,22 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ---
 
 ## Historial — Implementado / Validado
+
+### [MEJORA] Bracket copas — propagar ganadores a ronda siguiente `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-25 · **Spec**: [spec-bracket-propagacion-ganadores.md](spec-bracket-propagacion-ganadores.md)
+
+Cuando un partido de QF/SF tiene ganador confirmado, el nombre del equipo aparece en el slot correspondiente de la ronda siguiente (en itálica gris, clase `.sb-propagated`). Cambio puramente visual en `bracketRenderer.js` — no modifica BD ni RPCs.
+
+---
+
+### [MEJORA] Feedback al confirmar resultado rival `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-25
+
+Agregado `showToast('✅ Resultado confirmado', 'success')` en `confirmarResultado` y `confirmarResultadoConSets` de `personal.js`.
+
+---
 
 ### [BUG] index.html — scroll salta arriba en polling refresh `✅ IMPLEMENTADA`
 

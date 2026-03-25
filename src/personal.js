@@ -447,8 +447,8 @@ window.app = {
     const resultado = await cargarResultado(supabase, partidoId, gamesA, gamesB, identidad);
     
     if (resultado.ok) {
-      // Animación ya mostró el éxito, solo recargar
       await init();
+      showToast('✅ Resultado confirmado', 'success');
     } else {
       mostrarToastError(resultado.mensaje);
     }
@@ -494,6 +494,7 @@ window.app = {
 
       if (resultado.ok) {
         await init();
+        showToast('✅ Resultado confirmado', 'success');
       } else {
         mostrarToastError(resultado.mensaje);
       }
