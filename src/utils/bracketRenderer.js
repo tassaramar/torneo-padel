@@ -79,13 +79,8 @@ export function normalizarPartidosParaBracket(partidos) {
  * Propaga ganadores confirmados a slots vacíos de la ronda siguiente.
  * Cambio puramente visual — no modifica BD.
  */
-function propagarGanadores(matches) {
+function propagarGanadores(byRound) {
   const NEXT_ROUND = { QF: 'SF', SF: 'F' };
-  const byRound = {};
-  for (const m of matches) {
-    if (!byRound[m.ronda]) byRound[m.ronda] = [];
-    byRound[m.ronda].push(m);
-  }
 
   for (const [ronda, nextRonda] of Object.entries(NEXT_ROUND)) {
     const src = byRound[ronda];
@@ -215,9 +210,6 @@ export function renderBracket(matches, opts = {}) {
     arr.sort((a, b) => (a.orden || 0) - (b.orden || 0));
   }
 
-  // Propagar ganadores confirmados a slots vacíos de la ronda siguiente
-  propagarGanadores(matches);
-
   const addPlaceholder = (ronda, count) => {
     if (!byRound[ronda]) {
       byRound[ronda] = Array.from({ length: count }, (_, i) => ({
@@ -227,6 +219,9 @@ export function renderBracket(matches, opts = {}) {
   };
   if (byRound['QF'] && !byRound['SF']) addPlaceholder('SF', byRound['QF'].length / 2);
   if ((byRound['QF'] || byRound['SF']) && !byRound['F']) addPlaceholder('F', 1);
+
+  // Propagar ganadores confirmados a slots vacíos de la ronda siguiente
+  propagarGanadores(byRound);
 
   const has3P = !!byRound['3P'];
 
