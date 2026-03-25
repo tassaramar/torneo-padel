@@ -671,10 +671,10 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
 
     <!-- 5) BOTÓN CONSULTA -->
     <div class="home-consulta">
-      <button type="button" class="btn-consulta" id="btn-abrir-modal">
+      <a href="/general.html" class="btn-consulta">
         <span class="btn-consulta-icon">📊</span>
         <span class="btn-consulta-text">Tablas / Grupos</span>
-      </button>
+      </a>
     </div>
 
     <!-- Partidos jugados (colapsados) -->
@@ -905,11 +905,6 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
       }, 4000);
     }
   }
-  
-  // Abrir modal de consulta
-  document.getElementById('btn-abrir-modal')?.addEventListener('click', () => {
-    window.dispatchEvent(new CustomEvent('abrirModalConsulta'));
-  });
   
   // === Renderizar partidos ===
 

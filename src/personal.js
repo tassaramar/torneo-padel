@@ -8,7 +8,6 @@ import {
   aceptarOtroResultado,
   mostrarModalCargarResultado
 } from './viewer/cargarResultado.js';
-import { initModal, abrirModal, cerrarModal, invalidarCache } from './viewer/modalConsulta.js';
 import { showToast } from './utils/toast.js';
 import { tryShowAdminLinks } from './auth/adminLinks.js';
 
@@ -75,10 +74,6 @@ function cambiarDePareja() {
 // Event listeners para Home Único
 window.addEventListener('homeRefresh', () => {
   init(false); // Recargar sin skeleton
-});
-
-window.addEventListener('abrirModalConsulta', () => {
-  abrirModal('grupos');
 });
 
 /**
@@ -185,8 +180,6 @@ async function init(mostrarSkeleton = true) {
         parejasFinales,
         async (identidadCompleta) => {
           console.log('Identificación completa:', identidadCompleta);
-          // Inicializar modal con la identidad
-          initModal(supabase, TORNEO_ID, identidadCompleta);
           // Recargar vista con la identidad guardada
           await init();
           startPolling();
@@ -198,9 +191,6 @@ async function init(mostrarSkeleton = true) {
       setStatus('');
       return;
     }
-    
-    // Usuario identificado, inicializar modal de consulta
-    initModal(supabase, TORNEO_ID, identidad);
     
     // Cargar vista personalizada (Home Único)
     const resultado = await cargarVistaPersonalizada(
@@ -237,8 +227,6 @@ async function init(mostrarSkeleton = true) {
     if (resultado.ok) {
       partidosAnteriores = resultado.partidos;
       setStatus(`Actualizado ${nowStr()}`);
-      // Invalidar cache del modal para que se recargue
-      invalidarCache();
     }
   } catch (e) {
     console.error('Error en init:', e);

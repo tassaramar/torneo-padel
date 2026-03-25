@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-20 (completado epic "Unificar visualización admin↔jugador" — 4 sub-ítems A/B/C/D)
+**Última actualización**: 2026-03-25 (completado "Unificar general.html con el modal de consulta" — modal eliminado, general.html es ahora la página de consulta con tabs Grupos/Copas/Fixture)
 
 ---
 
@@ -59,14 +59,6 @@ Si hay un partido a confirmar y el jugador hace scroll hacia abajo para ver los 
 
 ---
 
-#### [MEJORA] Modal index — interceptar botón Back del browser en mobile `📋 PRIORIZADA`
-
-**Score owner**: pendiente · **Spec**: ❌ falta
-
-El modal ocupa toda la pantalla en mobile y parece una página nueva. El usuario instintivamente hace tap en "Back" del browser para volver al index, pero como ya estaba en index, el Back lo saca de la app. Solución: usar `history.pushState` al abrir el modal y escuchar `popstate` para cerrarlo — el Back cierra el modal en vez de navegar.
-
-**Archivos clave**: `src/viewer/modalConsulta.js`
-
 ---
 
 ### Bloque B — Claridad y comunicación al jugador
@@ -79,7 +71,7 @@ El modal ocupa toda la pantalla en mobile y parece una página nueva. El usuario
 
 En el detalle de un grupo dentro del modal, los partidos jugados y pendientes aparecen mezclados. Agruparlos en dos secciones claras: primero los pendientes (con número de partido), luego los jugados. Mejora la lectura y permite al jugador encontrar rápidamente lo que busca.
 
-**Archivos clave**: `src/viewer/modalConsulta.js`
+**Archivos clave**: `src/viewer/renderConsulta.js`
 
 ---
 
@@ -111,7 +103,7 @@ Cuando un partido de QF/SF tiene ganador confirmado, mostrar el nombre del equip
 
 El título del modal muestra "Consultar", que no describe bien su contenido (tablas, copas y fixture). Cambiar por un título más descriptivo.
 
-**Archivos clave**: `src/viewer/modalConsulta.js`
+**Archivos clave**: `src/viewer/renderConsulta.js`, `general.html`
 
 ---
 
@@ -265,10 +257,6 @@ Paso 5 "Finalizado" en breadcrumb + podio por copa. Interacción con mensaje de 
 
 ---
 
-#### [MEJORA] Unificar Carga y Fixture en una sola página `💡 CRUDA`
-
-**Score owner**: 3/5 · Feature grande, requiere diseño UX mobile
-
 ---
 
 #### Análisis de tabla con IA `💡 CRUDA`
@@ -294,13 +282,20 @@ Paso 5 "Finalizado" en breadcrumb + podio por copa. Interacción con mensaje de 
 
 #### Múltiples torneos `🔍 EN ANÁLISIS`
 
-**Score owner**: N/A · Depende de Gestión de usuarios individuales. Feature más grande del backlog.
+**Score owner**: N/A · Feature más grande del backlog. **Diseño**: [memoria: multi-torneo diseño](../../.claude/projects/c--torneo-padel/memory/project_multi_torneo_design.md)
+
+Decisiones de diseño tomadas (2026-03-24):
+- **Flujo principal**: link del organizador (ej: `torneo-padel.app/verano26`). El jugador nunca "elige" torneo — entra por el link que le pasaron.
+- **Fallback**: detección por nombre cross-torneo. La validación de compañero (existente) sirve como disambiguación implícita sin revelar nombres de torneos.
+- **Solución robusta**: con auth progresiva, "primero decime quién sos" → la app ya sabe en qué torneos participás.
+- **NO hacer**: selector/dropdown de torneos (va contra la filosofía de la app, problemas de privacidad).
+- Depende de: TORNEO_ID dinámico (eliminar hardcoded). No depende necesariamente de gestión de usuarios (el link resuelve la mayoría de casos).
 
 ---
 
-#### Gestión de usuarios individuales `💡 CRUDA`
+#### Gestión de usuarios individuales `🔍 EN ANÁLISIS`
 
-Registro de jugadores individuales con datos propios. Base para histórico y stats cross-torneo. Depende de RLS (ya implementado).
+Registro progresivo de jugadores: el flujo actual (sin login) se mantiene, con opción de registrarse después de identificarse. Base para histórico, stats cross-torneo, y detección automática de torneo. Depende de RLS (ya implementado). **Estrategia**: [memoria: estrategia 2026](../../.claude/projects/c--torneo-padel/memory/project_strategy_2026.md)
 
 ---
 
@@ -319,6 +314,32 @@ Historial de partidos por jugador. Depende de Múltiples torneos + Gestión de u
 #### Round Robin en copas `💡 CRUDA`
 
 **Score owner**: 1/5 · Formato Round Robin en wizard de copas. Requiere extender motor RPC.
+
+---
+
+#### [MEJORA] Navegación para ayudante/organizador `📋 PRIORIZADA`
+
+**Score owner**: 4/5 · **Spec**: ❌ falta · **Estrategia**: [memoria: navegación ayudante](../../.claude/projects/c--torneo-padel/memory/project_helper_nav.md)
+
+El ayudante tiene que tipear URLs a mano para llegar a fixture/carga/presente. Solución v1: gesto secreto (tap múltiple en algún elemento) → pide PIN → habilita menú de navegación con links a fixture/carga/presente. Evolución futura: reemplazar PIN por Google OAuth cuando se implemente auth de roles.
+
+**Archivos clave**: `index.html`, `src/personal.js`
+
+---
+
+#### Jerarquía de roles (diseño conceptual) `🔍 EN ANÁLISIS`
+
+**Score owner**: N/A · **Estrategia**: [memoria: estrategia 2026](../../.claude/projects/c--torneo-padel/memory/project_strategy_2026.md)
+
+El "Admin" actual son en realidad dos roles futuros: System Admin (gestiona la plataforma) y Organizador (gestiona UN torneo). Formalizar la jerarquía: System Admin → Organizador → Ayudante → Jugador. No renombrar en UI hasta implementar multi-organizador.
+
+---
+
+#### Monetización — freemium para organizadores `💡 CRUDA`
+
+**Score owner**: N/A · **Estrategia**: [memoria: estrategia 2026](../../.claude/projects/c--torneo-padel/memory/project_strategy_2026.md)
+
+Modelo freemium orientado al organizador (no al jugador). No monetizar hasta tener 2-3 organizadores activos. 3 clientes potenciales identificados (profe de pádel, secretario del club, amigo con viajes).
 
 ---
 
@@ -343,6 +364,14 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ---
 
 ## Historial — Implementado / Validado
+
+### [MEJORA] Unificar general.html con el modal de consulta `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-25 · **Spec**: [spec-unificar-general-modal.md](spec-unificar-general-modal.md)
+
+Modal full-screen eliminado de index.html. `general.html` reemplaza al modal — ahora es la página de consulta con tabs Grupos/Copas/Fixture. El botón "Tablas / Grupos" en index.html navega a `/general.html` (link real, no evento). El botón Back del browser funciona nativamente. Se creó `src/viewer/renderConsulta.js` con las funciones de render puras (extraídas de `modalConsulta.js`). `src/general.js` reescrito en ~80 líneas. `modalConsulta.js` eliminado. Subsume el ítem "Modal index — interceptar botón Back".
+
+---
 
 ### [BUG] index.html — tab General / modal muestra "Cargando" tras polling `✅ IMPLEMENTADA`
 

@@ -4220,80 +4220,6 @@ a.btn-action-secondary:hover {
   padding: 12px;
 }
 
-/* === Modal Full-Screen === */
-
-.modal-fullscreen {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(15, 23, 42, 0.9);
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  animation: modalFadeIn 0.2s ease;
-}
-
-.modal-fullscreen-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: var(--bg);
-  max-width: 800px;
-  width: 100%;
-  margin: 0 auto;
-  overflow: hidden;
-}
-
-@media (min-width: 800px) {
-  .modal-fullscreen-content {
-    margin: 20px auto;
-    border-radius: 16px;
-    max-height: calc(100vh - 40px);
-  }
-}
-
-.modal-fullscreen-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
-}
-
-.modal-fullscreen-title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 800;
-}
-
-.modal-fullscreen-close {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  background: transparent;
-  border: 1px solid var(--border);
-  font-size: 20px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: none;
-}
-
-.modal-fullscreen-close:hover {
-  background: rgba(15, 23, 42, 0.05);
-}
-
-.modal-fullscreen-tabs {
-  display: flex;
-  gap: 4px;
-  padding: 12px 16px;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
-}
 
 .modal-tab {
   flex: 1;
@@ -4315,12 +4241,6 @@ a.btn-action-secondary:hover {
 .modal-tab.active {
   background: var(--primary);
   color: white;
-}
-
-.modal-fullscreen-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
 }
 
 /* Contenido del modal */
@@ -4631,10 +4551,6 @@ a.btn-action-secondary:hover {
   .btn-consulta {
     padding: 14px 16px;
     font-size: 16px;
-  }
-  
-  .modal-fullscreen-tabs {
-    padding: 8px 12px;
   }
   
   .modal-tab {
