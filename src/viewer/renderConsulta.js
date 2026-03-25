@@ -157,6 +157,12 @@ export async function renderGrupos(container, state) {
     { id: 'general', label: 'General' }
   ];
 
+  // Si el wrapper ya existe (polling refresh), solo actualizar contenido sin rebuild
+  if (container.querySelector('.modal-grupos-wrapper')) {
+    await renderSubTabGrupos(container, state);
+    return;
+  }
+
   let html = '<div class="modal-grupos-wrapper">';
   html += '<div class="modal-sub-tabs">';
   subTabs.forEach(tab => {

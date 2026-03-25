@@ -413,6 +413,9 @@ export function detectarEmpatesReales(tabla, partidos, overridesMap = {}) {
   for (const arr of buckets.values()) {
     if (arr.length < 2) continue;
 
+    // No marcar empate si ningún equipo del bucket jugó partidos
+    if (arr.every(r => r.PJ === 0)) continue;
+
     // Dominator chain: un equipo se rankea si gana a TODOS los no-rankeados por H2H
     const clearlyRankedIds = new Set();
     let changed = true;

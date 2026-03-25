@@ -98,7 +98,10 @@ function startPolling() {
   stopPolling();
   pollingInterval = setInterval(async () => {
     try {
-      state.cache = await cargarDatosConsulta(supabase, TORNEO_ID);
+      const newCache = await cargarDatosConsulta(supabase, TORNEO_ID);
+      // Preservar standings previos para evitar flash "Cargando..." en tab General
+      newCache.standings = state.cache?.standings || null;
+      state.cache = newCache;
       setStatus(`Actualizado ${nowStr()}`);
       if (tabsEl) renderTabs(tabsEl, state, onTabChange);
       await renderContenido();

@@ -462,7 +462,7 @@ tbody td:first-child{
 }
 
 .tabla-grupo thead {
-  background: rgba(15, 23, 42, 0.04);
+  background: rgba(15, 23, 42, 0.07);
 }
 
 .tabla-grupo th {
@@ -744,6 +744,7 @@ tbody td:first-child{
   background: rgba(15, 23, 42, 0.04);
 }
 
+a.btn-action-primary,
 a.btn-action-secondary {
   text-decoration: none;
   color: inherit;

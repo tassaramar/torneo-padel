@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-25 (completado "Unificar general.html con el modal de consulta" — modal eliminado, general.html es ahora la página de consulta con tabs Grupos/Copas/Fixture)
+**Última actualización**: 2026-03-25 (4 bugfixes en general.html: icono subrayado, empate PJ=0, color header tabla, parpadeo polling)
 
 ---
 
@@ -364,6 +364,17 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ---
 
 ## Historial — Implementado / Validado
+
+### [BUG] general.html — 4 fixes post-unificación `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-25
+
+1. **Icono subrayado en botón nav**: `a.btn-action-primary` no tenía `text-decoration: none` — los íconos del botón "Ver Mis Partidos" aparecían subrayados
+2. **Empate amarillo con PJ=0**: `detectarEmpatesReales` marcaba todos los equipos como empatados cuando nadie había jugado. Fix: skip si todos PJ=0
+3. **Header tabla = color derrota**: `thead` de `.tabla-grupo` tenía background demasiado sutil (`0.04` opacity) similar al rosa de mi-derrota. Subido a `0.07` para diferenciar
+4. **Parpadeo polling**: `renderGrupos` reconstruía el wrapper completo en cada refresh, causando flash. Fix: si `.modal-grupos-wrapper` ya existe, solo actualizar contenido interno
+
+---
 
 ### [MEJORA] Unificar general.html con el modal de consulta `✅ IMPLEMENTADA`
 
