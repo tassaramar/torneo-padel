@@ -5118,6 +5118,99 @@ a.btn-action-secondary:hover {
   opacity: 0.35;
   z-index: 9999;
   pointer-events: auto;
+  touch-action: manipulation;
+}
+
+/* Ghost target para gesto ayudante */
+.app-version.version-target {
+  opacity: 0.12 !important;
+  color: var(--muted, #9CA3AF) !important;
+  pointer-events: none !important;
+  z-index: 9998 !important;
+}
+
+/* === PIN Modal === */
+.pin-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+  transition: background 0.2s ease;
+}
+.pin-overlay.visible {
+  background: rgba(0, 0, 0, 0.55);
+}
+.pin-modal {
+  background: var(--bg, #fff);
+  border-radius: 16px;
+  padding: 28px 24px;
+  width: 100%;
+  max-width: 300px;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  transform: scale(0.9);
+  opacity: 0;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.pin-overlay.visible .pin-modal {
+  transform: scale(1);
+  opacity: 1;
+}
+.pin-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: var(--text, #1a1a1a);
+}
+.pin-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px;
+  font-size: 28px;
+  text-align: center;
+  letter-spacing: 10px;
+  border: 2px solid var(--border, #ddd);
+  border-radius: 12px;
+  background: var(--bg, #fff);
+  color: var(--text, #1a1a1a);
+  outline: none;
+}
+.pin-input:focus {
+  border-color: var(--accent, #3b82f6);
+}
+.pin-error {
+  color: #ef4444;
+  font-size: 14px;
+  margin-top: 10px;
+}
+.pin-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+.pin-btn {
+  flex: 1;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+}
+.pin-cancel {
+  background: var(--bg-muted, #f3f4f6);
+  color: var(--muted, #6b7280);
+}
+.pin-submit {
+  background: var(--accent, #3b82f6);
+  color: white;
+}
+.pin-submit:disabled {
+  opacity: 0.6;
 }
 
 /* Filtros */
