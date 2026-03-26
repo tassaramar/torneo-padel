@@ -308,12 +308,36 @@ export async function renderGrupoDetalle(container, state, grupoId) {
         return parts.length ? `<div style="margin-top:6px; font-size:11px; color:#666;">${parts.join('&nbsp;&nbsp;·&nbsp;&nbsp;')}</div>` : '';
       })()}
 
-      <details class="modal-details" open>
-        <summary>Partidos del grupo</summary>
-        <div class="modal-partidos-list">
-          ${renderPartidosGrupo(partidosDelGrupo, identidad, mapaPosiciones)}
-        </div>
-      </details>
+      ${(() => {
+        const pendientes = partidosDelGrupo.filter(p => !tieneResultado(p));
+        const jugadosList = partidosDelGrupo.filter(p => tieneResultado(p));
+
+        // Pendientes ordenados por posición global del fixture
+        pendientes.sort((a, b) => (mapaPosiciones?.get(a.id) ?? 999) - (mapaPosiciones?.get(b.id) ?? 999));
+        // Jugados ordenados por ronda
+        jugadosList.sort((a, b) => (a.ronda || 999) - (b.ronda || 999));
+
+        let seccionesHtml = '';
+        if (pendientes.length > 0) {
+          seccionesHtml += `
+            <details class="modal-details" open>
+              <summary>Partidos pendientes (${pendientes.length})</summary>
+              <div class="modal-partidos-list">
+                ${renderPartidosGrupo(pendientes, identidad, mapaPosiciones)}
+              </div>
+            </details>`;
+        }
+        if (jugadosList.length > 0) {
+          seccionesHtml += `
+            <details class="modal-details">
+              <summary>Partidos jugados (${jugadosList.length})</summary>
+              <div class="modal-partidos-list">
+                ${renderPartidosGrupo(jugadosList, identidad, mapaPosiciones)}
+              </div>
+            </details>`;
+        }
+        return seccionesHtml;
+      })()}
     </div>
   `;
 
@@ -604,14 +628,7 @@ export function renderPartidosGrupo(partidos, identidad, mapaPosiciones) {
     return '<p class="modal-empty">Sin partidos</p>';
   }
 
-  const ordenados = [...partidos].sort((a, b) => {
-    if (a.ronda !== b.ronda) return (a.ronda || 999) - (b.ronda || 999);
-    const aJugado = tieneResultado(a) ? 1 : 0;
-    const bJugado = tieneResultado(b) ? 1 : 0;
-    return aJugado - bJugado;
-  });
-
-  return ordenados.map(p => {
+  return partidos.map(p => {
     const { nombreLocal, nombreVisitante, partidoOrientado } = orientarPartido(p, identidad);
     const jugado = tieneResultado(p);
     const ronda = p.ronda ?? '?';

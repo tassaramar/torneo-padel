@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-25 (feedback confirmar resultado + propagar ganadores bracket + scroll fix + 4 bugfixes general.html)
+**Última actualización**: 2026-03-26 (tab inteligente general.html + separar pendientes/jugados en detalle grupo)
 
 ---
 
@@ -64,14 +64,6 @@ Si hay un partido a confirmar y el jugador hace scroll hacia abajo para ver los 
 ### Bloque B — Claridad y comunicación al jugador
 
 ---
-
-#### [MEJORA] Modal grupos — separar partidos jugados de pendientes `📋 PRIORIZADA`
-
-**Score owner**: pendiente · **Spec**: ❌ falta
-
-En el detalle de un grupo dentro del modal, los partidos jugados y pendientes aparecen mezclados. Agruparlos en dos secciones claras: primero los pendientes (con número de partido), luego los jugados. Mejora la lectura y permite al jugador encontrar rápidamente lo que busca.
-
-**Archivos clave**: `src/viewer/renderConsulta.js`
 
 ---
 
@@ -344,6 +336,22 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ---
 
 ## Historial — Implementado / Validado
+
+### [MEJORA] Tab por defecto inteligente en general.html `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-26
+
+Si el jugador identificado no tiene partidos de grupo pendientes, general.html abre en tab Copas (si hay) o Fixture en lugar de Grupos. Si no está identificado o tiene pendientes, mantiene Grupos con su grupo como sub-tab.
+
+---
+
+### [MEJORA] Modal grupos — separar partidos jugados de pendientes `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-26
+
+En el detalle de grupo, los partidos se separan en dos secciones `<details>`: "Partidos pendientes (N)" (abierto, ordenados por posición global del fixture) y "Partidos jugados (N)" (cerrado, ordenados por ronda). Si una categoría está vacía, no se muestra.
+
+---
 
 ### [MEJORA] Bracket copas — propagar ganadores a ronda siguiente `✅ IMPLEMENTADA`
 

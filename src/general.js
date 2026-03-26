@@ -6,6 +6,7 @@ import {
   renderCopas,
   renderFixture
 } from './viewer/renderConsulta.js';
+import { tieneResultado } from './utils/formatoResultado.js';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -79,6 +80,19 @@ async function init() {
   try {
     setStatus('Cargando…');
     state.cache = await cargarDatosConsulta(supabase, TORNEO_ID);
+
+    // Tab inteligente: si el jugador no tiene partidos de grupo pendientes, ir a Copas o Fixture
+    if (state.identidad && state.cache) {
+      const misPendientesGrupo = (state.cache.partidos || []).filter(p =>
+        !tieneResultado(p) &&
+        (p.pareja_a_id === state.identidad.parejaId || p.pareja_b_id === state.identidad.parejaId)
+      );
+      if (misPendientesGrupo.length === 0) {
+        const hayCopas = state.cache.copas?.length > 0 && state.cache.partidosCopa?.length > 0;
+        state.activeTab = hayCopas ? 'copas' : 'fixture';
+      }
+    }
+
     setStatus(`Actualizado ${nowStr()}`);
     if (tabsEl) renderTabs(tabsEl, state, onTabChange);
     await renderContenido();
