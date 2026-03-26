@@ -257,9 +257,47 @@ Decisiones de diseño tomadas (2026-03-24):
 
 ---
 
-#### Gestión de usuarios individuales `🔍 EN ANÁLISIS`
+#### Gestión de jugadores individuales `🔍 EN ANÁLISIS`
 
-Registro progresivo de jugadores: el flujo actual (sin login) se mantiene, con opción de registrarse después de identificarse. Base para histórico, stats cross-torneo, y detección automática de torneo. Depende de RLS (ya implementado). **Estrategia**: [memoria: estrategia 2026](../../.claude/projects/c--torneo-padel/memory/project_strategy_2026.md)
+**Score owner**: N/A · **Estrategia**: [memoria: estrategia 2026](../../.claude/projects/c--torneo-padel/memory/project_strategy_2026.md)
+
+Tabla `jugadores` global, independiente de torneos. Permite historial cross-torneo ("Tincho participó en 5 torneos, ganó 8 de 15 partidos") y soft onboarding progresivo (anónimo → identificado → autenticado).
+
+**Modelo de datos discutido (2026-03-26)**:
+
+- **`jugadores`**: `id`, `apodo` (unique, lo que se usa en la app — "Tincho"), `nombre_completo` (opcional), `google_email` (nullable, para vincular con auth), `telefono` (nullable), `created_at`
+- **`inscripciones`**: `id`, `jugador_id`, `torneo_id`, `created_at` — vincula jugador con torneo (reemplaza la relación implícita actual vía parejas)
+
+**Decisiones clave**:
+- El jugador es la unidad, no la pareja. La pareja es una relación dentro de un torneo, compuesta por dos jugadores.
+- `apodo` es el identificador visible (hoy es el nombre dentro de la pareja, ej: "Tincho" de "Tincho - Sebi"). Debe ser único en la plataforma.
+- `google_email` nullable permite auth progresiva: el jugador existe desde que el organizador lo importa, y opcionalmente se vincula con Google después.
+- `telefono` para contacto del organizador (no visible a otros jugadores).
+
+**Impacto en el modelo actual**:
+- `parejas.nombre` ("Tincho - Sebi") se descompone en dos `jugador_id` references
+- `parejas.presentes[]` (array de strings) se reemplaza por relación con `jugadores`
+- El flujo de identificación (`src/identificacion/`) pasa de buscar por nombre en parejas a buscar en `jugadores`
+- La importación de parejas (`parejasImport.js`) debe crear/vincular jugadores automáticamente
+
+**Flujo de soft onboarding progresivo (discutido 2026-03-26)**:
+
+El objetivo es que el jugador empiece a usar la app sin fricción (como hoy) y vaya ganando capacidades a medida que se identifica más:
+
+| Nivel | Cómo llega | Qué puede hacer | Datos que tenemos |
+|-------|-----------|-----------------|-------------------|
+| 0. Anónimo | Entra por link del torneo | Ver fixture, tablas, resultados públicos | Nada |
+| 1. Identificado (hoy) | Escribe su nombre + valida compañero | Cargar resultados, ver sus partidos, presentismo | `apodo` en localStorage |
+| 2. Registrado | Después de identificarse, la app sugiere "guardá tu perfil" | Todo lo anterior + historial cross-torneo, detección automática de torneo | `apodo`, `telefono`, fila en `jugadores` |
+| 3. Autenticado | Vincula Google (opcional) | Todo lo anterior + rol de ayudante/organizador sin PIN, acceso a analytics propios | `google_email` en `jugadores` |
+
+**Principios**:
+- Cada nivel es **opt-in** y **no-bloqueante**: nunca se fuerza al jugador a registrarse para hacer algo que hoy puede hacer sin login
+- La transición entre niveles es **suave**: la app ofrece el siguiente paso cuando tiene sentido (ej: "¿Querés que te reconozca automáticamente la próxima vez?"), no con un muro de registro
+- El organizador puede pre-crear jugadores (nivel 2) desde la importación de parejas, sin que el jugador haga nada
+- La vinculación con Google (nivel 3) es el puente hacia roles formales, reemplazando el PIN de ayudante por permisos reales
+
+**Habilita**: histórico individual, sorteo de parejas, stats cross-torneo, detección automática de torneo, roles por jugador (ayudante sin PIN)
 
 ---
 
