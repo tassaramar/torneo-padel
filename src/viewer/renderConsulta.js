@@ -40,7 +40,7 @@ export async function cargarDatosConsulta(supabase, torneoId) {
     supabase
       .from('partidos')
       .select(`
-        id, estado, ronda,
+        id, estado, ronda, updated_at,
         set1_a, set1_b, set2_a, set2_b, set3_a, set3_b, num_sets,
         sets_a, sets_b,
         games_totales_a, games_totales_b,
@@ -314,8 +314,8 @@ export async function renderGrupoDetalle(container, state, grupoId) {
 
         // Pendientes ordenados por posición global del fixture
         pendientes.sort((a, b) => (mapaPosiciones?.get(a.id) ?? 999) - (mapaPosiciones?.get(b.id) ?? 999));
-        // Jugados ordenados por ronda
-        jugadosList.sort((a, b) => (a.ronda || 999) - (b.ronda || 999));
+        // Jugados ordenados por updated_at más reciente primero
+        jugadosList.sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
 
         let seccionesHtml = '';
         if (pendientes.length > 0) {
@@ -329,7 +329,7 @@ export async function renderGrupoDetalle(container, state, grupoId) {
         }
         if (jugadosList.length > 0) {
           seccionesHtml += `
-            <details class="modal-details">
+            <details class="modal-details" open>
               <summary>Partidos jugados (${jugadosList.length})</summary>
               <div class="modal-partidos-list">
                 ${renderPartidosGrupo(jugadosList, identidad, mapaPosiciones)}
