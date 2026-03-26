@@ -1754,6 +1754,15 @@ a.btn-action-secondary:hover {
   color: #DC2626;
 }
 
+.partido-confirmado.ganador-yo {
+  background: rgba(22, 163, 74, 0.08);
+  border-left: 4px solid #16A34A;
+}
+.partido-confirmado.ganador-rival {
+  background: rgba(220, 38, 38, 0.06);
+  border-left: 4px solid #DC2626;
+}
+
 .empty-state {
   text-align: center;
   padding: 32px;

@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-26 (acceso ayudante con gesto secreto + PIN)
+**Última actualización**: 2026-03-26 (cards ganado/perdido con color)
 
 ---
 
@@ -78,14 +78,6 @@ El título del modal muestra "Consultar", que no describe bien su contenido (tab
 **Archivos clave**: `src/viewer/renderConsulta.js`, `general.html`
 
 ---
-
-#### [MEJORA] Partidos jugados (index.html) — card con colores ganado/perdido `💡 CRUDA`
-
-**Score owner**: pendiente · **Spec**: ❌ falta
-
-La lista "Ver partidos jugados" solo tiene color en el score (verde/rojo en el número). Aplicar estilo de card con fondo verde suave (ganado) o rojo suave (perdido), consistente con el patrón visual del modal.
-
-**Archivos clave**: `src/viewer/vistaPersonal.js`, `style.css`
 
 ---
 
@@ -328,6 +320,14 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ---
 
 ## Historial — Implementado / Validado
+
+### [MEJORA] Partidos jugados — cards con color ganado/perdido `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-26
+
+Fondo verde suave + borde izquierdo verde para partidos ganados, rojo suave + borde rojo para perdidos. Usa las clases `ganador-yo` / `ganador-rival` que ya emitía el HTML.
+
+---
 
 ### [FEATURE] Acceso ayudante con gesto secreto + PIN `✅ IMPLEMENTADA`
 
