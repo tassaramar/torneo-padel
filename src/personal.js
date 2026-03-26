@@ -10,6 +10,7 @@ import {
 } from './viewer/cargarResultado.js';
 import { showToast } from './utils/toast.js';
 import { tryShowAdminLinks } from './auth/adminLinks.js';
+import { initAyudanteGesture, tryShowAyudanteBar } from './auth/ayudanteAccess.js';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -540,6 +541,10 @@ checkIdentidadYCargar();
 
 // Si hay admin logueado, mostrar links de navegación (no-bloqueante)
 tryShowAdminLinks(supabase);
+
+// Ayudante: mostrar barra si ya validado, o habilitar gesto de 7 taps en versión
+tryShowAyudanteBar();
+initAyudanteGesture(supabase, TORNEO_ID);
 
 async function checkIdentidadYCargar() {
   const identidad = getIdentidad();

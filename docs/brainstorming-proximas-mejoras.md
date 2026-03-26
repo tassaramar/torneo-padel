@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-26 (tab inteligente general.html + separar pendientes/jugados en detalle grupo)
+**Última actualización**: 2026-03-26 (acceso ayudante con gesto secreto + PIN)
 
 ---
 
@@ -289,14 +289,6 @@ Historial de partidos por jugador. Depende de Múltiples torneos + Gestión de u
 
 ---
 
-#### [MEJORA] Navegación para ayudante/organizador `📋 PRIORIZADA`
-
-**Score owner**: 4/5 · **Spec**: ❌ falta · **Estrategia**: [memoria: navegación ayudante](../../.claude/projects/c--torneo-padel/memory/project_helper_nav.md)
-
-El ayudante tiene que tipear URLs a mano para llegar a fixture/carga/presente. Solución v1: gesto secreto (tap múltiple en algún elemento) → pide PIN → habilita menú de navegación con links a fixture/carga/presente. Evolución futura: reemplazar PIN por Google OAuth cuando se implemente auth de roles.
-
-**Archivos clave**: `index.html`, `src/personal.js`
-
 ---
 
 #### Jerarquía de roles (diseño conceptual) `🔍 EN ANÁLISIS`
@@ -336,6 +328,14 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ---
 
 ## Historial — Implementado / Validado
+
+### [FEATURE] Acceso ayudante con gesto secreto + PIN `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-26
+
+Desde index.html, tocando 7 veces el número de versión se activa un prompt de PIN. Si el PIN coincide con el configurado por el admin en Setup, se muestra una barra flotante con links a Fixture, Cargar y Presentismo. El estado se persiste en localStorage. El admin configura el PIN desde admin.html > Setup > "PIN de ayudantes". Migración: `20260326000000_add_pin_ayudante.sql`.
+
+---
 
 ### [MEJORA] Tab por defecto inteligente en general.html `✅ IMPLEMENTADA`
 

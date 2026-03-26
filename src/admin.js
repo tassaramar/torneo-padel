@@ -42,6 +42,41 @@ function debugClick(id, label) {
   );
 }
 
+async function initPinAyudante() {
+  const input = document.getElementById('pin-ayudante-input');
+  const btnSave = document.getElementById('pin-ayudante-save');
+  const statusEl = document.getElementById('pin-ayudante-status');
+  if (!input || !btnSave) return;
+
+  // Cargar PIN actual
+  const { data } = await supabase
+    .from('torneos')
+    .select('pin_ayudante')
+    .eq('id', TORNEO_ID)
+    .single();
+
+  input.value = data?.pin_ayudante || '';
+  if (data?.pin_ayudante) {
+    statusEl.textContent = 'PIN activo';
+  }
+
+  btnSave.addEventListener('click', async () => {
+    const pin = input.value.trim();
+    const { error } = await supabase
+      .from('torneos')
+      .update({ pin_ayudante: pin || null })
+      .eq('id', TORNEO_ID);
+
+    if (error) {
+      console.error(error);
+      logMsg('❌ Error guardando PIN de ayudante');
+    } else {
+      statusEl.textContent = pin ? 'PIN guardado' : 'PIN desactivado';
+      logMsg(pin ? '✅ PIN de ayudante actualizado' : '✅ PIN de ayudante desactivado');
+    }
+  });
+}
+
 async function initFormatoSets() {
   const sel = document.getElementById('formato-sets-select');
   if (!sel) return;
@@ -77,6 +112,7 @@ function initAdmin() {
   safeInit('Groups', initGroups);
   safeInit('Copas', initCopas);
   safeInit('FormatoSets', initFormatoSets);
+  safeInit('PinAyudante', initPinAyudante);
 
   // Conectar botón de reset resultados
   const btnResetResultados = document.getElementById('reset-resultados');

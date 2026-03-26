@@ -64,6 +64,25 @@
         </p>
       </div>
 
+      <h2 style="margin-top:14px;">PIN de ayudantes</h2>
+      <div class="admin-grupo" style="margin-bottom:20px;">
+        <p class="helper" style="margin-top:0;">
+          Los ayudantes ingresan este PIN tocando 7 veces la versión en la pantalla del jugador.
+        </p>
+        <div style="display:flex; gap:8px; align-items:center; max-width:320px;">
+          <input
+            id="pin-ayudante-input"
+            type="text"
+            inputmode="numeric"
+            placeholder="Ej: 1234"
+            autocomplete="off"
+            style="flex:1; padding:10px 12px; font-size:15px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text);"
+          />
+          <button id="pin-ayudante-save" type="button" style="white-space:nowrap;">Guardar</button>
+        </div>
+        <div id="pin-ayudante-status" class="helper" style="margin-top:6px;"></div>
+      </div>
+
       <h2 style="margin-top:14px;">Parejas (import rápido)</h2>
       <p class="helper" style="margin-top:0;">
         Pegá desde Excel en formato: <code>Pareja[TAB]Grupo</code>.
