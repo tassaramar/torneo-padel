@@ -107,14 +107,6 @@ El autorefresh (cada 30s) reconstruye el DOM completo, lo que genera un parpadeo
 
 ---
 
-#### [MEJORA] fixture.html — ocultar secciones de grupos en fase de copas `📋 PRIORIZADA`
-
-**Score owner**: 1/5 · **Spec**: ✅ [spec-fixture-ocultar-grupos-fase-copa.md](spec-fixture-ocultar-grupos-fase-copa.md)
-
-Cuando no quedan partidos de grupo pendientes ni en juego, ocultar las secciones "Resumen por Grupo", "En Juego" y "Pendientes". Condición: `pendientes === 0 && en_juego === 0`.
-
-**Archivo clave**: `src/fixture.js`
-
 ---
 
 #### [MEJORA] Wizard copas — restringir a tabla general si cantidad de grupos es impar `💡 CRUDA`
@@ -166,14 +158,6 @@ Reportado: al marcar un partido de copa como en juego desde fixture, la sección
 **Archivo clave**: `src/fixture.js`
 
 ---
-
-#### [MEJORA] Admin copas — resaltar al ganador en los partidos `💡 CRUDA`
-
-**Score owner**: 3/5 · Quick win (~5 líneas)
-
-Nombre de la pareja ganadora en **negrita** en la vista admin de copas.
-
-**Archivo clave**: `src/admin/copas/statusView.js`
 
 ---
 
@@ -350,6 +334,18 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ---
 
 ## Historial — Implementado / Validado
+
+### [MEJORA] fixture.html — ocultar secciones de grupos en fase de copas `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-26 · Subsumida en la migración de general.html: el tab por defecto ahora se selecciona inteligentemente según el estado del torneo (si hay copas activas y el jugador terminó sus partidos de grupo → muestra tab Copas).
+
+---
+
+### [MEJORA] Admin copas — resaltar al ganador en los partidos `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-26 · Ya implementado en iteraciones anteriores.
+
+---
 
 ### [BUG] Scroll bump al tener partidos a confirmar `✅ IMPLEMENTADA`
 

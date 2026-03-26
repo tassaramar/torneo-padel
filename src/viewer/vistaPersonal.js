@@ -628,7 +628,7 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
       ` : ''}
       <div class="dash-card">
         <div class="dash-value">${estadisticas.partidosPorJugar}</div>
-        <div class="dash-label">Pendientes</div>
+        <div class="dash-label">${estadisticas.partidosPorJugar === 0 ? '¡Jugaste todos!' : estadisticas.partidosPorJugar === 1 ? 'Te falta jugar' : 'Te faltan jugar'}</div>
       </div>
       <div class="dash-card">
         <div class="dash-value">${estadisticas.partidosJugados}</div>
