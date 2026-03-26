@@ -5117,6 +5117,7 @@ a.btn-action-secondary:hover {
   font-size: 0.6rem;
   opacity: 0.35;
   z-index: 9999;
+  pointer-events: auto;
 }
 
 /* Filtros */
