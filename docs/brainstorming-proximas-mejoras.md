@@ -49,14 +49,6 @@
 
 ---
 
-#### [BUG] index.html — scroll bump al tener partidos a confirmar `💡 CRUDA`
-
-**Score owner**: pendiente · **Spec**: ❌ falta
-
-Si hay un partido a confirmar y el jugador hace scroll hacia abajo para ver los pendientes, al llegar al final de la página se produce un "bump" que lo devuelve automáticamente al partido a confirmar. Rompe la navegación del jugador.
-
-**Archivos clave**: `src/viewer/vistaPersonal.js`, `src/personal.js`
-
 ---
 
 ---
@@ -358,6 +350,14 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ---
 
 ## Historial — Implementado / Validado
+
+### [BUG] Scroll bump al tener partidos a confirmar `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-26
+
+Resuelto previamente. El scroll ya no salta al partido a confirmar al navegar hacia abajo.
+
+---
 
 ### [MEJORA] Partidos jugados — cards con color ganado/perdido `✅ IMPLEMENTADA`
 
