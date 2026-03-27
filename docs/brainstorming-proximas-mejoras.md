@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-27 (rediseño visual home jugador)
+**Última actualización**: 2026-03-27 (MVP 1.0 multi-torneo)
 
 ---
 
@@ -208,16 +208,17 @@ Paso 5 "Finalizado" en breadcrumb + podio por copa. Interacción con mensaje de 
 
 ---
 
-#### Múltiples torneos `🔍 EN ANÁLISIS`
+#### Múltiples torneos — MVP 2.0+ `🔍 EN ANÁLISIS`
 
-**Score owner**: N/A · Feature más grande del backlog. **Diseño**: [memoria: multi-torneo diseño](../../.claude/projects/c--torneo-padel/memory/project_multi_torneo_design.md)
+**Score owner**: N/A · **Diseño**: [memoria: multi-torneo diseño](../../.claude/projects/c--torneo-padel/memory/project_multi_torneo_design.md)
 
-Decisiones de diseño tomadas (2026-03-24):
-- **Flujo principal**: link del organizador (ej: `torneo-padel.app/verano26`). El jugador nunca "elige" torneo — entra por el link que le pasaron.
-- **Fallback**: detección por nombre cross-torneo. La validación de compañero (existente) sirve como disambiguación implícita sin revelar nombres de torneos.
-- **Solución robusta**: con auth progresiva, "primero decime quién sos" → la app ya sabe en qué torneos participás.
-- **NO hacer**: selector/dropdown de torneos (va contra la filosofía de la app, problemas de privacidad).
-- Depende de: TORNEO_ID dinámico (eliminar hardcoded). No depende necesariamente de gestión de usuarios (el link resuelve la mayoría de casos).
+MVP 1.0 implementado (2026-03-27): TORNEO_ID dinámico, estados borrador/activo/finalizado, página torneos.html para gestión de torneos. Solo 1 activo a la vez.
+
+Próximos pasos:
+- **MVP 2.0**: Acceso a datos de torneos previos (admin puede ver/gestionar torneos finalizados)
+- **MVP 3.0+**: Múltiples torneos activos simultáneos, URLs con slug (`/t/verano26`), detección cross-torneo
+- **Diseño UX** (ya decidido): link del organizador como primary, detección por nombre como fallback, NO selector/dropdown
+- **Auth progresiva**: cuando el jugador tiene cuenta, la app ya sabe en qué torneos participás
 
 ---
 
@@ -322,6 +323,12 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ---
 
 ## Historial — Implementado / Validado
+
+### [FEATURE] MVP 1.0 Multi-torneo `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-27 · TORNEO_ID dinámico (eliminado hardcoded de 8 archivos). Estados de torneo: borrador/activo/finalizado con transiciones libres. Constraint BD: max 1 activo. Nueva página `torneos.html` ("Administración del sistema") con CRUD de torneos, protegida por OAuth. Campos nuevos en `torneos`: estado, slug, fecha, duracion, ubicacion_nombre, ubicacion_coords. RPC `obtener_torneo_activo()`. Módulo centralizado `src/utils/torneoActivo.js` con cache en memoria. Pantalla "No hay torneo en curso" en todas las páginas del jugador. Plan: `.claude/plans/humble-foraging-peacock.md`.
+
+---
 
 ### [MEJORA] Rediseño visual home jugador `✅ IMPLEMENTADA`
 

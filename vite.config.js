@@ -22,6 +22,7 @@ export default defineConfig({
         analytics: resolve(__dirname, 'analytics.html'),
         fixture: resolve(__dirname, 'fixture.html'),
         presente: resolve(__dirname, 'presente.html'),
+        torneos: resolve(__dirname, 'torneos.html'),
       },
     },
   },

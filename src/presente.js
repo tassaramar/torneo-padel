@@ -3,7 +3,7 @@
  * Página de administración de presentismo
  */
 
-import { logMsg, supabase, TORNEO_ID } from './admin/context.js';
+import { logMsg, supabase, initTorneo } from './admin/context.js';
 import { initPresentismo } from './viewer/presentismo.js';
 
 import {
@@ -18,6 +18,7 @@ import {
 console.log('PRESENTE ENTRY CARGADO');
 
 async function initPresente() {
+  await initTorneo();
   // Init módulo de presentismo con supabase
   initPresentismo(supabase);
 

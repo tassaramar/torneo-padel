@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Administración del sistema</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<body>
+  <div class="topnav">
+    <a class="topnav-link" href="/admin">🛠 Admin</a>
+    <a class="topnav-link" href="/torneos">⚙️ Sistema</a>
+  </div>
+
+  <div class="container">
+    <h1>Administración del sistema</h1>
+    <p class="helper" style="margin-top:0;">Gestionar torneos: crear, activar y finalizar.</p>
+
+    <div id="torneos-status" style="font-size:13px; color:var(--muted); margin-bottom:12px;"></div>
+
+    <!-- Lista de torneos -->
+    <div id="torneos-list"></div>
+
+    <!-- Crear torneo -->
+    <details id="crear-torneo-details" style="margin-top:24px;">
+      <summary style="cursor:pointer; font-weight:600; font-size:15px; color:var(--primary-900);">
+        + Crear nuevo torneo
+      </summary>
+      <div class="admin-grupo" style="margin-top:12px;">
+        <div style="display:flex; flex-direction:column; gap:12px; max-width:400px;">
+          <div>
+            <label for="torneo-nombre" style="font-weight:600; font-size:14px; display:block; margin-bottom:4px;">Nombre *</label>
+            <input id="torneo-nombre" type="text" placeholder="Ej: Torneo Verano 2026" style="width:100%; padding:10px 12px; font-size:15px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text);" />
+          </div>
+          <div>
+            <label for="torneo-slug" style="font-weight:600; font-size:14px; display:block; margin-bottom:4px;">Slug (URL)</label>
+            <input id="torneo-slug" type="text" placeholder="torneo-verano-2026" style="width:100%; padding:10px 12px; font-size:15px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text);" />
+            <p class="helper" style="margin-top:4px;">Se genera automaticamente desde el nombre. Solo letras, numeros y guiones.</p>
+          </div>
+          <div>
+            <label for="torneo-fecha" style="font-weight:600; font-size:14px; display:block; margin-bottom:4px;">Fecha</label>
+            <input id="torneo-fecha" type="date" style="width:100%; padding:10px 12px; font-size:15px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text);" />
+          </div>
+          <div>
+            <label for="torneo-duracion" style="font-weight:600; font-size:14px; display:block; margin-bottom:4px;">Duracion</label>
+            <input id="torneo-duracion" type="text" placeholder="Ej: 4 horas, 2 dias" style="width:100%; padding:10px 12px; font-size:15px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text);" />
+          </div>
+          <div>
+            <label for="torneo-ubicacion" style="font-weight:600; font-size:14px; display:block; margin-bottom:4px;">Ubicacion</label>
+            <input id="torneo-ubicacion" type="text" placeholder="Ej: Club Ramos Mejia" style="width:100%; padding:10px 12px; font-size:15px; border-radius:8px; border:1px solid var(--border); background:var(--bg); color:var(--text);" />
+          </div>
+          <button id="btn-crear-torneo" type="button" style="align-self:flex-start; padding:10px 20px; font-size:15px; font-weight:600; border-radius:8px; border:none; background:var(--primary); color:white; cursor:pointer;">
+            Crear torneo
+          </button>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <script type="module" src="/src/torneos.js"></script>
+  <script>
+    (function () {
+      const path = (location.pathname.endsWith('/') ? location.pathname : location.pathname + '/');
+      document.querySelectorAll('.topnav-link').forEach(a => {
+        const href = a.getAttribute('href');
+        const norm = (href.endsWith('/') ? href : href + '/');
+        if (norm === path) a.classList.add('is-active');
+      });
+    })();
+  </script>
+</body>
+</html>

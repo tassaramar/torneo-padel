@@ -3,7 +3,7 @@
  * Registra eventos de visitas y carga de resultados
  */
 
-const TORNEO_ID = 'ad58a855-fa74-4c2e-825e-32c20f972136';
+import { obtenerTorneoActivo } from '../utils/torneoActivo.js';
 
 /**
  * Registra una visita cuando un jugador se identifica
@@ -13,6 +13,8 @@ const TORNEO_ID = 'ad58a855-fa74-4c2e-825e-32c20f972136';
  */
 export async function trackVisita(supabase, identidad) {
   try {
+    const TORNEO_ID = await obtenerTorneoActivo(supabase);
+    if (!TORNEO_ID) return { ok: false, error: 'No hay torneo activo' };
     const { error } = await supabase
       .from('tracking_eventos')
       .insert({
@@ -47,6 +49,8 @@ export async function trackVisita(supabase, identidad) {
  */
 export async function trackCargaResultado(supabase, identidad, partidoId, gamesA, gamesB) {
   try {
+    const TORNEO_ID = await obtenerTorneoActivo(supabase);
+    if (!TORNEO_ID) return { ok: false, error: 'No hay torneo activo' };
     const { error } = await supabase
       .from('tracking_eventos')
       .insert({
@@ -81,6 +85,7 @@ export async function trackCargaResultado(supabase, identidad, partidoId, gamesA
  */
 export async function getActivityStats(supabase, diasAtras = 7) {
   try {
+    const TORNEO_ID = await obtenerTorneoActivo(supabase);
     const fechaDesde = new Date();
     fechaDesde.setDate(fechaDesde.getDate() - diasAtras);
 
@@ -135,6 +140,7 @@ export async function getActivityStats(supabase, diasAtras = 7) {
  */
 export async function getTimelineData(supabase, diasAtras = 7) {
   try {
+    const TORNEO_ID = await obtenerTorneoActivo(supabase);
     const fechaDesde = new Date();
     fechaDesde.setDate(fechaDesde.getDate() - diasAtras);
 
@@ -190,6 +196,7 @@ export async function getTimelineData(supabase, diasAtras = 7) {
  */
 export async function getRankingActividad(supabase, diasAtras = 30) {
   try {
+    const TORNEO_ID = await obtenerTorneoActivo(supabase);
     const fechaDesde = new Date();
     fechaDesde.setDate(fechaDesde.getDate() - diasAtras);
 
@@ -256,6 +263,7 @@ export async function getRankingActividad(supabase, diasAtras = 30) {
  */
 export async function getActividadReciente(supabase, limite = 50) {
   try {
+    const TORNEO_ID = await obtenerTorneoActivo(supabase);
     const { data: eventos, error } = await supabase
       .from('tracking_eventos')
       .select('*')
@@ -284,6 +292,7 @@ export async function getActividadReciente(supabase, limite = 50) {
  */
 export async function getStatsPorPareja(supabase, parejaId, diasAtras = 30) {
   try {
+    const TORNEO_ID = await obtenerTorneoActivo(supabase);
     const fechaDesde = new Date();
     fechaDesde.setDate(fechaDesde.getDate() - diasAtras);
 

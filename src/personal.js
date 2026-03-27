@@ -11,13 +11,14 @@ import {
 import { showToast } from './utils/toast.js';
 import { tryShowAdminLinks } from './auth/adminLinks.js';
 import { initAyudanteGesture, tryShowAyudanteBar } from './auth/ayudanteAccess.js';
+import { obtenerTorneoActivo } from './utils/torneoActivo.js';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
-const TORNEO_ID = 'ad58a855-fa74-4c2e-825e-32c20f972136';
+let TORNEO_ID = null;
 
 const statusEl = document.getElementById('home-status');
 
@@ -542,13 +543,27 @@ checkIdentidadYCargar();
 // Si hay admin logueado, mostrar links de navegación (no-bloqueante)
 tryShowAdminLinks(supabase);
 
-// Ayudante: mostrar barra si ya validado, o habilitar gesto de 7 taps en versión
+// Ayudante: mostrar barra si ya validado
 tryShowAyudanteBar();
-initAyudanteGesture(supabase, TORNEO_ID);
 
 async function checkIdentidadYCargar() {
+  TORNEO_ID = await obtenerTorneoActivo(supabase);
+  if (!TORNEO_ID) {
+    const contentEl = document.getElementById('home-content');
+    if (contentEl) contentEl.innerHTML = `
+      <div style="text-align:center;padding:3rem 1rem;color:#6b7280;">
+        <p style="font-size:1.5rem;margin-bottom:0.5rem;">No hay torneo en curso</p>
+        <p>Cuando el organizador active un torneo, vas a poder verlo acá.</p>
+      </div>`;
+    setStatus('');
+    return;
+  }
+
+  // Habilitar gesto de ayudante ahora que tenemos TORNEO_ID
+  initAyudanteGesture(supabase, TORNEO_ID);
+
   const identidad = getIdentidad();
-  
+
   if (identidad) {
     // Ya está identificado, cargar vista personalizada
     console.log('Usuario identificado:', identidad.parejaNombre);

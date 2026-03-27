@@ -1,11 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
+import { obtenerTorneoActivo } from './utils/torneoActivo.js';
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
-const TORNEO_ID = 'ad58a855-fa74-4c2e-825e-32c20f972136';
+let TORNEO_ID = null;
 
 const cont = document.getElementById('bracket');
 const statusEl = document.getElementById('bracket-status');
@@ -202,4 +203,15 @@ async function cargarBracket() {
   }
 }
 
-cargarBracket();
+(async () => {
+  TORNEO_ID = await obtenerTorneoActivo(supabase);
+  if (!TORNEO_ID) {
+    if (cont) cont.innerHTML = `
+      <div style="text-align:center;padding:3rem 1rem;color:#6b7280;">
+        <p style="font-size:1.5rem;margin-bottom:0.5rem;">No hay torneo en curso</p>
+        <p>Cuando el organizador active un torneo, vas a poder verlo acá.</p>
+      </div>`;
+    return;
+  }
+  cargarBracket();
+})();

@@ -1,4 +1,4 @@
-import { supabase, TORNEO_ID } from './carga/context.js';
+import { supabase, TORNEO_ID, initTorneo } from './carga/context.js';
 import { injectVersion } from './utils/version.js';
 import { initCargaLayout, wireModoToggle, pintarModoToggle, actualizarCounters } from './carga/layout.js';
 import { cargarPartidosGrupos } from './carga/partidosGrupos.js';
@@ -68,6 +68,7 @@ function initCarga() {
   }
 
   async function init() {
+    await initTorneo();
     pintarModoToggle(dom);
 
     initSearchUI({

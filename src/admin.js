@@ -1,4 +1,4 @@
-import { logMsg, supabase, TORNEO_ID } from './admin/context.js';
+import { logMsg, supabase, TORNEO_ID, initTorneo } from './admin/context.js';
 import { injectVersion } from './utils/version.js';
 
 import { initGroups } from './admin/groups/index.js';
@@ -122,7 +122,10 @@ function initAdmin() {
 }
 
 injectVersion();
-requireAdmin(supabase, { onReady: initAdmin });
+requireAdmin(supabase, { onReady: async () => {
+  await initTorneo();
+  initAdmin();
+}});
 
 /* =========================
    RESET RESULTADOS PRE-TORNEO

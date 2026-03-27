@@ -1,6 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
+import { obtenerTorneoActivo } from '../utils/torneoActivo.js';
 
-export const TORNEO_ID = 'ad58a855-fa74-4c2e-825e-32c20f972136';
+export let TORNEO_ID = null;
+
+export async function initTorneo() {
+  TORNEO_ID = await obtenerTorneoActivo(supabase);
+  return TORNEO_ID;
+}
 
 export const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
