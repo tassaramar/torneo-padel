@@ -4201,6 +4201,133 @@ a.btn-action-secondary:hover {
   font-size: 16px;
 }
 
+.seccion-disputa {
+  background: #FEF2F2;
+  border-left: 4px solid #DC2626;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.seccion-confirmacion {
+  background: #FFFBEB;
+  border-left: 4px solid #F59E0B;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+/* === Card próximo partido === */
+
+.partido-proximo {
+  margin-bottom: 16px;
+}
+
+.proximo-titulo {
+  margin: 0 0 8px 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.proximo-card {
+  background: white;
+  border-left: 4px solid #16A34A;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.proximo-posicion {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--primary-900);
+  background: var(--primary-soft);
+  padding: 3px 10px;
+  border-radius: 8px;
+  font-family: monospace;
+  margin-bottom: 6px;
+}
+
+.proximo-vs {
+  display: block;
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.proximo-cola {
+  display: block;
+  font-size: 14px;
+  color: #6B7280;
+  margin-bottom: 12px;
+}
+
+.proximo-badge-copa {
+  display: block;
+  font-size: 13px;
+  color: #92400E;
+  margin-bottom: 8px;
+}
+
+.btn-cargar-proximo {
+  width: 100%;
+  padding: 14px 20px;
+  font-size: 16px;
+  font-weight: 700;
+  background: var(--primary);
+  border-color: var(--primary-900);
+  color: white;
+  border-radius: 12px;
+}
+
+.btn-cargar-proximo:hover {
+  background: var(--primary-900);
+}
+
+/* === Partidos "Los que vienen después" === */
+
+.pendientes-resto-titulo {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6B7280;
+}
+
+.partido-resto {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.partido-resto:last-child {
+  border-bottom: none;
+}
+
+.resto-posicion {
+  font-weight: 600;
+  color: #6B7280;
+  width: 40px;
+  flex-shrink: 0;
+}
+
+.resto-vs {
+  flex: 1;
+  font-size: 14px;
+  padding: 0 8px;
+}
+
+.btn-cargar-resto {
+  font-size: 13px;
+  padding: 6px 12px;
+  background: #F3F4F6;
+  border-color: #D1D5DB;
+  color: #374151;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
 /* === Partidos jugados === */
 
 .home-partidos-jugados {

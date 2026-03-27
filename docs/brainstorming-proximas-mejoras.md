@@ -3,7 +3,7 @@
 > **Fuente única de verdad** para ideas, requerimientos y evolución del producto.
 > Detalles técnicos de arquitectura → ver `CLAUDE.md`
 
-**Última actualización**: 2026-03-26 (cards ganado/perdido con color)
+**Última actualización**: 2026-03-27 (rediseño visual home jugador)
 
 ---
 
@@ -334,6 +334,12 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ---
 
 ## Historial — Implementado / Validado
+
+### [MEJORA] Rediseño visual home jugador `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-27 · Fondos de color en secciones disputa (rojo suave) y confirmación (amarillo suave) con borde izquierdo. Primer partido pendiente destacado como card grande "Tu próximo partido" con borde verde; resto como filas compactas bajo "Los que vienen después". Botón de consulta renombrado a "Ver posiciones y cruces". Spec: `docs/spec-redesign-home-jugador.md`.
+
+---
 
 ### [MEJORA] fixture.html — ocultar secciones de grupos en fase de copas `✅ IMPLEMENTADA`
 

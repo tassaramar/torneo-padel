@@ -638,13 +638,13 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
 
     <!-- 3) DISPUTAS Y CONFIRMACIONES (inline, siempre visibles si hay) -->
     ${countDisputas > 0 ? `
-      <div class="home-seccion-inline">
+      <div class="home-seccion-inline seccion-disputa">
         <h2 class="seccion-inline-titulo">🔴 Disputas (${countDisputas})</h2>
         <div id="partidos-revision"></div>
       </div>
     ` : ''}
     ${countConfirmaciones > 0 ? `
-      <div class="home-seccion-inline">
+      <div class="home-seccion-inline seccion-confirmacion">
         <h2 class="seccion-inline-titulo">🔔 Por confirmar (${countConfirmaciones})</h2>
         <div id="partidos-confirmar"></div>
       </div>
@@ -675,7 +675,7 @@ function renderVistaPersonal(identidad, partidos, estadisticas, tablaGrupo, todo
     <div class="home-consulta">
       <a href="/general.html" class="btn-consulta">
         <span class="btn-consulta-icon">📊</span>
-        <span class="btn-consulta-text">Tablas / Grupos</span>
+        <span class="btn-consulta-text">Ver posiciones y cruces</span>
       </a>
     </div>
 
@@ -945,40 +945,56 @@ function renderPartidosPendientesHome(partidosPendientes, todosPartidosGrupo, to
     ...p,
     posicionGlobal: mapaPosiciones.get(p.id) || 999
   })).sort((a, b) => a.posicionGlobal - b.posicionGlobal);
-  
-  let html = '';
-  
-  // Renderizar partidos ordenados por posición global
-  partidosConPosicion.forEach(p => {
-    const oponente = getOponenteName(p, identidad);
-    const posicion = p.posicionGlobal !== 999 ? `#${p.posicionGlobal}` : '—';
-    const incompleteClass = !habilitado ? 'presentismo-incomplete' : '';
-    const copaEstado = p.copa_id
-      ? (p.copa?.nombre ? `🏆 ${p.copa.nombre} — ${labelRonda(p.ronda_copa, true) || 'Copa'}` : `🏆 ${labelRonda(p.ronda_copa, true) || 'Copa'}`)
-      : null;
 
-    html += `
-      <div class="partido-home ${incompleteClass}" data-partido-id="${p.id}">
-        <div class="partido-home-header">
-          <span class="partido-home-posicion">${posicion}</span>
-          <span class="partido-home-vs">vs ${escapeHtml(oponente)}</span>
-        </div>
-        <div class="partido-home-estado">
-          ${copaEstado ? escapeHtml(copaEstado) : (habilitado ? 'Pendiente' : '⚠️ Falta presente')}
-        </div>
-        <div class="partido-home-accion">
+  const proximo = partidosConPosicion[0];
+  const resto = partidosConPosicion.slice(1);
+
+  // Card del próximo partido
+  const oponenteProximo = getOponenteName(proximo, identidad);
+  const posicionProximo = proximo.posicionGlobal !== 999 ? `#${proximo.posicionGlobal}` : '—';
+  const copaBadgeProximo = proximo.copa_id
+    ? (proximo.copa?.nombre ? `🏆 ${proximo.copa.nombre} — ${labelRonda(proximo.ronda_copa, true) || 'Copa'}` : `🏆 ${labelRonda(proximo.ronda_copa, true) || 'Copa'}`)
+    : null;
+
+  let html = `
+    <div class="partido-proximo">
+      <h3 class="proximo-titulo">🎾 Tu próximo partido</h3>
+      <div class="proximo-card">
+        <span class="proximo-posicion">${posicionProximo}</span>
+        ${copaBadgeProximo ? `<span class="proximo-badge-copa">${escapeHtml(copaBadgeProximo)}</span>` : ''}
+        <span class="proximo-vs">vs ${escapeHtml(oponenteProximo)}</span>
+        <span class="proximo-cola">${posicionProximo} en la cola</span>
+        <button
+          type="button"
+          class="btn-cargar-proximo"
+          onclick="app.cargarResultado('${proximo.id}')"
+        >
+          📝 Cargar resultado
+        </button>
+      </div>
+    </div>
+  `;
+
+  if (resto.length > 0) {
+    html += `<h3 class="pendientes-resto-titulo">Los que vienen después</h3>`;
+    resto.forEach(p => {
+      const oponente = getOponenteName(p, identidad);
+      const posicion = p.posicionGlobal !== 999 ? `#${p.posicionGlobal}` : '—';
+      const copaBadge = p.copa_id ? '🏆 ' : '';
+      html += `
+        <div class="partido-resto" data-partido-id="${p.id}">
+          <span class="resto-posicion">${posicion}</span>
+          <span class="resto-vs">${copaBadge}vs ${escapeHtml(oponente)}</span>
           <button
             type="button"
-            class="btn-cargar-resultado"
+            class="btn-cargar-resto"
             onclick="app.cargarResultado('${p.id}')"
-          >
-            📝 Cargar resultado
-          </button>
+          >📝 Cargar</button>
         </div>
-      </div>
-    `;
-  });
-  
+      `;
+    });
+  }
+
   container.innerHTML = html;
 }
 
