@@ -960,10 +960,9 @@ function renderPartidosPendientesHome(partidosPendientes, todosPartidosGrupo, to
     <div class="partido-proximo">
       <h3 class="proximo-titulo">🎾 Tu próximo partido</h3>
       <div class="proximo-card">
-        <span class="proximo-posicion">${posicionProximo}</span>
         ${copaBadgeProximo ? `<span class="proximo-badge-copa">${escapeHtml(copaBadgeProximo)}</span>` : ''}
         <span class="proximo-vs">vs ${escapeHtml(oponenteProximo)}</span>
-        <span class="proximo-cola">${posicionProximo} en la cola</span>
+        <span class="proximo-cola">${posicionProximo} en la cola (según resultados cargados)</span>
         <button
           type="button"
           class="btn-cargar-proximo"
@@ -979,7 +978,7 @@ function renderPartidosPendientesHome(partidosPendientes, todosPartidosGrupo, to
     html += `<h3 class="pendientes-resto-titulo">Los que vienen después</h3>`;
     resto.forEach(p => {
       const oponente = getOponenteName(p, identidad);
-      const posicion = p.posicionGlobal !== 999 ? `#${p.posicionGlobal}` : '—';
+      const posicion = p.posicionGlobal !== 999 ? `#${p.posicionGlobal}*` : '—';
       const copaBadge = p.copa_id ? '🏆 ' : '';
       html += `
         <div class="partido-resto" data-partido-id="${p.id}">
@@ -993,6 +992,7 @@ function renderPartidosPendientesHome(partidosPendientes, todosPartidosGrupo, to
         </div>
       `;
     });
+    html += `<p class="resto-leyenda">* Posición según resultados cargados</p>`;
   }
 
   container.innerHTML = html;

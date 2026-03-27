@@ -4236,18 +4236,6 @@ a.btn-action-secondary:hover {
   box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
-.proximo-posicion {
-  display: inline-block;
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--primary-900);
-  background: var(--primary-soft);
-  padding: 3px 10px;
-  border-radius: 8px;
-  font-family: monospace;
-  margin-bottom: 6px;
-}
-
 .proximo-vs {
   display: block;
   font-size: 18px;
@@ -4298,11 +4286,10 @@ a.btn-action-secondary:hover {
   justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
-  border-bottom: 1px solid #E5E7EB;
-}
-
-.partido-resto:last-child {
-  border-bottom: none;
+  background: #F9FAFB;
+  border: 1px solid #E5E7EB;
+  border-radius: 6px;
+  margin-bottom: 6px;
 }
 
 .resto-posicion {
@@ -4326,6 +4313,12 @@ a.btn-action-secondary:hover {
   color: #374151;
   border-radius: 8px;
   flex-shrink: 0;
+}
+
+.resto-leyenda {
+  font-size: 12px;
+  color: #9CA3AF;
+  margin-top: 4px;
 }
 
 /* === Partidos jugados === */
