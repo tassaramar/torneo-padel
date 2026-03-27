@@ -61,19 +61,7 @@
 
 ---
 
-#### [MEJORA] Modal Tablas/Grupos — renombrar título "Consultar" `💡 CRUDA`
-
-**Score owner**: pendiente · **Spec**: ❌ falta
-
-El título del modal muestra "Consultar", que no describe bien su contenido (tablas, copas y fixture). Cambiar por un título más descriptivo.
-
-**Archivos clave**: `src/viewer/renderConsulta.js`, `general.html`
-
----
-
----
-
-#### [MEJORA] Mensaje de cierre cuando el jugador terminó todos sus partidos `📋 PRIORIZADA`
+#### [MEJORA] Mensaje de cierre cuando el jugador terminó todos sus partidos `💡 CRUDA`
 
 **Score owner**: 2/5 · **Spec**: ✅ [spec-vista-jugador-mensaje-final.md](spec-vista-jugador-mensaje-final.md)
 
@@ -350,6 +338,12 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 ### [MEJORA] Admin copas — resaltar al ganador en los partidos `✅ IMPLEMENTADA`
 
 **Fecha**: 2026-03-26 · Ya implementado en iteraciones anteriores.
+
+---
+
+### [MEJORA] Renombrar título "Consultar" en general.html `✅ IMPLEMENTADA`
+
+**Fecha**: 2026-03-27 · Subsumida en la migración a general.html. El título pasó a ser descriptivo del contenido de la página.
 
 ---
 

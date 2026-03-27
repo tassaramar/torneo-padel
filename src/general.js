@@ -70,7 +70,7 @@ async function renderContenido() {
 function renderNavButtons() {
   if (!navEl) return;
   if (state.identidad) {
-    navEl.innerHTML = `<a href="/index.html" class="btn-action-primary"><span class="btn-icon">👤</span><span class="btn-text">Ver Mis Partidos</span></a>`;
+    navEl.innerHTML = `<a href="/index.html" class="btn-action-primary"><span class="btn-icon">👤</span><span class="btn-text">Volvé a tus partidos</span></a>`;
   } else {
     navEl.innerHTML = `<a href="/index.html" class="btn-action-primary"><span class="btn-icon">🎾</span><span class="btn-text">Identificarme</span></a>`;
   }
