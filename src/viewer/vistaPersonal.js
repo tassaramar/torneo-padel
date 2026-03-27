@@ -978,7 +978,7 @@ function renderPartidosPendientesHome(partidosPendientes, todosPartidosGrupo, to
     html += `<h3 class="pendientes-resto-titulo">Los que vienen después</h3>`;
     resto.forEach(p => {
       const oponente = getOponenteName(p, identidad);
-      const posicion = p.posicionGlobal !== 999 ? `#${p.posicionGlobal}*` : '—';
+      const posicion = p.posicionGlobal !== 999 ? `#${p.posicionGlobal}` : '—';
       const copaBadge = p.copa_id ? '🏆 ' : '';
       html += `
         <div class="partido-resto" data-partido-id="${p.id}">
@@ -992,7 +992,6 @@ function renderPartidosPendientesHome(partidosPendientes, todosPartidosGrupo, to
         </div>
       `;
     });
-    html += `<p class="resto-leyenda">* Posición según resultados cargados</p>`;
   }
 
   container.innerHTML = html;
