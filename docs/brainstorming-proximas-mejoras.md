@@ -337,7 +337,7 @@ Hoy las copas solo soportan 2, 4 u 8 equipos (potencia de 2). Para copas con 3, 
 
 ### [MEJORA] Rediseño visual home jugador `✅ IMPLEMENTADA`
 
-**Fecha**: 2026-03-27 · Fondos de color en secciones disputa (rojo suave) y confirmación (amarillo suave) con borde izquierdo. Primer partido pendiente destacado como card grande "Tu próximo partido" con borde verde; resto como filas compactas bajo "Los que vienen después". Botón de consulta renombrado a "Ver posiciones y cruces". Spec: `docs/spec-redesign-home-jugador.md`.
+**Fecha**: 2026-03-27 · Fondos de color en secciones disputa (rojo suave) y confirmación (amarillo suave) con borde izquierdo. Primer partido pendiente destacado como card grande "Tu próximo partido" con borde verde; resto como filas compactas bajo "Los que vienen después". Botón de consulta renombrado a "Ver posiciones y cruces". Spec: `docs/spec-redesign-home-jugador.md`. Ajustes posteriores: cards con fondo `#F9FAFB` y borde en filas del resto; eliminado badge de posición redundante en la card principal (solo queda texto debajo del rival).
 
 ---
 
