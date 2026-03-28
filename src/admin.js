@@ -1,4 +1,5 @@
 import { logMsg, supabase, TORNEO_ID, initTorneo } from './admin/context.js';
+import { resetResultadosGrupos, resetParejas } from './utils/resetTorneo.js';
 import { injectVersion } from './utils/version.js';
 
 import { initGroups } from './admin/groups/index.js';
@@ -114,10 +115,15 @@ function initAdmin() {
   safeInit('FormatoSets', initFormatoSets);
   safeInit('PinAyudante', initPinAyudante);
 
-  // Conectar botón de reset resultados
+  // Conectar botones de reset
   const btnResetResultados = document.getElementById('reset-resultados');
   if (btnResetResultados) {
     btnResetResultados.onclick = resetearResultados;
+  }
+
+  const btnResetTorneo = document.getElementById('reset-torneo');
+  if (btnResetTorneo) {
+    btnResetTorneo.onclick = resetearTorneoCompleto;
   }
 }
 
@@ -133,11 +139,17 @@ requireAdmin(supabase, { onReady: async () => {
 
 export async function resetearResultados() {
   const confirmacion = confirm(
-    '🧹 LIMPIAR RESULTADOS DE GRUPOS\n\n' +
-    'Pone en cero los resultados de todos los partidos de grupo.\n' +
-    'Los partidos siguen existiendo, solo se borran los scores.\n\n' +
-    '✅ Mantiene: parejas, grupos, partidos, copas\n' +
-    '🗑️ Borra: resultados (sets) de partidos de grupo\n\n' +
+    '🧹 LIMPIAR RESULTADOS\n\n' +
+    'Se va a borrar:\n' +
+    '  • Resultados de todos los partidos de grupo\n' +
+    '  • Copas: partidos, copas y propuestas\n' +
+    '  • Sorteos (intra-grupo e inter-grupo)\n' +
+    '  • Posiciones manuales\n\n' +
+    'Se mantiene:\n' +
+    '  • Parejas y grupos\n' +
+    '  • Partidos de grupo (fixture)\n' +
+    '  • Plan de copas (esquemas)\n\n' +
+    'Todos los partidos vuelven a estado pendiente.\n' +
     '¿Continuar?'
   );
 
@@ -146,77 +158,34 @@ export async function resetearResultados() {
     return;
   }
 
-  logMsg('🧹 Reseteando resultados de partidos...');
-  
-  // Reset de partidos de GRUPOS
-  // NOTA: games_totales_* y sets_* son derivados calculados por trigger,
-  // se resetean automáticamente cuando se limpian los sets
-  const { error: errorGrupos, count: countGrupos } = await supabase
-    .from('partidos')
-    .update({ 
-      set1_a: null,
-      set1_b: null,
-      set2_a: null,
-      set2_b: null,
-      set3_a: null,
-      set3_b: null,
-      set1_temp_a: null,
-      set1_temp_b: null,
-      set2_temp_a: null,
-      set2_temp_b: null,
-      set3_temp_a: null,
-      set3_temp_b: null,
-      estado: 'pendiente',
-      cargado_por_pareja_id: null,
-      notas_revision: null,
-      updated_at: new Date().toISOString()
-    })
-    .eq('torneo_id', TORNEO_ID)
-    .is('copa_id', null)
-    .select('id', { count: 'exact', head: false });
+  const result = await resetResultadosGrupos(supabase, TORNEO_ID, logMsg);
 
-  if (errorGrupos) {
-    console.error(errorGrupos);
-    logMsg('❌ Error reseteando partidos de grupos (ver consola)');
+  if (result.ok) {
+    logMsg('🎯 Resultados limpiados — todos los partidos en pendiente');
+  }
+}
+
+export async function resetearTorneoCompleto() {
+  const confirmacion = confirm(
+    '🔥 RESET COMPLETO DEL TORNEO\n\n' +
+    'Se va a borrar TODO:\n' +
+    '  • Parejas y grupos\n' +
+    '  • Partidos (grupo y copa)\n' +
+    '  • Copas, propuestas y plan (esquemas)\n' +
+    '  • Sorteos y posiciones manuales\n\n' +
+    'El torneo queda vacio, listo para importar parejas.\n' +
+    '¿Continuar?'
+  );
+
+  if (!confirmacion) {
+    logMsg('❌ Operación cancelada');
     return;
   }
 
-  logMsg(`✅ Partidos de grupos reseteados: ${countGrupos || 0}`);
+  const result = await resetParejas(supabase, TORNEO_ID, logMsg);
 
-  // Limpiar posiciones manuales (opcional pero recomendado)
-  const { error: errorPos, count: countPos } = await supabase
-    .from('posiciones_manual')
-    .delete()
-    .eq('torneo_id', TORNEO_ID)
-    .select('id', { count: 'exact', head: false });
-
-  if (errorPos) {
-    console.error(errorPos);
-    logMsg('⚠️ Error limpiando posiciones manuales (ver consola)');
-  } else {
-    logMsg(`✅ Posiciones manuales limpiadas: ${countPos || 0}`);
-  }
-
-  // Limpiar sorteos
-  const { error: errorSorteos } = await supabase
-    .from('sorteos')
-    .delete()
-    .eq('torneo_id', TORNEO_ID);
-
-  if (errorSorteos) {
-    console.error(errorSorteos);
-    logMsg('⚠️ Error limpiando sorteos (ver consola)');
-  } else {
-    logMsg('✅ Sorteos limpiados');
-  }
-
-  logMsg('');
-  logMsg('🎯 Resultados de grupos limpiados');
-  logMsg('💡 Todos los partidos de grupo están en estado pendiente');
-  
-  // Refrescar vistas si existen
-  if (window.refreshPartidos) {
-    setTimeout(() => window.refreshPartidos(), 500);
+  if (result.ok) {
+    logMsg('🎯 Torneo reseteado — importa parejas para volver a configurar');
   }
 }
 

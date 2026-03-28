@@ -2,6 +2,7 @@ import { supabase, TORNEO_ID, logMsg } from '../context.js';
 import { state } from '../state.js';
 import { calcularTablaGrupo, ordenarAutomatico, ordenarConOverrides, detectarEmpatesReales, detectarH2H } from './compute.js';
 import { enriquecerConPosiciones } from '../../utils/tablaPosiciones.js';
+import { resetPartidosGrupos as _resetPartidosGrupos } from '../../utils/resetTorneo.js';
 
 /**
  * Circle Method (Berger Tables) para generar pairings óptimos de round-robin
@@ -40,39 +41,15 @@ function circleMethod(equipos) {
 }
 
 export async function resetPartidosGrupos() {
-  logMsg('🧹 Eliminando partidos de grupos…');
-
-  const { error } = await supabase
-    .from('partidos')
-    .delete()
-    .eq('torneo_id', TORNEO_ID)
-    .is('copa_id', null);
-
-  if (error) {
-    console.error(error);
-    logMsg('❌ Error eliminando partidos de grupos');
-    return false;
-  }
-
-  logMsg('🧹 Partidos de grupos eliminados');
-  return true;
+  const result = await _resetPartidosGrupos(supabase, TORNEO_ID, logMsg);
+  return result.ok;
 }
 
 export async function generarPartidosGrupos() {
-  // Primero eliminar partidos existentes
-  logMsg('🧹 Eliminando partidos de grupos existentes…');
-  const { error: delError } = await supabase
-    .from('partidos')
-    .delete()
-    .eq('torneo_id', TORNEO_ID)
-    .is('copa_id', null);
+  // Primero: reset pirámide (borra resultados copa + copas + resultados grupo + partidos grupo)
+  const resetOk = await resetPartidosGrupos();
+  if (!resetOk) return false;
 
-  if (delError) {
-    console.error(delError);
-    logMsg('❌ Error eliminando partidos existentes');
-    return false;
-  }
-  
   logMsg('🎾 Generando partidos de grupos…');
 
   const { data: grupos, error: errGrupos } = await supabase

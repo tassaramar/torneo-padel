@@ -41,8 +41,11 @@
 
       <div id="grupos-admin" style="margin-top:12px;"></div>
 
-      <div class="admin-actions" style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
-        <button id="reset-resultados" type="button" class="btn-danger">🧹 Limpiar resultados de grupos</button>
+      <div style="margin-top:24px; max-width:400px;">
+        <button id="reset-resultados" type="button" style="width:100%; text-align:left; padding:10px 14px; border:1px solid var(--border); border-radius:8px; background:var(--card); cursor:pointer;">
+          <div style="font-weight:600; font-size:14px;">🧹 Limpiar resultados</div>
+          <div style="font-size:12px; color:var(--muted);">Pone todos los partidos en pendiente. Borra copas y sorteos.</div>
+        </button>
       </div>
     </div>
 
@@ -138,9 +141,11 @@ Andy - Ger	d"></textarea>
         </div>
       </div>
 
-      <div class="admin-actions" style="margin-top:20px; padding-top:16px; border-top:1px solid var(--border);">
-        <button id="gen-grupos" type="button" class="btn-danger">
-          🔥 Regenerar torneo
+      <h2 style="margin-top:24px;">Reset del torneo</h2>
+      <div style="max-width:400px;">
+        <button id="reset-torneo" type="button" style="width:100%; text-align:left; padding:10px 14px; border:1px solid var(--danger); border-radius:8px; background:#fff7f7; cursor:pointer;">
+          <div style="font-weight:600; font-size:14px;">🔥 Reset completo del torneo</div>
+          <div style="font-size:12px; color:var(--muted);">Borra TODO y deja el torneo vacio, listo para importar parejas.</div>
         </button>
       </div>
     </div>

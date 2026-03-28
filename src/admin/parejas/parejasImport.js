@@ -1,5 +1,6 @@
 import { supabase, TORNEO_ID, logMsg, el } from '../context.js';
 import { generarPartidosGrupos } from '../groups/service.js';
+import { resetParejas } from '../../utils/resetTorneo.js';
 
 function normGroup(raw) {
   let g = String(raw ?? '').trim();
@@ -216,29 +217,8 @@ function renderEstadoActual(outEl, estado) {
 }
 
 async function borrarTodoTorneo() {
-  // orden importante por FKs
-  const steps = [
-    { table: 'partidos', msg: '🧹 Eliminando partidos…' },
-    { table: 'copas', msg: '🧹 Eliminando copas…' },
-    { table: 'esquemas_copa', msg: '🧹 Eliminando esquemas de copa…' }, // CASCADE borra propuestas_copa
-    { table: 'sorteos', msg: '🧹 Eliminando sorteos…' },
-    { table: 'posiciones_manual', msg: '🧹 Eliminando overrides…' },
-    { table: 'parejas', msg: '🧹 Eliminando parejas…' },
-    { table: 'grupos', msg: '🧹 Eliminando grupos…' }
-  ];
-
-  for (const s of steps) {
-    logMsg(s.msg);
-    const { error } = await supabase.from(s.table).delete().eq('torneo_id', TORNEO_ID);
-    if (error) {
-      console.error(error);
-      logMsg(`❌ Error eliminando ${s.table} (ver consola)`);
-      return false;
-    }
-  }
-
-  logMsg('✅ Limpieza completa');
-  return true;
+  const result = await resetParejas(supabase, TORNEO_ID, logMsg);
+  return result.ok;
 }
 
 async function crearGruposYparejas(parsed) {

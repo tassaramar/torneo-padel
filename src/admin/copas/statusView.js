@@ -5,7 +5,8 @@
  */
 
 import { supabase, TORNEO_ID, logMsg } from '../context.js';
-import { resetCopas, crearPartidosCopa } from './planService.js';
+import { crearPartidosCopa } from './planService.js';
+import { resetResultadosCopa, resetCopas } from '../../utils/resetTorneo.js';
 import {
   armarPoolParaCopa,
   seedingMejorPeor,
@@ -669,11 +670,11 @@ function _handleResetClick(container, btn, onRefresh) {
       <div style="display:flex;flex-direction:column;gap:10px;">
         <button id="dlg-solo-resultados" style="text-align:left;padding:12px 14px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;cursor:pointer;">
           <div style="font-weight:600;font-size:14px;">Solo resultados</div>
-          <div style="font-size:12px;color:#6b7280;margin-top:3px;">Limpia scores de partidos de copa. Mantiene partidos y plan.</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:3px;">Limpia scores de partidos de copa. Mantiene brackets y plan.</div>
         </button>
         <button id="dlg-todo-copas" style="text-align:left;padding:12px 14px;border:1px solid #fca5a5;border-radius:8px;background:#fff7f7;cursor:pointer;">
-          <div style="font-weight:600;font-size:14px;color:#dc2626;">Todo (partidos + plan)</div>
-          <div style="font-size:12px;color:#6b7280;margin-top:3px;">Borra partidos de copa, copas y esquemas. Vuelve al paso "Definir plan".</div>
+          <div style="font-weight:600;font-size:14px;color:#dc2626;">Todo copas</div>
+          <div style="font-size:12px;color:#6b7280;margin-top:3px;">Borra partidos, copas, propuestas y sorteos inter-grupo. Mantiene el plan (esquemas).</div>
         </button>
         <button id="dlg-cancelar" style="padding:10px;border:1px solid #e5e7eb;border-radius:8px;background:transparent;cursor:pointer;font-size:14px;">Cancelar</button>
       </div>
@@ -690,33 +691,8 @@ function _handleResetClick(container, btn, onRefresh) {
     btn.disabled    = true;
     btn.textContent = '⏳ Limpiando…';
 
-    const copaIds = await _getCopaIds();
-    if (!copaIds.length) {
-      logMsg('⚠️ No hay copas para limpiar');
-      btn.disabled    = false;
-      btn.textContent = '🗑 Reset copas';
-      return;
-    }
-
-    const { error } = await supabase
-      .from('partidos')
-      .update({
-        set1_a: null, set1_b: null,
-        set2_a: null, set2_b: null,
-        set3_a: null, set3_b: null,
-        set1_temp_a: null, set1_temp_b: null,
-        set2_temp_a: null, set2_temp_b: null,
-        set3_temp_a: null, set3_temp_b: null,
-        estado: 'pendiente',
-        cargado_por_pareja_id: null,
-        notas_revision: null,
-      })
-      .in('copa_id', copaIds);
-
-    if (error) {
-      logMsg(`❌ Error limpiando resultados: ${error.message}`);
-    } else {
-      logMsg('✅ Resultados de copas limpiados — partidos y plan conservados');
+    const result = await resetResultadosCopa(supabase, TORNEO_ID, logMsg);
+    if (result.ok) {
       onRefresh?.();
     }
     btn.disabled    = false;
@@ -728,22 +704,14 @@ function _handleResetClick(container, btn, onRefresh) {
     btn.disabled    = true;
     btn.textContent = '⏳ Reseteando…';
 
-    const result = await resetCopas(supabase, TORNEO_ID);
+    const result = await resetCopas(supabase, TORNEO_ID, logMsg);
     if (result.ok) {
-      // Limpiar sorteos inter-grupo (intra-grupo son independientes del sistema de copas)
-      await supabase.from('sorteos').delete()
-        .eq('torneo_id', TORNEO_ID)
-        .eq('tipo', 'inter_grupo');
-
       Object.keys(_crucesCalculados).forEach(k => delete _crucesCalculados[k]);
       Object.keys(_crucesEditados).forEach(k => delete _crucesEditados[k]);
-      logMsg(`✅ Reset listo — ${result.partidos_borrados} partidos y ${result.copas_borradas} copas borradas (sorteos limpiados)`);
       onRefresh?.();
-    } else {
-      logMsg(`❌ Error en reset: ${result.msg}`);
-      btn.disabled    = false;
-      btn.textContent = '🗑 Reset copas';
     }
+    btn.disabled    = false;
+    btn.textContent = '🗑 Reset copas';
   });
 }
 
